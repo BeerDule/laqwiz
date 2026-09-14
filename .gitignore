@@ -28,3 +28,6 @@ Thumbs.db
 result
 result-*
 .direnv/
+
+# Matière première graphique — les sprites découpés sont dans public/paper-ui/
+iimport/

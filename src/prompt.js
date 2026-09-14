@@ -27,7 +27,7 @@ export function buildSystemPrompt({
   const difficultyRule = DIFFICULTY_RULES[difficulty] || DIFFICULTY_RULES.balanced;
   const audienceRule = AUDIENCE_RULES[audience] || AUDIENCE_RULES.general;
 
-  return `Tu es un générateur de quiz pour un jeu familial multijoueur appelé "Quizz Canapé".
+  return `Tu es un générateur de quiz pour un jeu familial multijoueur appelé "Canap' QuiZZ".
 Tu dois produire UNIQUEMENT du JSON valide conforme au schéma fourni.
 
 RÈGLES ABSOLUES (NON NÉGOCIABLES) :
