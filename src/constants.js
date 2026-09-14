@@ -46,12 +46,28 @@ export const DEFAULTS = {
   targetScore: 15,
   twoPointLead: false,
   bonusEnabled: false,
+  difficulty: 'balanced', // 'balanced' | 'easy' | 'medium' | 'hard'
+  audience: 'general',    // 'kids' | 'general' | 'nsfw'
   model: '',
   baseUrl: '',
   apiKey: '',
   temperature: 0.9,
   batchSize: BATCH_SIZE,
 };
+
+// Choix proposés sur l'écran de création de partie (SPEC setup).
+export const DIFFICULTY_CHOICES = [
+  { value: 'balanced', label: 'Équilibré' },
+  { value: 'easy', label: 'Facile' },
+  { value: 'medium', label: 'Moyen' },
+  { value: 'hard', label: 'Difficile' },
+];
+
+export const AUDIENCE_CHOICES = [
+  { value: 'kids', label: 'Kid friendly' },
+  { value: 'general', label: 'Tout public' },
+  { value: 'nsfw', label: 'Adulte (NSFW)' },
+];
 
 // Schéma JSON inliné dans le prompt système (voir SPEC §7.7).
 export const QUESTION_SCHEMA_JSON = JSON.stringify({

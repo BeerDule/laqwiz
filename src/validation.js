@@ -3,13 +3,22 @@
 const OPTION_KEYS = ['A', 'B', 'C', 'D'];
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
-// Liste noire minimale, extensible (filtre humour grossier).
-const FORBIDDEN = [
+// Termes bannis quel que soit le public (haine, discrimination, pédocriminalité).
+const ALWAYS_FORBIDDEN = [
   /\b(nazi|hitler|fascisme)\b/i,
-  /\b(pute|bitte|cul|foutre|ntm)\b/i,
   /\b(raciste|racisme)\b/i,
   /\b(pédo|pedo)\b/i,
 ];
+
+// Termes grossiers : bloqués pour les publics "kids" et "general",
+// autorisés uniquement en mode "nsfw".
+const VULGAR = [
+  /\b(pute|bitte|cul|foutre|ntm)\b/i,
+];
+
+function forbiddenPatterns(audience) {
+  return audience === 'nsfw' ? ALWAYS_FORBIDDEN : [...ALWAYS_FORBIDDEN, ...VULGAR];
+}
 
 function fisherYatesShallow(arr, rng) {
   const a = arr.slice();
@@ -39,6 +48,8 @@ export function normalizeQuestionText(s) {
  * Retourne { ok: boolean, errors: string[], normalized?: Question }.
  * Si ok === true, `normalized` contient la question avec options
  * potentiellement réordonnées (mélange) pour répartir la position de `answer`.
+ * opts.rng : générateur aléatoire injectable (tests).
+ * opts.audience : 'kids' | 'general' | 'nsfw' — détermine le filtre de vocabulaire.
  */
 export function validateQuestion(q, idx = 0, opts = {}) {
   const errors = [];
@@ -126,7 +137,7 @@ export function validateQuestion(q, idx = 0, opts = {}) {
   // 6. Filtre humour grossier
   const funnyText = (q.options.find(o => o && o.key === q.funnyOption)?.text) || '';
   const toCheck = `${q.question || ''} ${(q.options || []).map(o => (o && o.text) || '').join(' ')} ${funnyText}`;
-  if (FORBIDDEN.some(re => re.test(toCheck))) {
+  if (forbiddenPatterns(opts.audience).some(re => re.test(toCheck))) {
     errors.push('humour offensant détecté');
   }
 
@@ -160,9 +171,10 @@ export function validateQuestion(q, idx = 0, opts = {}) {
 
 /**
  * rawJson : ce qu'on a extrait de la réponse LLM (string ou objet).
+ * opts.audience : 'kids' | 'general' | 'nsfw' (filtre de vocabulaire).
  * Retourne { questions: Question[], errors: string[] }.
  */
-export function parseQuestions(rawJson) {
+export function parseQuestions(rawJson, opts = {}) {
   let parsed;
   if (typeof rawJson === 'string') {
     try {
@@ -187,7 +199,7 @@ export function parseQuestions(rawJson) {
   const out = [];
   const errors = [];
   arr.forEach((q, i) => {
-    const r = validateQuestion(q, i);
+    const r = validateQuestion(q, i, opts);
     if (r.ok) out.push(r.normalized);
     else errors.push(`q[${i}]: ${r.errors.join(', ')}`);
   });

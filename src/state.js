@@ -22,6 +22,8 @@ const INITIAL_STATE = Object.freeze({
     targetScore: DEFAULTS.targetScore,
     twoPointLead: DEFAULTS.twoPointLead,
     bonusEnabled: DEFAULTS.bonusEnabled,
+    difficulty: DEFAULTS.difficulty,
+    audience: DEFAULTS.audience,
     model: DEFAULTS.model,
     baseUrl: DEFAULTS.baseUrl,
     apiKey: DEFAULTS.apiKey,

@@ -1,5 +1,5 @@
 // storage.js — wrappers localStorage typés avec parse défensif.
-import { STORAGE_KEYS } from './constants.js';
+import { STORAGE_KEYS, DIFFICULTY_CHOICES, AUDIENCE_CHOICES } from './constants.js';
 
 export function readJson(key, fallback) {
   try {
@@ -58,6 +58,12 @@ export function loadSettings() {
   }
   out.twoPointLead = !!raw.twoPointLead;
   out.bonusEnabled = !!raw.bonusEnabled;
+  if (DIFFICULTY_CHOICES.some(c => c.value === raw.difficulty)) {
+    out.difficulty = raw.difficulty;
+  }
+  if (AUDIENCE_CHOICES.some(c => c.value === raw.audience)) {
+    out.audience = raw.audience;
+  }
   // Config LLM personnelle (BYOK) : lue depuis localStorage.
   if (typeof raw.model === 'string' && raw.model.trim()) {
     out.model = raw.model.slice(0, 120);
@@ -77,6 +83,8 @@ export function saveSettings(settings) {
     targetScore: settings.targetScore,
     twoPointLead: settings.twoPointLead,
     bonusEnabled: settings.bonusEnabled,
+    difficulty: settings.difficulty,
+    audience: settings.audience,
     model: settings.model,
     baseUrl: settings.baseUrl,
     apiKey: settings.apiKey,

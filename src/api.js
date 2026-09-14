@@ -104,10 +104,15 @@ const RATE_LIMIT_DELAYS = [2000, 4000, 8000];
  */
 export async function fetchQuestionBatch({ theme, batchSize, exclude = [] }) {
   const settings = getState().settings;
+  const difficulty = settings.difficulty || 'balanced';
+  const audience = settings.audience || 'general';
   const systemPrompt = buildSystemPrompt({
     theme, batchSize, history: exclude, schemaJSON: QUESTION_SCHEMA_JSON,
+    difficulty, audience,
   });
-  const userPrompt = buildUserPrompt({ theme, batchSize, history: exclude });
+  const userPrompt = buildUserPrompt({
+    theme, batchSize, history: exclude, difficulty, audience,
+  });
 
   const body = {
     model: settings.model,
@@ -220,7 +225,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [] }) {
     }
 
     // --- Validation contrat ---
-    const parsed = parseQuestions(extracted.json);
+    const parsed = parseQuestions(extracted.json, { audience });
     if (!parsed.questions.length) {
       if (++jsonTries >= MAX_JSON_TRIES) {
         throw new ApiError('INVALID_JSON',

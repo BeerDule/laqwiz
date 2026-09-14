@@ -5,8 +5,13 @@ import {
   MIN_PLAYERS, MAX_PLAYERS, NAME_MAX_LENGTH,
   THEME_MIN_LENGTH, THEME_MAX_LENGTH,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
+  DIFFICULTY_CHOICES, AUDIENCE_CHOICES,
 } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+
+// En production (build statique déployé), le mode BYOK est obligatoire :
+// chaque joueur doit renseigner sa propre configuration LLM.
+const REQUIRE_LLM_CONFIG = import.meta.env.PROD;
 
 let teardown = null;
 let root = null;
@@ -100,6 +105,17 @@ function validateForm() {
   if (!getState().ui.isOnline) {
     return { ok: false, msg: 'Connexion requise pour générer les questions.' };
   }
+  if (REQUIRE_LLM_CONFIG) {
+    const baseUrl = root.querySelector('#llm-base-url').value.trim();
+    const apiKey = root.querySelector('#llm-api-key').value.trim();
+    const model = root.querySelector('#llm-model').value.trim();
+    if (!baseUrl || !apiKey || !model) {
+      return {
+        ok: false,
+        msg: 'Renseignez votre configuration LLM (URL, clé API et modèle) pour lancer une partie.',
+      };
+    }
+  }
   return { ok: true };
 }
 
@@ -192,6 +208,14 @@ function renderSettings() {
   root.querySelector('#target-score-output').textContent = s.targetScore;
   root.querySelector('#two-point-lead').checked = s.twoPointLead;
   root.querySelector('#bonus-enabled').checked = s.bonusEnabled;
+  const difficultyInput = root.querySelector(
+    `input[name="difficulty"][value="${s.difficulty || 'balanced'}"]`
+  );
+  if (difficultyInput) difficultyInput.checked = true;
+  const audienceInput = root.querySelector(
+    `input[name="audience"][value="${s.audience || 'general'}"]`
+  );
+  if (audienceInput) audienceInput.checked = true;
   root.querySelector('#llm-base-url').value = s.baseUrl || '';
   root.querySelector('#llm-api-key').value = s.apiKey || '';
   root.querySelector('#llm-model').value = s.model || '';
@@ -307,6 +331,8 @@ function wireEvents(signal) {
         targetScore,
         twoPointLead: root.querySelector('#two-point-lead').checked,
         bonusEnabled: root.querySelector('#bonus-enabled').checked,
+        difficulty: root.querySelector('input[name="difficulty"]:checked')?.value || 'balanced',
+        audience: root.querySelector('input[name="audience"]:checked')?.value || 'general',
         baseUrl: root.querySelector('#llm-base-url').value.trim(),
         apiKey: root.querySelector('#llm-api-key').value.trim(),
         model: root.querySelector('#llm-model').value.trim(),
@@ -353,14 +379,38 @@ export function renderSetup(rootEl) {
         </fieldset>
         <fieldset class="panel settings-panel">
           <legend>Règles</legend>
+          <div class="rule-group">
+            <span class="rule-group__label" id="difficulty-label">Difficulté</span>
+            <div class="choice-group" role="radiogroup" aria-labelledby="difficulty-label">
+              ${DIFFICULTY_CHOICES.map(c => `
+                <label class="choice-chip">
+                  <input type="radio" name="difficulty" value="${c.value}" />
+                  <span>${escapeHtml(c.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <div class="rule-group">
+            <span class="rule-group__label" id="audience-label">Public</span>
+            <div class="choice-group" role="radiogroup" aria-labelledby="audience-label">
+              ${AUDIENCE_CHOICES.map(c => `
+                <label class="choice-chip">
+                  <input type="radio" name="audience" value="${c.value}" />
+                  <span>${escapeHtml(c.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
           <label for="target-score">Score cible : <output id="target-score-output">15</output></label>
           <input id="target-score" type="range" min="${TARGET_SCORE_MIN}" max="${TARGET_SCORE_MAX}" step="1" value="15" />
           <label class="toggle-row"><input id="two-point-lead" type="checkbox" /> <span class="toggle-track"></span> Il faut 2 points d'écart pour gagner</label>
           <label class="toggle-row"><input id="bonus-enabled" type="checkbox" /> <span class="toggle-track"></span> Activer les questions bonus ×2</label>
         </fieldset>
-        <details class="panel llm-panel" id="llm-config">
-          <summary>Modèle LLM <span class="llm-hint">— optionnel, utilisez vos propres identifiants</span></summary>
-          <p class="llm-note">Laissez vide pour utiliser la configuration du serveur. La clé API est stockée dans ce navigateur (localStorage).</p>
+        <details class="panel llm-panel" id="llm-config" ${REQUIRE_LLM_CONFIG ? 'open' : ''}>
+          <summary>Modèle LLM <span class="llm-hint">${REQUIRE_LLM_CONFIG ? '— obligatoire' : '— optionnel, utilisez vos propres identifiants'}</span></summary>
+          <p class="llm-note">${REQUIRE_LLM_CONFIG
+            ? 'En production, renseignez votre provider : URL, clé API et modèle sont requis. La clé API est stockée dans ce navigateur (localStorage).'
+            : 'Laissez vide pour utiliser la configuration du serveur. La clé API est stockée dans ce navigateur (localStorage).'}</p>
           <label class="field-label" for="llm-base-url">URL du provider</label>
           <input id="llm-base-url" type="text" autocomplete="off" spellcheck="false" placeholder="https://api.openai.com/v1" />
           <label class="field-label" for="llm-api-key">Clé API</label>
