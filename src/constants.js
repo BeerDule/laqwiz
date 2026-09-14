@@ -153,6 +153,7 @@ export const COLOR_THEMES = {
   apple:   { label: 'Apple' },
   'apple-glass': { label: 'Apple Glass' },
   'bubble-island': { label: 'Bubble Island' },
+  paper:   { label: 'Paper Quest' },
 };
 export const DEFAULT_COLOR_THEME = 'default';
 

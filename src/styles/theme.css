@@ -644,3 +644,131 @@ h1, h2 { text-shadow: var(--text-glow); }
   vertical-align: -2px;
   background: center / contain no-repeat url('/bubble-island/coin.png');
 }
+
+/* Paper Quest — parchemin et plaques peintes, découpés du kit public/paper-ui/.
+   Palette échantillonnée sur les sprites : parchemin #f8c8a8 cerné de #560e12,
+   papier #f8f8e8, bandeaux orange/olive/rouge/bleu. */
+[data-color-theme="paper"] {
+  color-scheme: light;
+  --bg-void: #e9d5b2;
+  --bg-surface: #fdf8ea;
+  --bg-surface-raised: #fffdf3;
+  --bg-surface-soft: #f0e2c4;
+  --color-accent-primary: #1f6f9e;
+  --color-accent-cyan: #16607f;
+  --color-accent-pink: #a8283c;
+  --color-accent-lime: #5e6a0c;
+  --color-success: #4f6b0e;
+  --color-error: #a8202c;
+  --color-warning: #8a5600;
+  --color-text: #4a1f14;
+  --color-muted: #6d4534;
+  --color-border: #560e12;
+  --color-overlay: rgba(52, 20, 12, .62);
+
+  --gradient-bg: linear-gradient(170deg, #f6e8ce 0%, #e9d5b2 55%, #ddc49c 100%);
+  --texture: radial-gradient(120% 80% at 50% 0%, rgba(255, 252, 240, .9) 0%, rgba(240, 222, 190, 0) 60%);
+  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0));
+  --gradient-accent: none;
+  --accent-contrast: #fff7e2;
+  --on-success: #fff7e2;
+  --on-pink: #fff7e2;
+  --shadow-card: 0 3px 0 rgba(86, 14, 18, .22);
+  --shadow-pop: 0 4px 0 rgba(86, 14, 18, .3);
+  --glow-accent: none;
+  --text-glow: none;
+  --font-display: var(--font-sans);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+[data-color-theme="paper"] ::selection { background: #e69912; color: #4a1f14; }
+
+/* Tout est cerné d'un trait sombre, comme les sprites du kit */
+[data-color-theme="paper"] .panel,
+[data-color-theme="paper"] .question-card,
+[data-color-theme="paper"] .option-card,
+[data-color-theme="paper"] .answer-card,
+[data-color-theme="paper"] .podium__row,
+[data-color-theme="paper"] .player-card,
+[data-color-theme="paper"] .leaderboard-mini__item {
+  border: 2px solid var(--color-border);
+}
+
+/* Boutons : parchemin cerné, PAS les plaques peintes du kit.
+   Les plaques sont en luminance moyenne : à 13px, aucune encre n'y atteint
+   4,5:1 (crème 1,9-2,4:1, encre sombre 3,2-4,3:1). Elles restent réservées aux
+   grands boutons de menu, où le seuil « grand texte » (3:1) s'applique.
+   Ici on garde la couleur sur le liseré, et le texte sur du parchemin. */
+[data-color-theme="paper"] .button {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  box-shadow: 0 2px 0 rgba(86, 14, 18, .25);
+  color: var(--color-text);
+  font-weight: 700;
+  min-height: 32px;
+}
+[data-color-theme="paper"] .button:hover:not(:disabled) { background: var(--bg-surface-soft); }
+[data-color-theme="paper"] .button:active:not(:disabled) {
+  background: var(--bg-surface-soft);
+  transform: translateY(2px);
+  box-shadow: none;
+}
+[data-color-theme="paper"] .button:disabled { opacity: .5; box-shadow: none; }
+
+/* Orange sur encre sombre : 4,79:1, la seule teinte du kit qui passe AA en petit */
+[data-color-theme="paper"] .button--primary {
+  background: #f8a818;
+  color: #3a1408;
+}
+[data-color-theme="paper"] .button--danger { color: var(--color-error); }
+[data-color-theme="paper"] .button--ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Étoile dorée du kit sur la question bonus, pièce sur les scores */
+[data-color-theme="paper"] .badge--bonus::before {
+  content: '';
+  width: 15px;
+  height: 16px;
+  margin-right: 4px;
+  background: center / contain no-repeat url('/paper-ui/star-gold.png');
+}
+[data-color-theme="paper"] .answer-card__score::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  background: center / contain no-repeat url('/paper-ui/coin.png');
+}
+
+/* Podium : trophée et étoiles du kit à la place des émojis de rang */
+[data-color-theme="paper"] .podium__rank {
+  color: transparent;
+  background: center / contain no-repeat;
+  min-width: 26px;
+  min-height: 28px;
+}
+[data-color-theme="paper"] .podium__row:nth-child(1) .podium__rank { background-image: url('/paper-ui/trophy.png'); }
+[data-color-theme="paper"] .podium__row:nth-child(2) .podium__rank { background-image: url('/paper-ui/star-silver.png'); }
+[data-color-theme="paper"] .podium__row:nth-child(3) .podium__rank { background-image: url('/paper-ui/star-gold.png'); }
+
+/* Pastilles de manches gagnées : étoile pleine / étoile terne */
+[data-color-theme="paper"] .manche-pip {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 0;
+  background: center / contain no-repeat url('/paper-ui/star-silver.png');
+  opacity: .55;
+}
+[data-color-theme="paper"] .manche-pip--won {
+  background-image: url('/paper-ui/star-gold.png');
+  opacity: 1;
+}
