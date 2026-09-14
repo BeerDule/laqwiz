@@ -94,6 +94,18 @@ export const QUESTION_SCHEMA_JSON = JSON.stringify({
   required: ['questions'],
 }, null, 2);
 
+export const COLOR_THEMES = {
+  default: { label: 'VS Code' },
+  matrix:  { label: 'Matrix' },
+  girly:   { label: 'Girly' },
+  win98:   { label: 'Windows 98' },
+  jungle:  { label: 'Jungle' },
+  kids:    { label: 'Kids Friendly' },
+  apple:   { label: 'Apple' },
+  'apple-glass': { label: 'Apple Glass' },
+};
+export const DEFAULT_COLOR_THEME = 'default';
+
 export const DIFFICULTY_LABELS = {
   easy: 'Facile',
   medium: 'Moyen',

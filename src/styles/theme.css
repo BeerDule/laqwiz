@@ -40,6 +40,19 @@
   --space-10: 36px;
   --space-12: 48px;
   --content-max: none;
+
+  /* Theme polish — defaults preserve the flat VS Code look */
+  --gradient-bg: none;
+  --gradient-surface: none;
+  --gradient-accent: none;
+  --accent-contrast: #ffffff;
+  --on-success: #113328;
+  --on-pink: #2d1b2b;
+  --shadow-pop: none;
+  --glow-accent: none;
+  --text-glow: none;
+  --texture: none;
+  --font-display: var(--font-sans);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -47,7 +60,9 @@ html { min-width: 320px; background: var(--bg-void); }
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--bg-void);
+  background-color: var(--bg-void);
+  background-image: var(--texture), var(--gradient-bg);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -68,6 +83,10 @@ h1 { font-size: 1.5rem; letter-spacing: -.01em; }
 h2 { font-size: 1.2rem; }
 h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--color-muted); }
 
+/* Theme display font + glow on primary headings */
+h1, h2, .app-name strong { font-family: var(--font-display); }
+h1, h2 { text-shadow: var(--text-glow); }
+
 /* ===== Mobile-friendly ===== */
 @media (max-width: 767px) {
   body {
@@ -84,4 +103,303 @@ h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color:
 ::-webkit-scrollbar-corner { background: transparent; }
 @-moz-document url-prefix() {
   * { scrollbar-color: rgba(121, 121, 121, .4) transparent; scrollbar-width: thin; }
+}
+
+/* ===== Color themes (data-color-theme) ===== */
+
+/* Matrix — green-on-black terminal */
+[data-color-theme="matrix"] {
+  color-scheme: dark;
+  --bg-void: #020604;
+  --bg-surface: #061a09;
+  --bg-surface-raised: #0a240d;
+  --bg-surface-soft: #123c18;
+  --color-accent-primary: #00ff41;
+  --color-accent-cyan: #00e05a;
+  --color-accent-pink: #00cc66;
+  --color-accent-lime: #00ff41;
+  --color-success: #00ff41;
+  --color-error: #ff3b3b;
+  --color-warning: #ffe14d;
+  --color-text: #d8ffe0;
+  --color-muted: #3aa150;
+  --color-border: #124d1d;
+  --color-overlay: rgba(0, 0, 0, .85);
+
+  --gradient-bg: radial-gradient(120% 90% at 50% 0%, #0a2a0e 0%, #051108 55%, #010502 100%);
+  --gradient-surface: linear-gradient(180deg, #0a240d, #061a09);
+  --gradient-accent: linear-gradient(180deg, #00ff41, #00c235);
+  --accent-contrast: #00160a;
+  --on-success: #00160a;
+  --on-pink: #00160a;
+  --shadow-pop: 0 0 14px rgba(0, 255, 65, .4);
+  --glow-accent: 0 0 10px rgba(0, 255, 65, .55);
+  --text-glow: 0 0 8px rgba(0, 255, 65, .35);
+  --texture: repeating-linear-gradient(0deg, rgba(0, 255, 65, .045) 0 1px, transparent 1px 3px);
+  --font-display: var(--font-mono);
+}
+[data-color-theme="matrix"] ::selection { background: #004d10; color: #00ff41; }
+
+/* Girly — pink / purple dreamy */
+[data-color-theme="girly"] {
+  color-scheme: dark;
+  --bg-void: #170a18;
+  --bg-surface: #2a1630;
+  --bg-surface-raised: #37203d;
+  --bg-surface-soft: #4a2e52;
+  --color-accent-primary: #ff6fb5;
+  --color-accent-cyan: #d18cff;
+  --color-accent-pink: #ff4fa0;
+  --color-accent-lime: #ffc1e0;
+  --color-success: #7ce38b;
+  --color-error: #ff7b7b;
+  --color-warning: #ffd166;
+  --color-text: #ffe9f6;
+  --color-muted: #cf9fc9;
+  --color-border: #55304e;
+  --color-overlay: rgba(20, 4, 24, .82);
+
+  --gradient-bg: linear-gradient(160deg, #2a1033 0%, #1a0f24 55%, #241029 100%);
+  --gradient-surface: linear-gradient(160deg, #37203d, #2a1630);
+  --gradient-accent: linear-gradient(135deg, #ff8ac4, #d06bff);
+  --accent-contrast: #3a0a2a;
+  --on-success: #0c2a12;
+  --on-pink: #3a0a2a;
+  --shadow-pop: 0 6px 18px rgba(255, 105, 180, .35);
+  --glow-accent: 0 0 12px rgba(255, 111, 181, .45);
+  --text-glow: 0 0 10px rgba(255, 143, 200, .3);
+  --texture: none;
+  --font-display: var(--font-sans);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+[data-color-theme="girly"] ::selection { background: #802060; color: #fff; }
+
+/* Windows 98 — retro light with bevels */
+[data-color-theme="win98"] {
+  color-scheme: light;
+  --bg-void: #c0c0c0;
+  --bg-surface: #c0c0c0;
+  --bg-surface-raised: #d4d0c8;
+  --bg-surface-soft: #e8e8e8;
+  --color-accent-primary: #000080;
+  --color-accent-cyan: #0000ff;
+  --color-accent-pink: #800080;
+  --color-accent-lime: #008000;
+  --color-success: #008000;
+  --color-error: #ff0000;
+  --color-warning: #808000;
+  --color-text: #000000;
+  --color-muted: #404040;
+  --color-border: #808080;
+  --color-overlay: rgba(0, 0, 0, .35);
+
+  --gradient-bg: none;
+  --gradient-surface: none;
+  --gradient-accent: linear-gradient(180deg, #1010a8, #000080);
+  --accent-contrast: #ffffff;
+  --on-success: #ffffff;
+  --on-pink: #ffffff;
+  --shadow-card: inset -1px -1px 0 #808080, inset 1px 1px 0 #ffffff;
+  --shadow-pop: inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #ffffff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;
+  --glow-accent: none;
+  --text-glow: none;
+  --texture: none;
+  --font-display: var(--font-sans);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}
+[data-color-theme="win98"] ::selection { background: #000080; color: #fff; }
+/* Win98 — the app window is gray; teal desktop peeks on overscroll */
+[data-color-theme="win98"] html { background: #008080; }
+
+/* Win98 — inset fields & key chips are white, like classic controls */
+[data-color-theme="win98"] input[type='text'],
+[data-color-theme="win98"] input[type='search'],
+[data-color-theme="win98"] input[type='password'],
+[data-color-theme="win98"] select,
+[data-color-theme="win98"] .option-card__key,
+[data-color-theme="win98"] .option-card__player-btn,
+[data-color-theme="win98"] .player-card__emoji {
+  background: #ffffff;
+}
+
+/* Jungle — earth / green / brown */
+[data-color-theme="jungle"] {
+  color-scheme: dark;
+  --bg-void: #10140a;
+  --bg-surface: #1c2410;
+  --bg-surface-raised: #273317;
+  --bg-surface-soft: #36481f;
+  --color-accent-primary: #8bc34a;
+  --color-accent-cyan: #6ac28c;
+  --color-accent-pink: #e07b4f;
+  --color-accent-lime: #a8d34a;
+  --color-success: #66bb6a;
+  --color-error: #e5503a;
+  --color-warning: #e6a83e;
+  --color-text: #e8dcc0;
+  --color-muted: #9b8c63;
+  --color-border: #3c4a24;
+  --color-overlay: rgba(8, 10, 2, .82);
+
+  --gradient-bg: linear-gradient(180deg, #1c2410 0%, #10140a 60%, #0a0d05 100%);
+  --gradient-surface: linear-gradient(180deg, #273317, #1c2410);
+  --gradient-accent: linear-gradient(135deg, #a3d45c, #5e9a2f);
+  --accent-contrast: #132005;
+  --on-success: #0c2a12;
+  --on-pink: #3a1206;
+  --shadow-pop: 0 6px 16px rgba(139, 195, 74, .3);
+  --glow-accent: 0 0 10px rgba(139, 195, 74, .4);
+  --text-glow: 0 0 8px rgba(170, 200, 90, .2);
+  --texture: repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 2px, transparent 2px 6px);
+  --font-display: var(--font-sans);
+}
+[data-color-theme="jungle"] ::selection { background: #33691e; color: #e8dcc0; }
+
+/* Kids Friendly — bright deep blue + orange */
+[data-color-theme="kids"] {
+  color-scheme: dark;
+  --bg-void: #101b66;
+  --bg-surface: #1e2f8a;
+  --bg-surface-raised: #2c40b0;
+  --bg-surface-soft: #3f57d4;
+  --color-accent-primary: #ff8f00;
+  --color-accent-cyan: #26d4ec;
+  --color-accent-pink: #ff4f9a;
+  --color-accent-lime: #8bdc4a;
+  --color-success: #46d15e;
+  --color-error: #ff4f4f;
+  --color-warning: #ffe14d;
+  --color-text: #ffffff;
+  --color-muted: #b9c6ff;
+  --color-border: #3d53cc;
+  --color-overlay: rgba(4, 6, 44, .78);
+
+  --gradient-bg: linear-gradient(150deg, #1a237e 0%, #0d3bb5 50%, #1a237e 100%);
+  --gradient-surface: linear-gradient(160deg, #2c40b0, #1e2f8a);
+  --gradient-accent: linear-gradient(135deg, #ffb300, #ff6f00);
+  --accent-contrast: #3a1c00;
+  --on-success: #04350d;
+  --on-pink: #3a0230;
+  --shadow-pop: 0 6px 16px rgba(255, 143, 0, .4);
+  --glow-accent: 0 0 12px rgba(255, 179, 0, .5);
+  --text-glow: none;
+  --texture: none;
+  --font-display: var(--font-sans);
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+}
+[data-color-theme="kids"] ::selection { background: #ff6f00; color: #fff; }
+
+/* Apple — glossy glass / light */
+[data-color-theme="apple"] {
+  color-scheme: light;
+  --bg-void: #f5f5f7;
+  --bg-surface: rgba(255, 255, 255, .8);
+  --bg-surface-raised: rgba(255, 255, 255, .94);
+  --bg-surface-soft: #eceef3;
+  --color-accent-primary: #007aff;
+  --color-accent-cyan: #32ade6;
+  --color-accent-pink: #ff2d55;
+  --color-accent-lime: #34c759;
+  --color-success: #1f9d44;
+  --color-error: #ff3b30;
+  --color-warning: #e08a00;
+  --color-text: #1d1d1f;
+  --color-muted: #6e6e73;
+  --color-border: rgba(60, 60, 67, .2);
+  --color-overlay: rgba(0, 0, 0, .32);
+
+  --gradient-bg: linear-gradient(160deg, #e7ebf4 0%, #f5f5f7 45%, #e5eaf3 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(255, 255, 255, .78));
+  --gradient-accent: linear-gradient(180deg, #55aaff 0%, #007aff 46%, #0060d0 100%);
+  --accent-contrast: #ffffff;
+  --on-success: #ffffff;
+  --on-pink: #ffffff;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, .07);
+  --shadow-pop: 0 8px 24px rgba(0, 122, 255, .28);
+  --glow-accent: 0 0 12px rgba(0, 122, 255, .28);
+  --text-glow: none;
+  --texture: none;
+  --font-display: var(--font-sans);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+[data-color-theme="apple"] ::selection { background: #007aff; color: #fff; }
+
+/* Apple — frosted glass surfaces */
+[data-color-theme="apple"] .panel,
+[data-color-theme="apple"] .question-card,
+[data-color-theme="apple"] .option-card,
+[data-color-theme="apple"] .answer-card,
+[data-color-theme="apple"] .podium__row,
+[data-color-theme="apple"] .player-card,
+[data-color-theme="apple"] .leaderboard-mini__item {
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+}
+
+/* Apple — glossy highlight on primary buttons */
+[data-color-theme="apple"] .button--primary {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), var(--shadow-pop);
+}
+
+/* Apple Glass — frosted glassmorphism over a pastel wallpaper */
+[data-color-theme="apple-glass"] {
+  color-scheme: light;
+  --bg-void: #eef2f8;
+  --bg-surface: rgba(255, 255, 255, .58);
+  --bg-surface-raised: rgba(255, 255, 255, .74);
+  --bg-surface-soft: rgba(255, 255, 255, .88);
+  --color-accent-primary: #007aff;
+  --color-accent-cyan: #32ade6;
+  --color-accent-pink: #ff2d55;
+  --color-accent-lime: #34c759;
+  --color-success: #1f9d44;
+  --color-error: #ff3b30;
+  --color-warning: #e08a00;
+  --color-text: #1d1d1f;
+  --color-muted: #5b5b63;
+  --color-border: rgba(255, 255, 255, .6);
+  --color-overlay: rgba(30, 40, 80, .42);
+
+  --gradient-bg: linear-gradient(140deg, #dbeafe 0%, #e9d5ff 25%, #fbcfe8 50%, #bfdbfe 75%, #d1fae5 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .82), rgba(255, 255, 255, .48));
+  --gradient-accent: linear-gradient(180deg, #55aaff 0%, #007aff 46%, #0060d0 100%);
+  --accent-contrast: #ffffff;
+  --on-success: #ffffff;
+  --on-pink: #ffffff;
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, .75), 0 8px 32px rgba(31, 38, 135, .14);
+  --shadow-pop: 0 12px 32px rgba(0, 122, 255, .32);
+  --glow-accent: 0 0 14px rgba(0, 122, 255, .32);
+  --text-glow: none;
+  --texture: none;
+  --font-display: var(--font-sans);
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+}
+[data-color-theme="apple-glass"] ::selection { background: #007aff; color: #fff; }
+
+/* Apple Glass — frosted surfaces, heavy blur */
+[data-color-theme="apple-glass"] .panel,
+[data-color-theme="apple-glass"] .question-card,
+[data-color-theme="apple-glass"] .option-card,
+[data-color-theme="apple-glass"] .answer-card,
+[data-color-theme="apple-glass"] .podium__row,
+[data-color-theme="apple-glass"] .player-card,
+[data-color-theme="apple-glass"] .leaderboard-mini__item,
+[data-color-theme="apple-glass"] .leaderboard-mini {
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
 }

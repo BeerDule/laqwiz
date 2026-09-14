@@ -1,6 +1,7 @@
 // screens/victory.js — écran VICTORY (podium, confettis, rejouer) (SPEC §12.4).
 import { getState, dispatch, computeWinner } from '../state.js';
 import { launchConfetti, stopConfetti } from '../confetti.js';
+import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 
 let teardown = null;
 let root = null;
@@ -52,6 +53,7 @@ export function renderVictory(rootEl) {
       <header class="victory-header">
         <h1 id="victory-title" class="winner-title">${title}</h1>
         <p>${subtitle}</p>
+        <div class="victory-theme">${renderThemeSelect()}</div>
       </header>
       <div class="podium" aria-label="Classement">${podiumHtml}</div>
       <div class="panel recap">
@@ -80,6 +82,7 @@ export function renderVictory(rootEl) {
   const cleanup = new AbortController();
   const { signal } = cleanup;
 
+  wireThemeSelect(root);
   root.querySelector('#btn-replay').addEventListener('click', () => dispatch({ type: 'NEW_GAME' }), { signal });
   root.querySelector('#btn-settings').addEventListener('click', () => dispatch({ type: 'NEW_GAME' }), { signal });
 

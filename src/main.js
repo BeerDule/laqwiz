@@ -8,6 +8,10 @@ import { loadPlayers, loadSettings, loadStats, savePlayers, saveSettings } from 
 import { renderSetup, unmountSetup } from './screens/setup.js';
 import { renderGame, unmountGame } from './screens/game.js';
 import { renderVictory, unmountVictory } from './screens/victory.js';
+import { initColorTheme } from './themeSwitcher.js';
+
+// Appliquer le thème de couleurs sauvegardé avant le premier rendu
+initColorTheme();
 
 const app = document.getElementById('app');
 

@@ -1,6 +1,7 @@
 // screens/game.js — écran GAME (question, saisie, reveal) (SPEC §12.3).
 import { getState, dispatch, subscribe, hasVictory, retryGeneration } from '../state.js';
 import { DIFFICULTY_LABELS } from '../constants.js';
+import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 
 let teardown = null;
 let root = null;
@@ -25,11 +26,15 @@ const SHELL = `
     <header class="game-header">
       <button id="btn-quit" class="button button--ghost">Quitter</button>
       <div class="progress">
-        <div class="progress-text"><span id="question-number"></span></div>
+        <div class="progress-text">
+          <span id="question-number"></span>
+          <span id="question-theme" class="question-theme"></span>
+        </div>
         <div class="progress-bar"><span id="progress-fill"></span></div>
       </div>
-      <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores"></div>
+      ${renderThemeSelect()}
     </header>
+    <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores"></div>
     <div id="retry-banner" class="retry-banner" hidden>
       <span id="retry-message"></span>
       <button id="btn-retry" class="button button--ghost">Réessayer la génération</button>
@@ -55,26 +60,26 @@ function questionHtml(s) {
   const difficulty = DIFFICULTY_LABELS[q.difficulty] || q.difficulty;
   const bonus = s.isBonusRound;
 
-  const optionsHtml = q.options.map((o, i) => `
-    <div class="option-card" data-key="${o.key}">
-      <span class="option-card__key">${o.key}</span>
-      <span class="option-card__text">${escapeHtml(o.text)}</span>
-      <kbd class="option-card__hint">${i + 1}</kbd>
-    </div>
-  `).join('');
+  const optionsHtml = q.options.map((o, i) => {
+    const playerBtns = s.players.map(p => `
+      <button type="button"
+        class="option-card__player-btn"
+        data-player="${p.id}"
+        data-key="${o.key}"
+        data-tooltip="${escapeHtml(p.name)}"
+        aria-label="${escapeHtml(p.name)} — ${o.key}">${p.emoji}</button>
+    `).join('');
 
-  const playersHtml = s.players.map(p => `
-    <div class="answer-card" data-player="${p.id}">
-      <div class="answer-card__head">
-        <span aria-hidden="true">${p.emoji}</span>
-        <span class="answer-card__name">${escapeHtml(p.name)}</span>
-        <span class="answer-card__score">${p.score} pt${p.score > 1 ? 's' : ''}</span>
+    return `
+    <div class="option-card" data-key="${o.key}">
+      <div class="option-card__row">
+        <span class="option-card__key">${o.key}</span>
+        <span class="option-card__text">${escapeHtml(o.text)}</span>
+        <kbd class="option-card__hint">${i + 1}</kbd>
       </div>
-      <div class="answer-card__options" role="group" aria-label="Réponse de ${escapeHtml(p.name)}">
-        ${['A', 'B', 'C', 'D'].map(k => `<button type="button" class="answer-card__btn" data-player="${p.id}" data-key="${k}">${k}</button>`).join('')}
-      </div>
+      <div class="option-card__players">${playerBtns}</div>
     </div>
-  `).join('');
+  `}).join('');
 
   return `
     <article id="question-card" class="question-card" data-bonus="${bonus ? 'true' : 'false'}" aria-live="polite">
@@ -84,12 +89,8 @@ function questionHtml(s) {
       </div>
       <h2 id="question-heading">${escapeHtml(q.question)}</h2>
       <div id="options-grid" class="options-grid">${optionsHtml}</div>
-    </article>
-    <section id="answer-entry" class="answer-entry" aria-labelledby="answer-entry-title">
-      <h3 id="answer-entry-title">Réponses des joueurs</h3>
-      <div id="player-answer-grid" class="player-answer-grid">${playersHtml}</div>
       <button id="btn-reveal" class="button button--primary button--large" disabled>Révéler la réponse</button>
-    </section>
+    </article>
   `;
 }
 
@@ -109,7 +110,7 @@ function revealHtml(s) {
     } else {
       cls += ' option-card--muted';
     }
-    return `<div class="${cls}" data-key="${o.key}"><span class="option-card__key">${o.key}</span><span>${escapeHtml(o.text)}</span>${badge}</div>`;
+    return `<div class="${cls}" data-key="${o.key}"><div class="option-card__row"><span class="option-card__key">${o.key}</span><span>${escapeHtml(o.text)}</span></div>${badge}</div>`;
   }).join('');
 
   const resultsHtml = s.players.map(p => {
@@ -192,14 +193,18 @@ function updateHeader() {
   const s = getState();
   const numEl = root.querySelector('#question-number');
   const fillEl = root.querySelector('#progress-fill');
+  const themeEl = root.querySelector('#question-theme');
   if (s.phase === 'QUESTION' || s.phase === 'REVEAL') {
+    const q = s.questions[s.currentIndex];
     const n = s.currentIndex + 1;
     const prepared = s.questions.length + s.prefetchQueue.length;
     numEl.textContent = `Question ${n} · ${prepared} préparée${prepared > 1 ? 's' : ''}`;
+    themeEl.textContent = q?.theme || '';
     const pct = Math.min(100, Math.round((n / Math.max(prepared, 1)) * 100));
     fillEl.style.width = `${pct}%`;
   } else {
     numEl.textContent = '';
+    themeEl.textContent = '';
     fillEl.style.width = '0%';
   }
   renderLeaderboard();
@@ -218,16 +223,12 @@ function selectAnswer(playerId, key) {
   const current = s.roundAnswers[playerId];
   if (current === key) {
     dispatch({ type: 'CLEAR_PLAYER_ANSWER', playerId });
-    const btn = root.querySelector(`.answer-card__btn[data-player="${playerId}"][data-key="${key}"]`);
-    if (btn) btn.classList.remove('is-active');
+    root.querySelectorAll(`.option-card__player-btn[data-player="${playerId}"]`).forEach(b => b.classList.remove('is-active'));
   } else {
     dispatch({ type: 'PLAYER_ANSWER', playerId, optionKey: key });
-    const card = root.querySelector(`.answer-card[data-player="${playerId}"]`);
-    if (card) {
-      card.querySelectorAll('.answer-card__btn').forEach(b => {
-        b.classList.toggle('is-active', b.dataset.key === key);
-      });
-    }
+    root.querySelectorAll(`.option-card__player-btn[data-player="${playerId}"]`).forEach(b => {
+      b.classList.toggle('is-active', b.dataset.key === key);
+    });
   }
   updateRevealButton();
 }
@@ -272,19 +273,18 @@ function handleError(s) {
 }
 
 function wireQuestionBody(body) {
-  const grid = body.querySelector('#player-answer-grid');
+  const optionsGrid = body.querySelector('#options-grid');
   const revealBtn = body.querySelector('#btn-reveal');
 
-  grid.addEventListener('focusin', (e) => {
-    const btn = e.target.closest('.answer-card__btn');
+  optionsGrid.addEventListener('focusin', (e) => {
+    const btn = e.target.closest('.option-card__player-btn');
     if (btn) activePlayerId = btn.dataset.player;
   }, { signal });
 
-  grid.addEventListener('click', (e) => {
-    const btn = e.target.closest('.answer-card__btn');
-    if (!btn) return;
-    selectAnswer(btn.dataset.player, btn.dataset.key);
-    btn.focus();
+  optionsGrid.addEventListener('click', (e) => {
+    const playerBtn = e.target.closest('.option-card__player-btn');
+    if (!playerBtn) return;
+    selectAnswer(playerBtn.dataset.player, playerBtn.dataset.key);
   }, { signal });
 
   revealBtn.addEventListener('click', () => {
@@ -320,8 +320,8 @@ function renderBody() {
     for (const p of s.players) {
       const key = s.roundAnswers[p.id];
       if (key) {
-        const btn = body.querySelector(`.answer-card__btn[data-player="${p.id}"][data-key="${key}"]`);
-        if (btn) btn.classList.add('is-active');
+        const playerBtn = body.querySelector(`.option-card__player-btn[data-player="${p.id}"][data-key="${key}"]`);
+        if (playerBtn) playerBtn.classList.add('is-active');
       }
     }
     updateRevealButton();
@@ -346,6 +346,7 @@ export function renderGame(rootEl) {
   const cleanup = new AbortController();
   signal = cleanup.signal;
 
+  wireThemeSelect(root);
   root.querySelector('#btn-quit').addEventListener('click', () => confirmQuit(), { signal });
   root.querySelector('#btn-retry').addEventListener('click', () => retryGeneration(), { signal });
   document.addEventListener('keydown', onKeydown, { signal });

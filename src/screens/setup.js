@@ -6,6 +6,7 @@ import {
   THEME_MIN_LENGTH, THEME_MAX_LENGTH,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
 } from '../constants.js';
+import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 
 let teardown = null;
 let root = null;
@@ -324,11 +325,14 @@ export function renderSetup(rootEl) {
   root.innerHTML = `
     <section class="setup-screen screen" data-screen="setup" aria-labelledby="setup-title">
       <header class="setup-header">
-        <div class="app-name">
-          <strong id="setup-title">Quizz Canapé</strong>
-          <span>— quiz multijoueur local</span>
+        <div class="setup-header__brand">
+          <div class="app-name">
+            <strong id="setup-title">Quizz Canapé</strong>
+            <span>— quiz multijoueur local</span>
+          </div>
+          <p>Le savoir. La mauvaise foi. Le canapé.</p>
         </div>
-        <p>Le savoir. La mauvaise foi. Le canapé.</p>
+        ${renderThemeSelect()}
       </header>
       <form id="setup-form" novalidate>
         <fieldset class="panel players-panel">
@@ -377,6 +381,7 @@ export function renderSetup(rootEl) {
   renderPlayersList();
   renderThemes();
   renderSettings();
+  wireThemeSelect(root);
 
   const cleanup = new AbortController();
   wireEvents(cleanup.signal);
