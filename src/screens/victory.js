@@ -49,9 +49,8 @@ export function renderVictory(rootEl) {
 
   root.innerHTML = `
     <section class="victory-screen screen" data-screen="victory" aria-labelledby="victory-title">
-      <header class="hero-heading">
-        <p class="eyebrow">FIN DE PARTIE</p>
-        <h1 id="victory-title">${title}</h1>
+      <header class="victory-header">
+        <h1 id="victory-title" class="winner-title">${title}</h1>
         <p>${subtitle}</p>
       </header>
       <div class="podium" aria-label="Classement">${podiumHtml}</div>

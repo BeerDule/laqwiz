@@ -25,7 +25,7 @@ const SHELL = `
     <header class="game-header">
       <button id="btn-quit" class="button button--ghost">Quitter</button>
       <div class="progress">
-        <span id="question-number"></span>
+        <div class="progress-text"><span id="question-number"></span></div>
         <div class="progress-bar"><span id="progress-fill"></span></div>
       </div>
       <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores"></div>
@@ -40,8 +40,10 @@ const SHELL = `
 
 function loadingHtml() {
   return `
-    <div class="loading-panel panel" role="status">
-      <p class="loading-spinner" aria-hidden="true"></p>
+    <div class="loading-panel" role="status">
+      <div class="loading-dots" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
       <h2>Préparation des questions…</h2>
       <p>Le maître des questions prépare 5 cartes…</p>
     </div>

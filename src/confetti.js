@@ -7,7 +7,7 @@ let particles = [];
 let resizeHandler = null;
 
 function randomColor() {
-  const palette = ['#a855f7', '#22d3ee', '#f472b6', '#a3e635', '#fbbf24', '#34d399'];
+  const palette = ['#007acc', '#0098ff', '#c586c0', '#6a9955', '#cca700', '#4ec9b0'];
   return palette[Math.floor(Math.random() * palette.length)];
 }
 

@@ -1,55 +1,174 @@
-/* src/styles/layout.css — grilles, conteneurs, breakpoints (SPEC §13.5) */
+/* src/styles/layout.css — full-viewport responsive layout */
 
+/* ===== Screen container ===== */
 .screen {
-  width: min(100% - 2rem, var(--content-max));
-  margin-inline: auto;
-  padding-block: var(--space-8);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: var(--space-5);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
-.setup-screen form { display: grid; gap: var(--space-6); }
+/* ===== Setup form — 2-column on desktop ===== */
+.setup-screen form {
+  display: grid;
+  gap: var(--space-4);
+  flex: 1;
+}
 
+/* ===== Game screen ===== */
+.game-screen {
+  gap: var(--space-4);
+  padding: 0;
+  overflow: hidden;
+}
+
+.game-screen > .game-header {
+  padding: var(--space-3) var(--space-5);
+  margin: 0;
+}
+
+.game-screen > #game-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  overflow-y: auto;
+}
+
+/* ===== Options grid ===== */
 .options-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: 6px;
 }
 
+/* ===== Player answer grid ===== */
 .player-answer-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-3);
+  gap: 6px;
 }
 
-.game-screen {
-  display: grid;
-  gap: var(--space-6);
+/* ===== Question card ===== */
+.question-card {
+  max-width: 100%;
 }
 
-.hero-heading {
-  display: grid;
-  gap: var(--space-2);
-  text-align: center;
-  padding-block: var(--space-6);
+/* ===== Victory screen ===== */
+.victory-screen {
+  max-width: 720px;
+  margin-inline: auto;
 }
 
-@media (min-width: 768px) {
-  .setup-screen form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* ===== Setup two-column at wider widths ===== */
+@media (min-width: 720px) {
+  .setup-screen {
+    max-width: 1000px;
+    margin-inline: auto;
+  }
+  .setup-screen form {
+    grid-template-columns: 1fr 1fr;
+  }
   .setup-screen .players-panel,
   .setup-screen .settings-panel,
   .setup-screen #btn-start,
-  .setup-screen .form-error { grid-column: 1 / -1; }
+  .setup-screen .form-error {
+    grid-column: 1 / -1;
+  }
 }
 
+@media (min-width: 1100px) {
+  .setup-screen {
+    max-width: 1200px;
+  }
+  .setup-screen form {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .setup-screen .players-panel {
+    grid-column: 1;
+  }
+  .setup-screen .theme-panel {
+    grid-column: 2;
+  }
+  .setup-screen .settings-panel {
+    grid-column: 3;
+  }
+  .setup-screen #btn-start,
+  .setup-screen .form-error {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ===== Game responsive: player answers ===== */
+@media (min-width: 520px) {
+  .player-answer-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .game-screen > #game-body {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: auto 1fr;
+    align-items: start;
+  }
+
+  .game-screen #question-card {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+
+  .game-screen #answer-entry,
+  .game-screen .answer-entry {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    max-height: calc(100dvh - 140px);
+    overflow-y: auto;
+  }
+
+  .player-answer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Options: 4-col on wide screens ===== */
+@media (min-width: 900px) {
+  .options-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ===== Mobile: single column options, compact ===== */
 @media (max-width: 519px) {
   .screen {
-    width: min(100% - 1.5rem, var(--content-max));
-    padding-block: var(--space-5);
+    padding: var(--space-3);
   }
-  .options-grid { grid-template-columns: 1fr; }
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+  .player-answer-grid {
+    grid-template-columns: 1fr;
+  }
+  .game-screen > #game-body {
+    padding: var(--space-3);
+  }
+  .game-header {
+    flex-wrap: wrap;
+  }
+  .leaderboard-mini {
+    width: 100%;
+    order: 10;
+  }
 }
 
+/* ===== 4K / ultrawide ===== */
 @media (min-width: 1920px) {
-  html { font-size: 18px; }
-  .screen { max-width: 1400px; }
-  .game-screen .question-card { max-width: 1180px; }
+  html { font-size: 15px; }
+  .game-screen > #game-body {
+    grid-template-columns: 1fr 440px;
+  }
 }

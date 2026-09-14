@@ -124,20 +124,9 @@ function renderPlayersList() {
 }
 
 function renderThemes() {
-  const group = root.querySelector('#preset-themes');
-  group.innerHTML = '';
-  PRESET_THEMES.forEach(t => {
-    const label = document.createElement('label');
-    label.className = 'theme-chip';
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'theme';
-    radio.value = t;
-    radio.checked = (t === selectedPreset);
-    label.appendChild(radio);
-    label.appendChild(document.createTextNode(t));
-    group.appendChild(label);
-  });
+  const select = root.querySelector('#theme-select');
+  if (selectedPreset) select.value = selectedPreset;
+  if (customTheme) root.querySelector('#custom-theme').value = customTheme;
 }
 
 function renderSettings() {
@@ -167,7 +156,7 @@ function addPlayer() {
 function wireEvents(signal) {
   const form = root.querySelector('#setup-form');
   const list = root.querySelector('#players-list');
-  const group = root.querySelector('#preset-themes');
+  const select = root.querySelector('#theme-select');
   const customInput = root.querySelector('#custom-theme');
   const slider = root.querySelector('#target-score');
   const addBtn = root.querySelector('#btn-add-player');
@@ -206,20 +195,18 @@ function wireEvents(signal) {
     }
   }, { signal });
 
-  group.addEventListener('change', (e) => {
-    if (e.target.name === 'theme') {
-      selectedPreset = e.target.value;
-      customTheme = '';
-      customInput.value = '';
-      updateStartButton();
-    }
+  select.addEventListener('change', () => {
+    selectedPreset = select.value || null;
+    customTheme = '';
+    customInput.value = '';
+    updateStartButton();
   }, { signal });
 
   customInput.addEventListener('input', () => {
     customTheme = customInput.value;
     if (customTheme.trim()) {
       selectedPreset = null;
-      group.querySelectorAll('input[name="theme"]').forEach(r => { r.checked = false; });
+      select.value = '';
     }
     updateStartButton();
   }, { signal });
@@ -262,29 +249,36 @@ export function renderSetup(rootEl) {
 
   root.innerHTML = `
     <section class="setup-screen screen" data-screen="setup" aria-labelledby="setup-title">
-      <header class="hero-heading">
-        <p class="eyebrow">QUIZ MULTIJOUEUR LOCAL</p>
-        <h1 id="setup-title">Quizz <span class="accent">Canapé</span></h1>
+      <header class="setup-header">
+        <div class="app-name">
+          <strong id="setup-title">Quizz Canapé</strong>
+          <span>— quiz multijoueur local</span>
+        </div>
         <p>Le savoir. La mauvaise foi. Le canapé.</p>
       </header>
       <form id="setup-form" novalidate>
         <fieldset class="panel players-panel">
-          <legend>Les joueurs <span id="player-count-label">2/6</span></legend>
+          <legend>Joueurs <span id="player-count-label">2/6</span></legend>
           <div id="players-list" class="players-list"></div>
-          <button type="button" id="btn-add-player" class="button add-player">+ Ajouter un joueur</button>
+          <button type="button" id="btn-add-player" class="button add-player-btn">+ Ajouter un joueur</button>
         </fieldset>
         <fieldset class="panel theme-panel">
-          <legend>Le thème</legend>
-          <div id="preset-themes" role="radiogroup"></div>
-          <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
-          <input id="custom-theme" maxlength="60" autocomplete="off" placeholder="Ex. les inventions improbables" />
+          <legend>Thème</legend>
+          <div class="theme-select-group">
+            <select id="theme-select" aria-label="Choisir un thème prédéfini">
+              <option value="">— Choisir un thème —</option>
+              ${PRESET_THEMES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+            </select>
+            <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
+            <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
+          </div>
         </fieldset>
         <fieldset class="panel settings-panel">
-          <legend>Les règles</legend>
+          <legend>Règles</legend>
           <label for="target-score">Score cible : <output id="target-score-output">15</output></label>
           <input id="target-score" type="range" min="${TARGET_SCORE_MIN}" max="${TARGET_SCORE_MAX}" step="1" value="15" />
-          <label class="switch-row"><input id="two-point-lead" type="checkbox" /> <span>Il faut 2 points d'écart pour gagner</span></label>
-          <label class="switch-row"><input id="bonus-enabled" type="checkbox" /> <span>Activer les questions bonus ×2</span></label>
+          <label class="toggle-row"><input id="two-point-lead" type="checkbox" /> <span class="toggle-track"></span> Il faut 2 points d'écart pour gagner</label>
+          <label class="toggle-row"><input id="bonus-enabled" type="checkbox" /> <span class="toggle-track"></span> Activer les questions bonus ×2</label>
         </fieldset>
         <p id="setup-error" class="form-error" role="alert" hidden></p>
         <button id="btn-start" class="button button--primary button--large" type="submit" disabled>Générer la partie</button>

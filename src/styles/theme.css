@@ -1,70 +1,79 @@
-/* src/styles/theme.css — variables CSS, reset, typographie (SPEC §13.1) */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+/* src/styles/theme.css — VS Code-inspired desktop theme */
 
 :root {
   color-scheme: dark;
-  --font-sans: 'Outfit', 'Space Grotesk', system-ui, sans-serif;
-  --bg-void: #0d0b1f;
-  --bg-surface: #181530;
-  --bg-surface-raised: #221d42;
-  --bg-surface-soft: #2b2550;
-  --color-accent-primary: #a855f7;
-  --color-accent-cyan: #22d3ee;
-  --color-accent-pink: #f472b6;
-  --color-accent-lime: #a3e635;
-  --color-success: #34d399;
-  --color-error: #fb7185;
-  --color-warning: #fbbf24;
-  --color-text: #f0edff;
-  --color-muted: #9d93c4;
-  --color-border: rgba(240, 237, 255, .14);
-  --color-overlay: rgba(13, 11, 31, .78);
-  --glow-violet: 0 0 24px rgba(168, 85, 247, .35);
-  --glow-cyan: 0 0 24px rgba(34, 211, 238, .28);
-  --glow-success: 0 0 22px rgba(52, 211, 153, .35);
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
-  --shadow-card: 0 18px 50px rgba(0, 0, 0, .28);
-  --transition-fast: 120ms ease;
-  --transition-base: 220ms cubic-bezier(.2, .8, .2, 1);
-  --transition-elastic: 520ms cubic-bezier(.34, 1.56, .64, 1);
-  --space-1: .25rem;
-  --space-2: .5rem;
-  --space-3: .75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --content-max: 1120px;
+  --font-sans: 'Segoe UI', 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  /* VS Code dark palette */
+  --bg-void: #1e1e1e;
+  --bg-surface: #252526;
+  --bg-surface-raised: #2d2d30;
+  --bg-surface-soft: #3e3e42;
+  --color-accent-primary: #007acc;
+  --color-accent-cyan: #0098ff;
+  --color-accent-pink: #c586c0;
+  --color-accent-lime: #6a9955;
+  --color-success: #4ec9b0;
+  --color-error: #f44747;
+  --color-warning: #cca700;
+  --color-text: #cccccc;
+  --color-muted: #858585;
+  --color-border: #3e3e42;
+  --color-overlay: rgba(0, 0, 0, .65);
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --shadow-card: none;
+  --transition-fast: 60ms ease;
+  --transition-base: 120ms ease;
+
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-8: 28px;
+  --space-10: 36px;
+  --space-12: 48px;
+  --content-max: none;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { min-width: 320px; background: var(--bg-void); }
 body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-void);
   color: var(--color-text);
   font-family: var(--font-sans);
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-button, input { font: inherit; }
-button { cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .45; }
-:focus-visible { outline: 3px solid var(--color-accent-cyan); outline-offset: 3px; }
-::selection { background: var(--color-accent-primary); color: white; }
 
-h1, h2, h3 { margin: 0; line-height: 1.1; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .4; }
+:focus-visible { outline: 1px solid var(--color-accent-primary); outline-offset: -1px; }
+::selection { background: #264f78; color: #ffffff; }
+
+h1, h2, h3 { margin: 0; line-height: 1.15; font-weight: 600; }
 p { margin: 0; }
 
-h1 {
-  font-size: clamp(2.5rem, 7vw, 5rem);
-  font-weight: 800;
-  letter-spacing: -.04em;
+h1 { font-size: 1.5rem; letter-spacing: -.01em; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--color-muted); }
+
+/* Scrollbar VS Code style */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(121, 121, 121, .4); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100, 100, 100, .6); }
+::-webkit-scrollbar-corner { background: transparent; }
+@-moz-document url-prefix() {
+  * { scrollbar-color: rgba(121, 121, 121, .4) transparent; scrollbar-width: thin; }
 }
-h2 { font-size: clamp(1.5rem, 3.5vw, 3rem); font-weight: 700; }
