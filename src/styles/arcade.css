@@ -12,6 +12,22 @@
  * géométriques rendent n'importe quoi sur ces formes).
  */
 
+/* Irish Grover (Google Fonts, licence OFL) — hébergée localement plutôt que
+ * servie depuis le CDN Google : le jeu se joue en famille, parfois hors ligne,
+ * et un titre qui retombe en Arial dès que la connexion saute serait visible.
+ * Ça évite aussi d'exposer l'IP des joueurs à un tiers pour une police.
+ * Sous-ensemble `latin` : couvre U+0000-00FF, donc le « é » de Canapé. */
+@font-face {
+  font-family: 'Irish Grover';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/irish-grover-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 .arcade {
   --arcade-ink: #4a1f14;
   --arcade-ink-soft: #6d4534;
@@ -36,9 +52,11 @@
 /* ===== Titres ===== */
 .arcade__title { text-align: center; margin-block: var(--space-8) var(--space-4); }
 .arcade__title h1 {
-  font-size: clamp(2rem, 7vw, 3.4rem);
+  font-family: 'Irish Grover', var(--font-display, var(--font-sans));
+  font-weight: 400; /* la fonte n'existe qu'en 400 : éviter un gras synthétique */
+  font-size: clamp(2.2rem, 8vw, 4rem);
   color: #fff7e2;
-  letter-spacing: -.01em;
+  letter-spacing: 0; /* le resserrement convenait à la sans, pas à ce display */
   -webkit-text-stroke: 3px #560e12;
   paint-order: stroke fill;
   text-shadow: 0 5px 0 rgba(86, 14, 18, .35);
@@ -78,7 +96,9 @@
   border-image-repeat: stretch;
   background: none;
   color: #3a1408;
-  font-family: inherit;
+  /* `inherit` reprendrait la police du corps : une classe l'emporte sur le
+     sélecteur `button` de theme.css, qui n'atteindrait donc jamais ces boutons. */
+  font-family: var(--font-button);
   /* 19px gras = seuil « grand texte » WCAG : le critère applicable devient 3:1,
      que les plaques peintes satisfont. En dessous, aucune encre ne passe. */
   font-size: 19px;

@@ -24,7 +24,7 @@ function menuHtml(s) {
       <div class="arcade__topbar">${renderThemeSelect()}</div>
 
       <header class="arcade__title">
-        <h1>Quizz Canapé</h1>
+        <h1>Canap' QuiZZ</h1>
         <p>Le savoir. La mauvaise foi. Le canapé.</p>
       </header>
 
