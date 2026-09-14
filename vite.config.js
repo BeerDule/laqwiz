@@ -4,8 +4,8 @@ import { defineConfig, loadEnv } from 'vite';
 /**
  * Plugin Vite : proxy LLM OpenAI-compatible.
  * - Le navigateur appelle uniquement des URLs relatives (/api/...).
- * - Le serveur réécrit vers LLM_BASE_URL et injecte Authorization.
- * - La clé API n'est JAMAIS envoyée au navigateur.
+ * - Le serveur réécrit vers le provider (URL + clé fournies par le client
+ *   via en-têtes X-LLM-* ou, à défaut, par le .env serveur).
  */
 function llmProxyPlugin(env, { validate } = {}) {
   const baseUrl = (env.LLM_BASE_URL || '').replace(/\/+$/, '');
@@ -18,20 +18,13 @@ function llmProxyPlugin(env, { validate } = {}) {
   // `vite build` ne démarre pas de serveur : le build statique n'a pas de
   // proxy (§16.2), donc il doit réussir même sans `.env` (pas de clé requise).
   if (validate) {
-    if (!baseUrl) {
-      throw new Error(
-        '[quizz-canape] LLM_BASE_URL manquant dans .env. ' +
-        'Copiez .env.example vers .env et renseignez la valeur.'
+    // Le .env reste facultatif : chaque client peut fournir sa propre
+    // configuration (URL + clé + modèle) depuis l'écran de configuration.
+    if (!baseUrl || !apiKey || !model) {
+      console.warn(
+        '[quizz-canape] .env incomplet : le serveur utilisera la ' +
+        'configuration LLM fournie côté client (BYOK).'
       );
-    }
-    if (!apiKey) {
-      throw new Error(
-        '[quizz-canape] LLM_API_KEY manquant dans .env. ' +
-        'Cette clé ne doit JAMAIS être préfixée VITE_.'
-      );
-    }
-    if (!model) {
-      throw new Error('[quizz-canape] LLM_MODEL manquant dans .env.');
     }
   }
 
@@ -81,32 +74,47 @@ function llmProxyPlugin(env, { validate } = {}) {
           return sendError(res, 400, 'EMPTY_BODY', 'Corps de requête vide.');
         }
 
+        // --- Config effective : celle du client (BYOK) prime sur celle du .env ---
+        const clientBaseUrl = String(req.headers['x-llm-base-url'] || '')
+          .trim().replace(/\/+$/, '');
+        const clientApiKey = String(req.headers['x-llm-api-key'] || '').trim();
+        const effectiveBaseUrl = clientBaseUrl || baseUrl;
+        const effectiveApiKey = clientApiKey || apiKey;
+
+        if (!effectiveBaseUrl || !effectiveApiKey) {
+          return sendError(res, 500, 'MISSING_LLM_CONFIG',
+            'Configuration LLM manquante : renseignez l\'URL et la clé API ' +
+            'côté client (écran de configuration) ou dans .env.');
+        }
+        if (!/^https?:\/\//i.test(effectiveBaseUrl)) {
+          return sendError(res, 400, 'INVALID_BASE_URL',
+            'URL du provider LLM invalide (doit commencer par http:// ou https://).');
+        }
+
         // --- Headers sortants : on injecte Authorization, on nettoie le reste ---
         const forwardHeaders = {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${effectiveApiKey}`,
           'Accept': req.headers['accept'] || 'application/json',
         };
 
-        // --- Injection du modèle serveur : le client ne choisit pas le modèle,
-        //     c'est le .env qui décide. On remplace le champ "model" du body. ---
+        // --- Modèle : celui du client prime ; sinon on reprend celui du .env ---
         let forwardedBody;
         try {
           const parsed = JSON.parse(rawBody);
-          parsed.model = model;
+          if (!parsed.model) parsed.model = model;
           forwardedBody = JSON.stringify(parsed);
         } catch {
           forwardedBody = rawBody; // en cas d'échec de parse, on forward tel quel
         }
 
         // --- Requête vers le provider ---
-        const targetUrl = `${baseUrl}${req.url}`;
+        const targetUrl = `${effectiveBaseUrl}${req.url}`;
         const controller = new AbortController();
         const timeoutMs = 35_000; // légèrement > timeout client (30s)
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         let upstreamResponse;
-        const startMs = Date.now();
         try {
           upstreamResponse = await fetch(targetUrl, {
             method: 'POST',
@@ -124,7 +132,6 @@ function llmProxyPlugin(env, { validate } = {}) {
             `Impossible de joindre le provider LLM (${targetUrl}).`);
         }
         clearTimeout(timeoutId);
-        const elapsedMs = Date.now() - startMs;
 
         // --- Lecture de la réponse upstream ---
         const responseBody = await upstreamResponse.text();
@@ -134,7 +141,7 @@ function llmProxyPlugin(env, { validate } = {}) {
         };
 
         // --- Garde-fou : s'assure que la clé ne fuite PAS ---
-        if (responseBody.includes(apiKey)) {
+        if (responseBody.includes(effectiveApiKey)) {
           server.config.logger.error(
             '[llm-proxy] ALERTE: la réponse upstream contient la clé API !'
           );

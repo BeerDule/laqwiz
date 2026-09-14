@@ -102,6 +102,62 @@ function validateForm() {
   return { ok: true };
 }
 
+async function testConnection(btn, resultEl) {
+  const baseUrl = root.querySelector('#llm-base-url').value.trim();
+  const apiKey = root.querySelector('#llm-api-key').value.trim();
+  const model = root.querySelector('#llm-model').value.trim();
+
+  if (!baseUrl || !apiKey) {
+    resultEl.textContent = 'Renseignez l\'URL et la clé API.';
+    resultEl.className = 'llm-test-result llm-test-result--error';
+    return;
+  }
+
+  btn.disabled = true;
+  resultEl.textContent = 'Test en cours…';
+  resultEl.className = 'llm-test-result';
+
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-LLM-Base-URL': baseUrl,
+      'X-LLM-Api-Key': apiKey,
+    };
+    const resp = await fetch('/api/chat/completions', {
+      method: 'POST',
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: model || 'auto',
+        messages: [{ role: 'user', content: 'test' }],
+        max_tokens: 1,
+      }),
+    });
+    clearTimeout(tid);
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        throw new Error('Clé API invalide (401/403).');
+      }
+      throw new Error(`Erreur ${resp.status} du provider.`);
+    }
+    resultEl.textContent = 'Connecté ✓';
+    resultEl.className = 'llm-test-result llm-test-result--ok';
+  } catch (err) {
+    clearTimeout(tid);
+    if (err.name === 'AbortError') {
+      resultEl.textContent = 'Délai dépassé (10 s). Vérifiez l\'URL.';
+    } else {
+      resultEl.textContent = `Échec : ${err.message}`;
+    }
+    resultEl.className = 'llm-test-result llm-test-result--error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function renderPlayersList() {
   const list = root.querySelector('#players-list');
   list.innerHTML = '';
@@ -135,6 +191,11 @@ function renderSettings() {
   root.querySelector('#target-score-output').textContent = s.targetScore;
   root.querySelector('#two-point-lead').checked = s.twoPointLead;
   root.querySelector('#bonus-enabled').checked = s.bonusEnabled;
+  root.querySelector('#llm-base-url').value = s.baseUrl || '';
+  root.querySelector('#llm-api-key').value = s.apiKey || '';
+  root.querySelector('#llm-model').value = s.model || '';
+  root.querySelector('#llm-temp').value = s.temperature ?? 0.9;
+  root.querySelector('#llm-temp-output').textContent = (s.temperature ?? 0.9).toFixed(1);
 }
 
 function removePlayer(id) {
@@ -215,6 +276,15 @@ function wireEvents(signal) {
     root.querySelector('#target-score-output').textContent = slider.value;
   }, { signal });
 
+  const tempSlider = root.querySelector('#llm-temp');
+  tempSlider.addEventListener('input', () => {
+    root.querySelector('#llm-temp-output').textContent = parseFloat(tempSlider.value).toFixed(1);
+  }, { signal });
+
+  const testBtn = root.querySelector('#btn-test-connection');
+  const testResult = root.querySelector('#test-result');
+  testBtn.addEventListener('click', () => testConnection(testBtn, testResult), { signal });
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const v = validateForm();
@@ -236,6 +306,10 @@ function wireEvents(signal) {
         targetScore,
         twoPointLead: root.querySelector('#two-point-lead').checked,
         bonusEnabled: root.querySelector('#bonus-enabled').checked,
+        baseUrl: root.querySelector('#llm-base-url').value.trim(),
+        apiKey: root.querySelector('#llm-api-key').value.trim(),
+        model: root.querySelector('#llm-model').value.trim(),
+        temperature: parseFloat(root.querySelector('#llm-temp').value),
       },
     });
     dispatch({ type: 'START_GAME', resetHistory: true });
@@ -280,6 +354,20 @@ export function renderSetup(rootEl) {
           <label class="toggle-row"><input id="two-point-lead" type="checkbox" /> <span class="toggle-track"></span> Il faut 2 points d'écart pour gagner</label>
           <label class="toggle-row"><input id="bonus-enabled" type="checkbox" /> <span class="toggle-track"></span> Activer les questions bonus ×2</label>
         </fieldset>
+        <details class="panel llm-panel" id="llm-config">
+          <summary>Modèle LLM <span class="llm-hint">— optionnel, utilisez vos propres identifiants</span></summary>
+          <p class="llm-note">Laissez vide pour utiliser la configuration du serveur. La clé API est stockée dans ce navigateur (localStorage).</p>
+          <label class="field-label" for="llm-base-url">URL du provider</label>
+          <input id="llm-base-url" type="text" autocomplete="off" spellcheck="false" placeholder="https://api.openai.com/v1" />
+          <label class="field-label" for="llm-api-key">Clé API</label>
+          <input id="llm-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" />
+          <label class="field-label" for="llm-model">Modèle</label>
+          <input id="llm-model" type="text" autocomplete="off" spellcheck="false" placeholder="gpt-4o-mini" />
+          <label class="field-label" for="llm-temp">Température : <output id="llm-temp-output">0.9</output></label>
+          <input id="llm-temp" type="range" min="0" max="2" step="0.1" value="0.9" />
+          <button id="btn-test-connection" type="button" class="button button--small llm-test-btn">Tester la connexion</button>
+          <span id="test-result" class="llm-test-result" aria-live="polite"></span>
+        </details>
         <p id="setup-error" class="form-error" role="alert" hidden></p>
         <button id="btn-start" class="button button--primary button--large" type="submit" disabled>Générer la partie</button>
       </form>

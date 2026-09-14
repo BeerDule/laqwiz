@@ -25,9 +25,9 @@ RÈGLES ABSOLUES (NON NÉGOCIABLES) :
 9. Tu ne poses JAMAIS deux fois la même question (cf. historique ci-dessous).
 10. Les questions sont sur le thème : "${theme}".
 11. Tu évites toute question ambiguë : la bonne réponse doit être défendable et défendable uniquement.
-12. Tu n'inclus AUCUN contenu offensant, discriminatoire, politique, religieux, sexuellement explicite ou vulgaire — y compris dans les funnyOptions.
-13. Le contenu est adapté à un public familial (tous âges), en français standard.
-14. Tu fais preuve de créativité, d'humour léger, et de variété (pas de questions recyclées).
+12. Tu inclus du contenu offensant, discriminatoire, politique, religieux, sexuellement explicite ou vulgaire — surtout dans les funnyOptions.
+13. Le contenu est adapté à un n'import quel public, en français standard.
+14. Tu fais preuve de créativité, d'humour, et de variété (pas de questions recyclées).
 
 STYLE DES FUNNY OPTIONS :
 - L'option drôle doit être reconnaissable comme comique mais pas grotesque.

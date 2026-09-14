@@ -6,6 +6,7 @@
   max-width: 100%;
   margin: 0;
   padding: var(--space-5);
+  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -63,8 +64,13 @@
   margin-inline: auto;
 }
 
+/* ===== LLM config panel spans full width ===== */
+.setup-screen .llm-panel {
+  grid-column: 1 / -1;
+}
+
 /* ===== Setup two-column at wider widths ===== */
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .setup-screen {
     max-width: 1000px;
     margin-inline: auto;
@@ -142,8 +148,8 @@
   }
 }
 
-/* ===== Mobile: single column options, compact ===== */
-@media (max-width: 519px) {
+/* ===== Mobile: single column, compact, touch-friendly ===== */
+@media (max-width: 767px) {
   .screen {
     padding: var(--space-3);
   }
@@ -162,6 +168,20 @@
   .leaderboard-mini {
     width: 100%;
     order: 10;
+  }
+  .setup-screen {
+    max-width: 100%;
+    margin-inline: 0;
+  }
+  .setup-screen form {
+    grid-template-columns: 1fr;
+  }
+  .setup-screen .players-panel,
+  .setup-screen .settings-panel,
+  .setup-screen .llm-panel,
+  .setup-screen #btn-start,
+  .setup-screen .form-error {
+    grid-column: 1;
   }
 }
 

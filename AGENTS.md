@@ -1,7 +1,9 @@
 # AGENTS.md — Quizz Canapé
 
 ## Résumé
-Jeu de quiz familial multijoueur (2-6), vanilla JS, zéro framework. Les questions sont générées par un LLM OpenAI-compatible via un proxy Vite côté serveur → la clé API ne fuit jamais côté navigateur.
+Jeu de quiz familial multijoueur (2-6), vanilla JS, zéro framework. Les questions sont générées par un LLM OpenAI-compatible via un proxy Vite. Deux modes de configuration LLM coexistent :
+- **BYOK** (Bring Your Own Key) : chaque client renseigne son URL, clé et modèle depuis l'écran de configuration (stockage localStorage, transmis via en-têtes X-LLM-* au proxy).
+- **Serveur** : `.env` avec `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (fallback si le client ne renseigne rien).
 
 ## Stack
 - **Runtime** : Node ≥ 20 LTS (`fetch` natif, `AbortController`, ESM)
@@ -12,9 +14,9 @@ Jeu de quiz familial multijoueur (2-6), vanilla JS, zéro framework. Les questio
 
 ## Arborescence clé
 ```
-.env                  # gitignored — contient LLM_BASE_URL / LLM_API_KEY / LLM_MODEL
+.env                  # gitignored — optionnel (fallback serveur si BYOK absent)
 .env.example          # modèle versionné
-vite.config.js        # proxy HTTP → LLM (injecte Authorization, remplace model)
+vite.config.js        # proxy HTTP → LLM (BYOK via en-têtes, fallback .env)
 src/
   api.js              # fetchQuestionBatch(), extractJson(), retries
   state.js            # store pub/sub, machine à états (setup → loading → playing → reveal → victory)
@@ -22,7 +24,7 @@ src/
   validation.js       # validateQuestion(), parseQuestions() — contrat Question (SPEC §6)
   constants.js        # PLAYER_EMOJIS, PRESET_THEMES, QUESTION_SCHEMA_JSON, DEFAULTS
   screens/
-    setup.js          # formulaire joueurs + thème
+    setup.js          # formulaire joueurs + thème + panneau LLM (BYOK)
     game.js           # question card + answer cards + reveal + timer
     victory.js        # écran de victoire + confetti
 demo/
@@ -31,6 +33,14 @@ demo/
 ```
 
 ## Démarrer
+
+### Sans configuration serveur (BYOK)
+```bash
+nix develop .#default
+npm run dev
+# → http://localhost:5173
+# Chaque joueur renseigne son provider LLM depuis l'écran de config.
+```
 
 ### Démo offline (mock local)
 ```bash
@@ -42,17 +52,19 @@ npm run dev &                              # terminal 2
 # → http://localhost:5173
 ```
 
-### Avec vrai LLM
+### Avec config serveur (.env)
 1. Copier `.env.example` → `.env`
 2. Renseigner `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`
 3. `npm run dev`
 
 ## Gotchas
 
-### Le proxy injecte le modèle
-Le client envoie `model: settings.model` (défaut: `mammouth-chat` dans `constants.js`).  
-**Le proxy Vite** parse le body entrant et remplace `model` par `env.LLM_MODEL`.  
-C'est volontaire : le `.env` est la source de vérité, le client ne choisit pas le modèle.
+### Configuration LLM (BYOK)
+Le client peut renseigner son propre provider (URL, clé API, modèle, température) depuis le panneau « Modèle LLM » de l'écran de configuration. Ces valeurs sont transmises au proxy Vite via les en-têtes `X-LLM-Base-URL` et `X-LLM-Api-Key`. **Si ces en-têtes sont absents**, le proxy retombe sur les variables `.env` du serveur.
+
+Le modèle suit la même règle : si le client envoie un champ `model` dans le body, il est conservé ; sinon le proxy injecte `LLM_MODEL`.
+
+La clé API client est stockée dans `localStorage` (jamais dans `.env` côté serveur).
 
 ### Modèles reasoning (deepseek-v4-flash, etc.)
 Les modèles reasoning génèrent du `reasoning_content` avant la réponse JSON.  
@@ -69,7 +81,13 @@ Chaque question doit avoir EXACTEMENT :
 Si 0 question valide après 3 retries → `INVALID_JSON` → UI : *"Le LLM a répondu dans un format inattendu"*
 
 ### `.env` lu au démarrage de Vite uniquement
-Toute modif de `.env` nécessite un `pkill -f 'node.*vite'` puis relancer.
+Toute modif de `.env` nécessite un redémarrage de Vite.  
+Les modifications de `vite.config.js` sont détectées et rechargées à chaud par Vite.
+
+### Clé API dans localStorage
+En mode BYOK, la clé API est stockée en clair dans le `localStorage` du navigateur.
+Pour un usage en famille c'est acceptable, mais un risque XSS subsiste.  
+Si vous hébergez l'app pour des inconnus, préférez la config `.env` serveur.
 
 ### Pas de git dans le PATH par défaut
 Utiliser `nix shell nixpkgs#git --command git ...`

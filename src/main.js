@@ -41,7 +41,7 @@ async function applyHealthConfig() {
     if (!res.ok) return;
     const data = await res.json();
     const patch = {};
-    if (typeof data?.model === 'string' && data.model) patch.model = data.model;
+    if (typeof data?.model === 'string' && data.model && !getState().settings.model) patch.model = data.model;
     if (typeof data?.temperature === 'number') patch.temperature = data.temperature;
     if (typeof data?.batchSize === 'number') patch.batchSize = data.batchSize;
     if (Object.keys(patch).length) dispatch({ type: 'SET_SETTINGS', patch });

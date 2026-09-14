@@ -122,9 +122,12 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [] }) {
 
   async function requestOnce() {
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (settings.baseUrl) headers['X-LLM-Base-URL'] = settings.baseUrl;
+      if (settings.apiKey) headers['X-LLM-Api-Key'] = settings.apiKey;
       return await fetchWithTimeout('/api/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body),
       }, 30_000);
     } catch (err) {

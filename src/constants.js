@@ -46,7 +46,9 @@ export const DEFAULTS = {
   targetScore: 15,
   twoPointLead: false,
   bonusEnabled: false,
-  model: 'mammouth-chat',
+  model: '',
+  baseUrl: '',
+  apiKey: '',
   temperature: 0.9,
   batchSize: BATCH_SIZE,
 };

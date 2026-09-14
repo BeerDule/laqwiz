@@ -58,7 +58,16 @@ export function loadSettings() {
   }
   out.twoPointLead = !!raw.twoPointLead;
   out.bonusEnabled = !!raw.bonusEnabled;
-  // Les champs LLM ne sont JAMAIS lus depuis localStorage.
+  // Config LLM personnelle (BYOK) : lue depuis localStorage.
+  if (typeof raw.model === 'string' && raw.model.trim()) {
+    out.model = raw.model.slice(0, 120);
+  }
+  if (typeof raw.baseUrl === 'string' && raw.baseUrl.trim()) {
+    out.baseUrl = raw.baseUrl.slice(0, 300);
+  }
+  if (typeof raw.apiKey === 'string' && raw.apiKey.trim()) {
+    out.apiKey = raw.apiKey.slice(0, 300);
+  }
   return out;
 }
 
@@ -68,6 +77,9 @@ export function saveSettings(settings) {
     targetScore: settings.targetScore,
     twoPointLead: settings.twoPointLead,
     bonusEnabled: settings.bonusEnabled,
+    model: settings.model,
+    baseUrl: settings.baseUrl,
+    apiKey: settings.apiKey,
   });
 }
 

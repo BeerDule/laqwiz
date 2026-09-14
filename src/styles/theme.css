@@ -68,7 +68,15 @@ h1 { font-size: 1.5rem; letter-spacing: -.01em; }
 h2 { font-size: 1.2rem; }
 h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--color-muted); }
 
-/* Scrollbar VS Code style */
+/* ===== Mobile-friendly ===== */
+@media (max-width: 767px) {
+  body {
+    font-size: 16px;
+  }
+  h1 { font-size: 1.35rem; }
+  h2 { font-size: 1.1rem; }
+  h3 { font-size: .8rem; }
+}
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(121, 121, 121, .4); border-radius: 5px; }

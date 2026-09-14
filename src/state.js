@@ -23,6 +23,8 @@ const INITIAL_STATE = Object.freeze({
     twoPointLead: DEFAULTS.twoPointLead,
     bonusEnabled: DEFAULTS.bonusEnabled,
     model: DEFAULTS.model,
+    baseUrl: DEFAULTS.baseUrl,
+    apiKey: DEFAULTS.apiKey,
     temperature: DEFAULTS.temperature,
     batchSize: DEFAULTS.batchSize,
   },
