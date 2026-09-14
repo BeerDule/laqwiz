@@ -1,5 +1,5 @@
 // screens/victory.js — écran VICTORY (podium, confettis, rejouer) (SPEC §12.4).
-import { getState, dispatch, computeWinner } from '../state.js';
+import { getState, dispatch, computePartieWinner } from '../state.js';
 import { launchConfetti, stopConfetti } from '../confetti.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 
@@ -16,19 +16,22 @@ export function renderVictory(rootEl) {
   unmountVictory();
   root = rootEl;
   const s = getState();
-  const winner = computeWinner(s);
+  const winner = computePartieWinner(s);
 
+  // La partie se gagne au best-of : on classe sur les manches remportées, pas
+  // sur les points — ceux-ci n'appartiennent qu'à la dernière manche jouée.
+  const won = id => (s.partie?.manchesWon?.[id] || 0);
   const ranked = [...s.players].sort((a, b) => {
-    const d = b.score - a.score;
+    const d = won(b.id) - won(a.id);
     if (d !== 0) return d;
     return s.players.indexOf(a) - s.players.indexOf(b);
   });
   const top = ranked.slice(0, 3);
-  const maxScore = Math.max(1, ...s.players.map(p => p.score));
+  const maxWon = Math.max(1, ...s.players.map(p => won(p.id)));
   const medals = ['🥇', '🥈', '🥉'];
 
   const podiumHtml = top.map((p, i) => {
-    const tied = i > 0 && p.score === ranked[i - 1].score;
+    const tied = i > 0 && won(p.id) === won(ranked[i - 1].id);
     const rankLabel = tied ? '=' : (medals[i] || `${i + 1}`);
     return `
       <div class="podium__row ${i === 0 ? 'podium__row--first' : ''}">
@@ -36,17 +39,19 @@ export function renderVictory(rootEl) {
         <span class="podium__emoji" aria-hidden="true">${p.emoji}</span>
         <div class="podium__info">
           <div class="answer-card__name">${escapeHtml(p.name)}</div>
-          <div class="podium__bar"><span style="width:${Math.round((p.score / maxScore) * 100)}%"></span></div>
+          <div class="podium__bar"><span style="width:${Math.round((won(p.id) / maxWon) * 100)}%"></span></div>
         </div>
-        <span class="answer-card__score">${p.score} pt${p.score > 1 ? 's' : ''}</span>
+        <span class="answer-card__score">${won(p.id)} manche${won(p.id) > 1 ? 's' : ''}</span>
       </div>
     `;
   }).join('');
 
-  const title = winner ? `🏆 ${escapeHtml(winner.name)} gagne !` : 'Partie terminée !';
+  const played = s.partie?.manches?.length || 0;
+  const target = s.partie?.manchesTarget || s.settings.manchesTarget;
+  const title = winner ? `🏆 ${escapeHtml(winner.name)} gagne la partie !` : 'Partie terminée !';
   const subtitle = winner
-    ? `${winner.score} point${winner.score > 1 ? 's' : ''} · score cible : ${s.settings.targetScore}`
-    : `Score cible : ${s.settings.targetScore}`;
+    ? `${won(winner.id)} manche${won(winner.id) > 1 ? 's' : ''} sur ${target} · ${played} manche${played > 1 ? 's' : ''} jouée${played > 1 ? 's' : ''}`
+    : `Best-of ${target}`;
 
   root.innerHTML = `
     <section class="victory-screen screen" data-screen="victory" aria-labelledby="victory-title">
@@ -59,14 +64,16 @@ export function renderVictory(rootEl) {
       <div class="panel recap">
         <h3>Récapitulatif</h3>
         <ul>
+          <li>Session : <strong>${escapeHtml(s.session?.name || '—')}</strong></li>
+          <li>Format : <strong>best-of ${target}</strong> · score cible ${s.settings.targetScore}</li>
           <li>Thème : <strong>${escapeHtml(s.settings.theme)}</strong></li>
-          <li>Questions posées : <strong>${s.questions.length}</strong></li>
           <li>Bonnes réponses cumulées : <strong>${s.stats.correctAnswers}</strong></li>
         </ul>
       </div>
       <div class="victory-actions">
-        <button id="btn-replay" class="button button--primary button--large">Rejouer</button>
-        <button id="btn-settings" class="button button--ghost">Changer les réglages</button>
+        <button id="btn-replay" class="button button--primary button--large">Nouvelle partie</button>
+        <button id="btn-sessions" class="button button--ghost">Sessions</button>
+        <button id="btn-close-session" class="button button--ghost">Terminer la session</button>
         <button id="btn-clear" class="button button--danger button--ghost">Effacer les données locales</button>
       </div>
       <dialog id="confirm-dialog">
@@ -83,8 +90,14 @@ export function renderVictory(rootEl) {
   const { signal } = cleanup;
 
   wireThemeSelect(root);
+  // « Nouvelle partie » reste dans la session : le roster et l'anti-doublon survivent.
   root.querySelector('#btn-replay').addEventListener('click', () => dispatch({ type: 'NEW_GAME' }), { signal });
-  root.querySelector('#btn-settings').addEventListener('click', () => dispatch({ type: 'NEW_GAME' }), { signal });
+  root.querySelector('#btn-sessions').addEventListener('click', () => dispatch({ type: 'GOTO_SESSIONS' }), { signal });
+  root.querySelector('#btn-close-session').addEventListener('click', () => {
+    if (window.confirm('Terminer cette session ? Les parties restent consultables dans l\'historique.')) {
+      dispatch({ type: 'CLOSE_SESSION' });
+    }
+  }, { signal });
 
   const dialog = root.querySelector('#confirm-dialog');
   root.querySelector('#btn-clear').addEventListener('click', () => dialog.showModal(), { signal });

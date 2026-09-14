@@ -2,12 +2,16 @@
 import './styles/theme.css';
 import './styles/layout.css';
 import './styles/components.css';
+import './styles/arcade.css';
 
 import { getState, dispatch, subscribe } from './state.js';
-import { loadPlayers, loadSettings, loadStats, savePlayers, saveSettings } from './storage.js';
+import { loadPlayers, loadSettings, loadStats, savePlayers, saveSettings, loadActiveSessionId } from './storage.js';
+import { getSession } from './db.js';
 import { renderSetup, unmountSetup } from './screens/setup.js';
 import { renderGame, unmountGame } from './screens/game.js';
 import { renderVictory, unmountVictory } from './screens/victory.js';
+import { renderSessions, unmountSessions } from './screens/sessions.js';
+import { renderHome, unmountHome } from './screens/home.js';
 import { initColorTheme } from './themeSwitcher.js';
 
 // Appliquer le thème de couleurs sauvegardé avant le premier rendu
@@ -38,6 +42,23 @@ if (persistedPlayers) dispatch({ type: 'SET_PLAYERS', players: persistedPlayers 
 if (persistedSettings) dispatch({ type: 'SET_SETTINGS', patch: persistedSettings });
 if (persistedStats) getState().stats = persistedStats;
 
+// --- Reprise de la session active (IndexedDB, asynchrone) ---
+// Volontairement hors du chemin de démarrage : la lecture ne doit pas retarder
+// le premier rendu. La garde évite d'écraser une partie que l'utilisateur
+// aurait lancée avant que la lecture ne réponde.
+const activeSessionId = loadActiveSessionId();
+if (activeSessionId) {
+  getSession(activeSessionId).then((session) => {
+    if (!session || session.status !== 'active') return;
+    const s = getState();
+    if ((s.phase !== 'HOME' && s.phase !== 'SETUP') || s.partie) return;
+    const backHome = s.phase === 'HOME';
+    dispatch({ type: 'RESUME_SESSION', session });
+    // RESUME_SESSION ouvre les réglages ; si on attendait encore au menu, on y reste.
+    if (backHome) dispatch({ type: 'GOTO_HOME' });
+  });
+}
+
 // --- Configuration serveur (model / temperature / batchSize via /api/health) ---
 async function applyHealthConfig() {
   try {
@@ -55,18 +76,24 @@ applyHealthConfig();
 
 // --- Routage des écrans ---
 const UNMOUNTERS = {
+  HOME: unmountHome,
   SETUP: unmountSetup,
   LOADING: unmountGame,
   QUESTION: unmountGame,
   REVEAL: unmountGame,
+  MANCHE_END: unmountGame,
   VICTORY: unmountVictory,
+  SESSIONS: unmountSessions,
 };
 const MOUNTERS = {
+  HOME: renderHome,
   SETUP: renderSetup,
   LOADING: renderGame,
   QUESTION: renderGame,
   REVEAL: renderGame,
+  MANCHE_END: renderGame,
   VICTORY: renderVictory,
+  SESSIONS: renderSessions,
 };
 let currentPhase = null;
 

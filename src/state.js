@@ -1,7 +1,8 @@
 // state.js — source de vérité de l'application (SPEC §9, §10, §11).
 import { normalizeQuestionText } from './validation.js';
 import { fetchQuestionBatch, toUiError } from './api.js';
-import { saveStats, clearAll } from './storage.js';
+import { saveStats, clearAll, saveActiveSessionId } from './storage.js';
+import { putSession, putPartie } from './db.js';
 import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE } from './constants.js';
 
 const isOnline = () => (typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -24,6 +25,12 @@ const INITIAL_STATE = Object.freeze({
     bonusEnabled: DEFAULTS.bonusEnabled,
     difficulty: DEFAULTS.difficulty,
     audience: DEFAULTS.audience,
+    timerEnabled: DEFAULTS.timerEnabled,
+    timePerQuestion: DEFAULTS.timePerQuestion,
+    penaltyNoAnswer: DEFAULTS.penaltyNoAnswer,
+    penaltyWrongAnswer: DEFAULTS.penaltyWrongAnswer,
+    punisherSeverity: DEFAULTS.punisherSeverity,
+    manchesTarget: DEFAULTS.manchesTarget,
     model: DEFAULTS.model,
     baseUrl: DEFAULTS.baseUrl,
     apiKey: DEFAULTS.apiKey,
@@ -31,16 +38,23 @@ const INITIAL_STATE = Object.freeze({
     batchSize: DEFAULTS.batchSize,
   },
 
+  // === Session : roster + sac de parties, sans condition de fin ===
+  session: null, // { id, name, createdAt, status: 'active' | 'closed' }
+
+  // === Partie en cours : best-of de manches ===
+  partie: null,  // { id, startedAt, manchesTarget, mancheIndex, manchesWon, manches[] }
+
   // === Questions ===
   questions: [],
   currentIndex: -1,
 
   // === Saisie MJ sur la question courante ===
   roundAnswers: {},
+  roundPenalties: {}, // { playerId: points réellement retirés ce tour }
   isBonusRound: false,
 
   // === Phase courante ===
-  phase: 'SETUP', // 'SETUP' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'VICTORY'
+  phase: 'HOME', // 'HOME' | 'SETUP' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'VICTORY'
 
   // === File de préchargement ===
   prefetchQueue: [],
@@ -94,10 +108,83 @@ function initPerPlayer(p) {
   return { name: p.name, emoji: p.emoji, gamesPlayed: 0, wins: 0, totalScore: 0 };
 }
 
+// --- Session et partie ---
+
+function newId() {
+  return (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function defaultSessionName(ts) {
+  try {
+    return `Session du ${new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+  } catch { return 'Session'; }
+}
+
+function newSession() {
+  const createdAt = Date.now();
+  const session = { id: newId(), name: defaultSessionName(createdAt), createdAt, status: 'active' };
+  setActiveSessionId(session.id);
+  return session;
+}
+
+function newPartie(s) {
+  return {
+    id: newId(),
+    sessionId: s.session.id,
+    startedAt: Date.now(),
+    endedAt: null,
+    manchesTarget: s.settings.manchesTarget,
+    mancheIndex: 0,
+    manchesWon: {},
+    manches: [],
+    winnerId: null,
+  };
+}
+
+function setActiveSessionId(id) {
+  saveActiveSessionId(id);
+}
+
+/** Écrit la session dans l'archive. Le roster et l'anti-doublon y sont copiés
+ *  pour qu'une reprise après rechargement retrouve l'état exact. */
+function persistSession(s) {
+  if (!s.session) return;
+  putSession({
+    ...s.session,
+    players: s.players.map(({ id, name, emoji, color }) => ({ id, name, emoji, color })),
+    history: s.history,
+    updatedAt: Date.now(),
+  });
+}
+
+function persistPartie(s) {
+  if (!s.partie) return;
+  putPartie({ ...s.partie, settings: { ...s.settings } });
+}
+
 /**
- * Condition de victoire (SPEC §10.3).
+ * Retire des points à un joueur, plancher à 0. Enregistre la perte réellement
+ * appliquée dans `roundPenalties` (l'écran de révélation affiche ce montant) et
+ * répercute la même valeur sur les stats, pour qu'elles suivent le score net.
  */
-export function hasVictory(s) {
+function applyPenalty(s, p, cost) {
+  const before = p.score;
+  p.score = Math.max(0, p.score - cost);
+  const lost = before - p.score;
+  s.roundPenalties[p.id] = lost;
+  if (lost > 0) {
+    s.stats.perPlayer[p.id] = s.stats.perPlayer[p.id] || initPerPlayer(p);
+    s.stats.perPlayer[p.id].totalScore -= lost;
+  }
+}
+
+/**
+ * Fin de MANCHE : le score cible est atteint (SPEC §10.3).
+ * Attention, ce n'est plus la fin de la partie — celle-ci se joue au best-of.
+ */
+export function hasMancheWinner(s) {
   const target = s.settings.targetScore;
   const ranked = [...s.players].sort((a, b) => b.score - a.score);
   const leader = ranked[0];
@@ -108,15 +195,35 @@ export function hasVictory(s) {
 }
 
 /**
- * Détermine un gagnant (SPEC §10.4).
+ * Gagnant de la manche courante (SPEC §10.4).
  */
-export function computeWinner(s) {
+export function computeMancheWinner(s) {
   const ranked = [...s.players].sort((a, b) => {
     const scoreDelta = b.score - a.score;
     if (scoreDelta !== 0) return scoreDelta;
     return s.players.indexOf(a) - s.players.indexOf(b);
   });
-  return hasVictory(s) ? ranked[0] : null;
+  return hasMancheWinner(s) ? ranked[0] : null;
+}
+
+/**
+ * Nombre de manches à remporter pour gagner la partie. Le total étant impair,
+ * cette majorité est toujours atteignable et jamais ex æquo.
+ */
+export function manchesNeeded(s) {
+  return Math.floor((s.partie?.manchesTarget || s.settings.manchesTarget) / 2) + 1;
+}
+
+/**
+ * Gagnant de la PARTIE : premier joueur à atteindre la majorité des manches.
+ * Le best-of s'arrête dès ce moment, les manches restantes ne sont pas jouées.
+ */
+export function computePartieWinner(s) {
+  if (!s.partie) return null;
+  const needed = manchesNeeded(s);
+  const id = Object.keys(s.partie.manchesWon)
+    .find(pid => s.partie.manchesWon[pid] >= needed);
+  return id ? s.players.find(p => p.id === id) || null : null;
 }
 
 function reducer(s, action) {
@@ -141,14 +248,24 @@ function reducer(s, action) {
 
     case 'START_GAME':
       s.settings = { ...s.settings }; // snapshot
+      // Session implicite : elle naît au premier lancement et survit aux
+      // parties suivantes. L'anti-doublon est porté par elle, donc on ne le
+      // vide qu'avec une session neuve.
+      if (!s.session) {
+        s.session = newSession();
+        s.history = [];
+      }
+      s.partie = newPartie(s);
+      s.players = s.players.map(p => ({ ...p, score: 0 }));
       s.questions = [];
       s.prefetchQueue = [];
       s.prefetchInflight = false;
       s.currentIndex = -1;
       s.roundAnswers = {};
+      s.roundPenalties = {};
       s.isBonusRound = false;
       s.phase = 'LOADING';
-      s.history = action.resetHistory ? [] : s.history;
+      persistSession(s);
       triggerInitialBatch();
       break;
 
@@ -168,6 +285,7 @@ function reducer(s, action) {
       s.currentIndex = s.questions.length - 1;
       s.history.push(normalizeQuestionText(next.question));
       s.roundAnswers = Object.fromEntries(s.players.map(p => [p.id, null]));
+      s.roundPenalties = {};
       s.isBonusRound = s.settings.bonusEnabled && Math.random() < BONUS_CHANCE;
       s.phase = 'QUESTION';
       maybePrefetchNext();
@@ -195,6 +313,11 @@ function reducer(s, action) {
           correctCount++;
           s.stats.perPlayer[p.id] = s.stats.perPlayer[p.id] || initPerPlayer(p);
           s.stats.perPlayer[p.id].totalScore += bonusMult;
+        } else if (!ans && s.settings.penaltyNoAnswer) {
+          applyPenalty(s, p, 1);
+        } else if (ans && s.settings.penaltyWrongAnswer) {
+          // « Ultra punitive » : le ×2 des questions bonus s'applique aussi à la perte.
+          applyPenalty(s, p, s.settings.punisherSeverity === 'ultra' ? bonusMult : 1);
         }
       }
       s.stats.questionsAnswered += s.players.length;
@@ -202,27 +325,113 @@ function reducer(s, action) {
       break;
     }
 
-    case 'GOTO_VICTORY': {
-      s.phase = 'VICTORY';
-      const winner = computeWinner(s);
+    // Le score cible clôt la MANCHE, pas la partie : on enregistre le résultat
+    // puis on regarde si la majorité du best-of est atteinte.
+    case 'END_MANCHE': {
+      const winner = computeMancheWinner(s);
+      s.partie.manches.push({
+        index: s.partie.mancheIndex,
+        winnerId: winner ? winner.id : null,
+        scores: Object.fromEntries(s.players.map(p => [p.id, p.score])),
+      });
       if (winner) {
-        s.stats.perPlayer[winner.id] = s.stats.perPlayer[winner.id] || initPerPlayer(winner);
-        s.stats.perPlayer[winner.id].wins += 1;
+        s.partie.manchesWon[winner.id] = (s.partie.manchesWon[winner.id] || 0) + 1;
       }
-      s.stats.gamesPlayed += 1;
-      saveStats(s.stats);
+      const partieWinner = computePartieWinner(s);
+      if (partieWinner) {
+        s.phase = 'VICTORY';
+        s.partie.winnerId = partieWinner.id;
+        s.partie.endedAt = Date.now();
+        s.stats.perPlayer[partieWinner.id] =
+          s.stats.perPlayer[partieWinner.id] || initPerPlayer(partieWinner);
+        s.stats.perPlayer[partieWinner.id].wins += 1;
+        s.stats.gamesPlayed += 1;
+        saveStats(s.stats);
+      } else {
+        s.phase = 'MANCHE_END';
+      }
+      persistPartie(s);
+      persistSession(s);
       break;
     }
 
+    case 'START_MANCHE':
+      s.players = s.players.map(p => ({ ...p, score: 0 })); // RAZ systématique
+      s.partie.mancheIndex += 1;
+      s.questions = [];
+      s.currentIndex = -1;
+      s.roundAnswers = {};
+      s.roundPenalties = {};
+      s.isBonusRound = false;
+      s.phase = 'LOADING';
+      break;
+
+    // Nouvelle partie dans la MÊME session : le roster et l'anti-doublon restent.
     case 'NEW_GAME':
       s.players = s.players.map(p => ({ ...p, score: 0 }));
+      s.partie = null;
       s.questions = [];
       s.prefetchQueue = [];
       s.prefetchInflight = false;
       s.currentIndex = -1;
       s.roundAnswers = {};
+      s.roundPenalties = {};
       s.isBonusRound = false;
       s.phase = 'SETUP';
+      break;
+
+    case 'GOTO_HOME':
+      s.phase = 'HOME';
+      break;
+
+    case 'GOTO_SESSIONS':
+      s.phase = 'SESSIONS';
+      break;
+
+    // Création explicite, sans passer par le lancement d'une partie.
+    // La session précédente est archivée telle quelle avant d'être remplacée.
+    case 'NEW_SESSION':
+      if (s.session) {
+        s.session = { ...s.session, status: 'closed' };
+        persistSession(s);
+      }
+      s.session = newSession();
+      s.history = [];
+      s.partie = null;
+      s.players = s.players.map(p => ({ ...p, score: 0 }));
+      s.phase = 'SETUP';
+      persistSession(s);
+      break;
+
+    case 'CLOSE_SESSION':
+      if (s.session) {
+        s.session = { ...s.session, status: 'closed' };
+        persistSession(s);
+      }
+      s.session = null;
+      s.partie = null;
+      s.history = [];
+      setActiveSessionId(null);
+      s.phase = 'HOME';
+      break;
+
+    case 'RESUME_SESSION':
+      s.session = { ...action.session, status: 'active' };
+      s.history = Array.isArray(action.session.history) ? action.session.history : [];
+      if (Array.isArray(action.session.players) && action.session.players.length) {
+        s.players = action.session.players.map(p => ({ ...p, score: 0 }));
+      }
+      s.partie = null;
+      s.phase = 'SETUP';
+      setActiveSessionId(s.session.id); // sinon la reprise est perdue au rechargement
+      persistSession(s);
+      break;
+
+    case 'RENAME_SESSION':
+      if (s.session && s.session.id === action.id) {
+        s.session = { ...s.session, name: action.name };
+        persistSession(s);
+      }
       break;
 
     case 'RESET_ALL': {
@@ -231,6 +440,7 @@ function reducer(s, action) {
       for (const k of Object.keys(s)) delete s[k];
       Object.assign(s, fresh);
       clearAll();
+      setActiveSessionId(null);
       break;
     }
 

@@ -1,5 +1,5 @@
 // screens/game.js — écran GAME (question, saisie, reveal) (SPEC §12.3).
-import { getState, dispatch, subscribe, hasVictory, retryGeneration } from '../state.js';
+import { getState, dispatch, subscribe, hasMancheWinner, manchesNeeded, retryGeneration } from '../state.js';
 import { DIFFICULTY_LABELS } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 
@@ -10,6 +10,9 @@ let lastIndex = -1;
 let activePlayerId = null;
 let lastErrorTs = null;
 let lastOnline = null;
+let timerId = null;
+let timeLeft = 0;
+let timeUp = false;
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -19,6 +22,55 @@ function escapeHtml(s) {
 
 function dispatchToast(message, kind = 'info') {
   document.dispatchEvent(new CustomEvent('qc:toast', { detail: { message, kind } }));
+}
+
+// --- Chronomètre (mode chrono) ---
+// Le décompte reste local : passer par dispatch() écrirait dans localStorage
+// à chaque tick (voir l'abonnement de main.js).
+
+function stopTimer() {
+  if (timerId) { clearInterval(timerId); timerId = null; }
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const rest = sec % 60;
+  return m > 0 ? `${m}:${String(rest).padStart(2, '0')}` : `${rest} s`;
+}
+
+function paintTimer() {
+  const el = root?.querySelector('#question-timer');
+  if (!el) return;
+  el.textContent = timeUp ? 'Temps écoulé' : formatTime(timeLeft);
+  el.classList.toggle('timer--urgent', !timeUp && timeLeft <= 10);
+  el.classList.toggle('timer--over', timeUp);
+}
+
+function expireTimer() {
+  stopTimer();
+  timeUp = true;
+  timeLeft = 0;
+  root.querySelectorAll('.option-card__player-btn').forEach(b => { b.disabled = true; });
+  paintTimer();
+  updateRevealButton();
+  dispatchToast('Temps écoulé — saisie verrouillée.', 'error');
+}
+
+function startTimer() {
+  stopTimer();
+  timeUp = false;
+  const s = getState();
+  if (!s.settings.timerEnabled) return;
+  // On vise une échéance plutôt que de décrémenter : setInterval dérive et se
+  // fait brider quand l'onglet passe en arrière-plan.
+  const deadline = Date.now() + (s.settings.timePerQuestion || 60) * 1000;
+  timeLeft = Math.ceil((deadline - Date.now()) / 1000);
+  paintTimer();
+  timerId = setInterval(() => {
+    timeLeft = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (timeLeft === 0) expireTimer();
+    else paintTimer();
+  }, 500);
 }
 
 const SHELL = `
@@ -86,10 +138,39 @@ function questionHtml(s) {
       <div class="question-meta">
         <span id="difficulty-badge" class="badge badge--${q.difficulty}">${escapeHtml(difficulty)}</span>
         ${bonus ? '<span id="bonus-badge" class="badge badge--bonus">×2 BONUS</span>' : ''}
+        ${s.settings.timerEnabled ? '<span id="question-timer" class="timer" role="timer" aria-live="off"></span>' : ''}
       </div>
       <h2 id="question-heading">${escapeHtml(q.question)}</h2>
       <div id="options-grid" class="options-grid">${optionsHtml}</div>
       <button id="btn-reveal" class="button button--primary button--large" disabled>Révéler la réponse</button>
+    </article>
+  `;
+}
+
+function mancheEndHtml(s) {
+  const last = s.partie.manches[s.partie.manches.length - 1];
+  const winner = s.players.find(p => p.id === last?.winnerId);
+  const needed = manchesNeeded(s);
+
+  const tally = s.players.map(p => {
+    const won = s.partie.manchesWon[p.id] || 0;
+    const pips = Array.from({ length: s.partie.manchesTarget }, (_, i) =>
+      `<span class="manche-pip${i < won ? ' manche-pip--won' : ''}"></span>`).join('');
+    return `
+      <div class="podium__row${p.id === last?.winnerId ? ' podium__row--first' : ''}">
+        <span aria-hidden="true">${p.emoji}</span>
+        <span class="answer-card__name">${escapeHtml(p.name)}</span>
+        <span class="manche-pips" aria-label="${won} manche${won > 1 ? 's' : ''} gagnée${won > 1 ? 's' : ''}">${pips}</span>
+        <span class="answer-card__score">${last?.scores?.[p.id] ?? 0} pt</span>
+      </div>`;
+  }).join('');
+
+  return `
+    <article class="question-card" aria-live="polite">
+      <h2>${winner ? `🏅 ${escapeHtml(winner.name)} remporte la manche ${s.partie.mancheIndex + 1}` : `Manche ${s.partie.mancheIndex + 1} terminée`}</h2>
+      <p class="gap-msg">Première personne à ${needed} manche${needed > 1 ? 's' : ''} remporte la partie.</p>
+      <div class="podium">${tally}</div>
+      <button id="btn-next-manche" class="button button--primary button--large">Manche suivante</button>
     </article>
   `;
 }
@@ -118,13 +199,22 @@ function revealHtml(s) {
     let result;
     let cls = 'answer-card';
     if (!ans) {
-      result = '<span class="answer-result answer-result--none">— Pas de réponse · +0</span>';
+      const lost = s.roundPenalties[p.id] || 0;
+      if (lost > 0) {
+        cls += ' answer-card--wrong';
+        result = `<span class="answer-result answer-result--wrong">— Pas de réponse · −${lost}</span>`;
+      } else {
+        result = '<span class="answer-result answer-result--none">— Pas de réponse · +0</span>';
+      }
     } else if (ans === q.answer) {
       cls += ' answer-card--correct';
       result = `<span class="answer-result answer-result--correct">✓ +${bonusMult}</span>`;
     } else {
       cls += ' answer-card--wrong';
-      result = '<span class="answer-result answer-result--wrong">✕ +0</span>';
+      const lost = s.roundPenalties[p.id] || 0;
+      result = lost > 0
+        ? `<span class="answer-result answer-result--wrong">✕ −${lost}</span>`
+        : '<span class="answer-result answer-result--wrong">✕ +0</span>';
     }
     return `
       <div class="${cls}">
@@ -141,8 +231,8 @@ function revealHtml(s) {
     `;
   }).join('');
 
-  const victory = hasVictory(s);
-  const actionLabel = victory ? 'Voir le podium' : 'Question suivante';
+  const victory = hasMancheWinner(s);
+  const actionLabel = victory ? 'Fin de la manche' : 'Question suivante';
 
   let gapMsg = '';
   if (!victory && s.settings.twoPointLead) {
@@ -198,7 +288,10 @@ function updateHeader() {
     const q = s.questions[s.currentIndex];
     const n = s.currentIndex + 1;
     const prepared = s.questions.length + s.prefetchQueue.length;
-    numEl.textContent = `Question ${n} · ${prepared} préparée${prepared > 1 ? 's' : ''}`;
+    const manche = s.partie
+      ? `Manche ${s.partie.mancheIndex + 1}/${s.partie.manchesTarget} · `
+      : '';
+    numEl.textContent = `${manche}Question ${n} · ${prepared} préparée${prepared > 1 ? 's' : ''}`;
     themeEl.textContent = q?.theme || '';
     const pct = Math.min(100, Math.round((n / Math.max(prepared, 1)) * 100));
     fillEl.style.width = `${pct}%`;
@@ -215,10 +308,12 @@ function updateRevealButton() {
   if (!btn) return;
   const s = getState();
   const answered = Object.values(s.roundAnswers).some(a => a);
-  btn.disabled = !answered;
+  // Sans ce `|| timeUp`, un temps écoulé sans aucune réponse bloquerait le MJ.
+  btn.disabled = !answered && !timeUp;
 }
 
 function selectAnswer(playerId, key) {
+  if (timeUp) return;
   const s = getState();
   const current = s.roundAnswers[playerId];
   if (current === key) {
@@ -295,8 +390,8 @@ function wireQuestionBody(body) {
 function wireRevealBody(body) {
   body.querySelector('#btn-next').addEventListener('click', () => {
     const s = getState();
-    if (hasVictory(s)) {
-      dispatch({ type: 'GOTO_VICTORY' });
+    if (hasMancheWinner(s)) {
+      dispatch({ type: 'END_MANCHE' });
     } else if (s.prefetchQueue.length === 0) {
       dispatch({
         type: 'SET_ERROR',
@@ -309,9 +404,18 @@ function wireRevealBody(body) {
   }, { signal });
 }
 
+function wireMancheEndBody(body) {
+  body.querySelector('#btn-next-manche').addEventListener('click', () => {
+    dispatch({ type: 'START_MANCHE' });
+    dispatch({ type: 'SHOW_NEXT_QUESTION' }); // sans effet si la file est vide
+    if (getState().phase === 'LOADING') retryGeneration();
+  }, { signal });
+}
+
 function renderBody() {
   const s = getState();
   const body = root.querySelector('#game-body');
+  stopTimer();
   if (s.phase === 'LOADING') {
     body.innerHTML = loadingHtml();
   } else if (s.phase === 'QUESTION') {
@@ -324,10 +428,14 @@ function renderBody() {
         if (playerBtn) playerBtn.classList.add('is-active');
       }
     }
+    startTimer();
     updateRevealButton();
   } else if (s.phase === 'REVEAL') {
     body.innerHTML = revealHtml(s);
     wireRevealBody(body);
+  } else if (s.phase === 'MANCHE_END') {
+    body.innerHTML = mancheEndHtml(s);
+    wireMancheEndBody(body);
   }
   updateHeader();
 }
@@ -339,6 +447,7 @@ export function renderGame(rootEl) {
   lastIndex = -1;
   activePlayerId = null;
   lastErrorTs = null;
+  timeUp = false;
   lastOnline = getState().ui.isOnline;
 
   root.innerHTML = SHELL;
@@ -380,6 +489,7 @@ export function renderGame(rootEl) {
   });
 
   teardown = () => {
+    stopTimer();
     unsub();
     cleanup.abort();
     signal = null;

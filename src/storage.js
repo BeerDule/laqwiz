@@ -110,6 +110,25 @@ export function saveStats(stats) {
   writeJson(STORAGE_KEYS.stats, stats);
 }
 
+// --- Session active ---
+// Seul l'identifiant vit en localStorage : il doit être lu de façon synchrone
+// au démarrage pour savoir quelle session recharger. Le contenu, lui, est en
+// IndexedDB (voir db.js).
+
+export function loadActiveSessionId() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.activeSession);
+    return typeof raw === 'string' && raw ? raw : null;
+  } catch { return null; }
+}
+
+export function saveActiveSessionId(id) {
+  try {
+    if (id) localStorage.setItem(STORAGE_KEYS.activeSession, id);
+    else localStorage.removeItem(STORAGE_KEYS.activeSession);
+  } catch { /* quota exceeded */ }
+}
+
 export function clearAll() {
   Object.values(STORAGE_KEYS).forEach(k => {
     try { localStorage.removeItem(k); } catch { /* ignore */ }

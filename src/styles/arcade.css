@@ -1,0 +1,366 @@
+/* src/styles/arcade.css — coquille « jeu vidéo » des écrans de menu.
+ *
+ * Ces écrans (accueil, sélecteur de sessions, réglages) gardent l'identité
+ * Bubble Island quel que soit le thème sélectionné : c'est le menu du jeu, pas
+ * une surface de contenu. Les couleurs sont donc figées ici et NON reprises des
+ * jetons — sinon le texte deviendrait illisible en Matrix ou Win98, où les
+ * valeurs partent dans l'autre sens.
+ *
+ * Contraste vérifié contre le pixel le plus sombre du fond (palme, rgb 41,82,0) :
+ * texte 5,4:1 sur le lavis nu, 8,6:1 sur le verre.
+ */
+
+.arcade {
+  --arcade-ink: #0d3b4f;
+  --arcade-ink-soft: #1f4152;
+  --arcade-glass: rgba(255, 255, 255, .55);
+  --arcade-frame: url('/bubble-island/panel.png');
+
+  position: relative;
+  min-height: 100dvh;
+  padding: var(--space-5);
+  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  color: var(--arcade-ink);
+  font-size: 15px;
+  background-color: #cfe6f5;
+  background-image:
+    linear-gradient(140deg,
+      rgba(219, 234, 254, .72) 0%, rgba(233, 213, 255, .72) 25%,
+      rgba(251, 207, 232, .72) 50%, rgba(191, 219, 254, .72) 75%,
+      rgba(209, 250, 229, .72) 100%),
+    url('/bubble-island/bg.png');
+  background-size: cover, cover;
+  background-position: center center;
+  background-attachment: fixed;
+}
+
+/* Préchargement des états de bouton : évite le flash au premier survol */
+.arcade::after {
+  content: '';
+  position: fixed;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  background-image:
+    url('/bubble-island/btn-hover.png'), url('/bubble-island/btn-click.png'),
+    url('/bubble-island/btn-lock.png');
+}
+
+/* ===== Titres ===== */
+.arcade__title { text-align: center; margin-block: var(--space-8) var(--space-4); }
+.arcade__title h1 {
+  font-size: clamp(2rem, 7vw, 3.4rem);
+  color: #ffffff;
+  letter-spacing: -.02em;
+  text-shadow:
+    0 2px 0 #0a7ab0, 0 4px 0 #075f8c, 0 8px 18px rgba(3, 40, 60, .45);
+}
+.arcade__title p { color: var(--arcade-ink); font-weight: 600; }
+
+.arcade__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.arcade__bar h1 {
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  color: #ffffff;
+  text-shadow: 0 2px 0 #0a7ab0, 0 5px 14px rgba(3, 40, 60, .4);
+  margin-right: auto;
+}
+.arcade__topbar { display: flex; justify-content: flex-end; }
+
+/* ===== Boutons bulle ===== */
+.arcade-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px 26px;
+  border: 0;
+  border-style: solid;
+  border-width: 0;
+  border-image-source: url('/bubble-island/btn-normal.png');
+  border-image-slice: 350 fill;
+  border-image-width: 22px;
+  border-image-repeat: stretch;
+  background: none;
+  color: #06364b;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+.arcade-btn:hover:not(:disabled) {
+  border-image-source: url('/bubble-island/btn-hover.png');
+  transform: translateY(-1px);
+}
+.arcade-btn:active:not(:disabled) {
+  border-image-source: url('/bubble-island/btn-click.png');
+  transform: translateY(1px);
+}
+.arcade-btn:disabled {
+  border-image-source: url('/bubble-island/btn-lock.png');
+  color: rgba(6, 54, 75, .45);
+  cursor: default;
+}
+.arcade-btn:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
+
+.arcade-btn--primary { font-size: 17px; min-height: 54px; padding-inline: 34px; }
+.arcade-btn--small { min-height: 36px; font-size: 13px; padding-inline: 20px; }
+.arcade-btn--danger { color: #8c1d10; }
+.arcade-btn--icon {
+  min-height: 44px;
+  width: 44px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+  border-image-source: url('/bubble-island/btn-round-normal.png');
+  border-image-slice: 348 fill;
+  border-image-width: 50%;
+}
+.arcade-btn--icon:hover:not(:disabled) { border-image-source: url('/bubble-island/btn-round-hover.png'); }
+.arcade-btn--icon:active:not(:disabled) { border-image-source: url('/bubble-island/btn-round-click.png'); }
+
+/* ===== Menu principal ===== */
+.arcade__menu {
+  display: grid;
+  gap: var(--space-4);
+  justify-content: center;
+  align-content: start;
+  width: min(360px, 100%);
+  margin-inline: auto;
+}
+.arcade__menu .arcade-btn { width: 100%; }
+
+/* ===== Plaque « session en cours » ===== */
+.arcade-plaque {
+  width: min(420px, 100%);
+  margin-inline: auto;
+  padding: var(--space-5) var(--space-6);
+  text-align: center;
+  border-style: solid;
+  border-width: 0;
+  border-image-source: var(--arcade-frame);
+  border-image-slice: 110;
+  border-image-width: 14px;
+  border-image-repeat: stretch;
+  background: var(--arcade-glass);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+}
+.arcade-plaque__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--arcade-ink-soft);
+}
+.arcade-plaque__name { display: block; font-size: 18px; margin-top: 2px; }
+.arcade-plaque__roster { display: flex; gap: 4px; justify-content: center; margin-top: var(--space-3); }
+
+/* ===== Grille de sessions ===== */
+.arcade-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-5);
+  align-content: start;
+  overflow-y: auto;
+  padding-bottom: var(--space-5);
+}
+.arcade-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-10);
+  color: var(--arcade-ink);
+  font-weight: 600;
+}
+
+.arcade-card {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-6);
+  border-style: solid;
+  border-width: 0;
+  border-image-source: var(--arcade-frame);
+  border-image-slice: 110;
+  border-image-width: 14px;
+  border-image-repeat: stretch;
+  background: var(--arcade-glass);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+}
+.arcade-card--active { box-shadow: 0 0 0 3px rgba(28, 167, 216, .85), 0 10px 28px rgba(3, 40, 60, .25); }
+.arcade-card__head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.arcade-card__name { font-size: 17px; line-height: 1.2; }
+.arcade-card__date { font-size: 12px; color: var(--arcade-ink-soft); }
+.arcade-card__muted { font-size: 12px; color: var(--arcade-ink-soft); }
+.arcade-card__roster { display: flex; gap: 4px; flex-wrap: wrap; }
+.arcade-card__stat { font-size: 13px; font-weight: 600; }
+.arcade-card__trophies { display: flex; gap: var(--space-3); flex-wrap: wrap; min-height: 26px; }
+.arcade-card__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+
+.arcade-tag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #1ca7d8;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.arcade-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 1px 3px rgba(3, 40, 60, .2);
+}
+
+.arcade-trophy { display: inline-flex; align-items: center; gap: 4px; }
+.arcade-trophy::before {
+  content: '';
+  width: 22px;
+  height: 24px;
+  background: center / contain no-repeat url('/bubble-island/medal-gold.png');
+}
+.arcade-trophy__count { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Le flou est la partie coûteuse : on l'allège là où les surfaces s'accumulent */
+@media (max-width: 767px) {
+  .arcade-plaque,
+  .arcade-card {
+    backdrop-filter: blur(8px) saturate(1.3);
+    -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  }
+}
+
+/* Sans backdrop-filter (Firefox < 103) : surface opaque plutôt que texte sur l'île */
+@supports not (backdrop-filter: blur(1px)) {
+  .arcade-plaque,
+  .arcade-card { background: rgba(248, 252, 255, .93); }
+}
+
+/* ===== Écran de réglages en panneaux de jeu =====
+ * On ne touche ni aux ids ni au câblage : seuls le cadre, les boutons et les
+ * champs sont repris pour que le formulaire se lise comme un menu d'options. */
+
+.arcade--setup { gap: var(--space-4); }
+.arcade--setup form { display: grid; gap: var(--space-5); align-content: start; }
+
+.arcade-plaque--slim {
+  width: 100%;
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+  text-align: left;
+  font-weight: 700;
+}
+.arcade-plaque--slim:empty { display: none; }
+
+.arcade--setup .panel {
+  padding: var(--space-6);
+  border: 0;
+  border-style: solid;
+  border-width: 0;
+  border-image-source: var(--arcade-frame);
+  border-image-slice: 110;
+  border-image-width: 14px;
+  border-image-repeat: stretch;
+  border-radius: 0;
+  background: var(--arcade-glass);
+  background-image: none;
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: none;
+  color: var(--arcade-ink);
+}
+.arcade--setup .panel legend,
+.arcade--setup .panel summary,
+.arcade--setup h3,
+.arcade--setup .rule-group__label,
+.arcade--setup .field-label {
+  color: var(--arcade-ink-soft);
+  font-weight: 700;
+}
+.arcade--setup .panel legend { font-size: 13px; }
+
+/* Boutons du formulaire : même bulle que le menu */
+.arcade--setup .button {
+  border: 0;
+  border-style: solid;
+  border-width: 0;
+  border-image-source: url('/bubble-island/btn-normal.png');
+  border-image-slice: 350 fill;
+  border-image-width: 18px;
+  border-image-repeat: stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #06364b;
+  font-weight: 700;
+  min-height: 40px;
+  padding-inline: 22px;
+}
+.arcade--setup .button:hover:not(:disabled) {
+  border-image-source: url('/bubble-island/btn-hover.png');
+  background: none;
+  filter: none;
+}
+.arcade--setup .button:active:not(:disabled) {
+  border-image-source: url('/bubble-island/btn-click.png');
+  background: none;
+}
+.arcade--setup .button:disabled {
+  border-image-source: url('/bubble-island/btn-lock.png');
+  opacity: 1;
+  color: rgba(6, 54, 75, .45);
+}
+.arcade--setup #btn-start { min-height: 54px; font-size: 17px; }
+
+/* Champs : verre clair et liseré blanc, quel que soit le thème */
+.arcade--setup input[type='text'],
+.arcade--setup input[type='search'],
+.arcade--setup input[type='password'],
+.arcade--setup input[type='number'],
+.arcade--setup select,
+.arcade--setup textarea {
+  background: rgba(255, 255, 255, .78);
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 10px;
+  color: var(--arcade-ink);
+  min-height: 36px;
+  padding: 4px 10px;
+}
+.arcade--setup .player-card {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .85);
+  background: rgba(255, 255, 255, .45);
+}
+.arcade--setup .choice-chip span {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .85);
+  background: rgba(255, 255, 255, .5);
+  color: var(--arcade-ink);
+  font-weight: 600;
+}
+.arcade--setup .choice-chip input:checked + span {
+  background: #1ca7d8;
+  border-color: #1ca7d8;
+  color: #ffffff;
+}
+.arcade--setup .toggle-row { color: var(--arcade-ink); font-weight: 600; }
+.arcade--setup .form-error { color: #8c1d10; font-weight: 700; }

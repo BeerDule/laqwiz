@@ -1127,3 +1127,72 @@ kbd.option-card__hint {
     font-size: 14px;
   }
 }
+
+/* ===== Timer (mode chronomètre) ===== */
+.timer {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding: 0 8px;
+  min-height: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.timer--urgent {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+.timer--over {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+/* ===== Manches (best-of) ===== */
+.manche-pips { display: inline-flex; gap: 3px; margin-left: auto; }
+.manche-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+}
+.manche-pip--won {
+  border-color: var(--color-accent-primary);
+  background: var(--color-accent-primary);
+}
+
+/* ===== Gestionnaire de sessions ===== */
+.sessions-list {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+.session-card { display: grid; gap: var(--space-3); }
+.session-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.session-card__name { font-size: 14px; text-transform: none; letter-spacing: 0; color: var(--color-text); }
+.session-card__date { margin-left: auto; color: var(--color-muted); font-size: 12px; }
+.session-card__roster { color: var(--color-muted); font-size: 12px; }
+.session-parties { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.session-partie {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.session-partie__score { margin-left: auto; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.session-card__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }

@@ -5,7 +5,7 @@ import {
   MIN_PLAYERS, MAX_PLAYERS, NAME_MAX_LENGTH,
   THEME_MIN_LENGTH, THEME_MAX_LENGTH,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
-  DIFFICULTY_CHOICES, AUDIENCE_CHOICES,
+  DIFFICULTY_CHOICES, AUDIENCE_CHOICES, TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
 } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 
@@ -203,11 +203,33 @@ function renderThemes() {
 }
 
 function renderSettings() {
-  const s = getState().settings;
+  const { settings: s, session } = getState();
+  const banner = root.querySelector('#session-banner');
+  if (banner) {
+    // Vide quand il n'y a pas de session : la plaque se masque via :empty.
+    banner.textContent = session ? `Session : ${session.name}` : '';
+  }
   root.querySelector('#target-score').value = s.targetScore;
   root.querySelector('#target-score-output').textContent = s.targetScore;
   root.querySelector('#two-point-lead').checked = s.twoPointLead;
   root.querySelector('#bonus-enabled').checked = s.bonusEnabled;
+  root.querySelector('#timer-enabled').checked = s.timerEnabled;
+  root.querySelector('#penalty-no-answer').checked = s.penaltyNoAnswer;
+  root.querySelector('#penalty-wrong-answer').checked = s.penaltyWrongAnswer;
+  const mancheInput = root.querySelector(
+    `input[name="manchesTarget"][value="${s.manchesTarget || 3}"]`
+  );
+  if (mancheInput) mancheInput.checked = true;
+  root.querySelector('#punisher-severity-group').hidden = !s.penaltyWrongAnswer;
+  const punisherInput = root.querySelector(
+    `input[name="punisherSeverity"][value="${s.punisherSeverity || 'punitive'}"]`
+  );
+  if (punisherInput) punisherInput.checked = true;
+  root.querySelector('#timer-duration-group').hidden = !s.timerEnabled;
+  const timerInput = root.querySelector(
+    `input[name="timePerQuestion"][value="${s.timePerQuestion || 60}"]`
+  );
+  if (timerInput) timerInput.checked = true;
   const difficultyInput = root.querySelector(
     `input[name="difficulty"][value="${s.difficulty || 'balanced'}"]`
   );
@@ -301,6 +323,24 @@ function wireEvents(signal) {
     root.querySelector('#target-score-output').textContent = slider.value;
   }, { signal });
 
+  root.querySelector('#btn-sessions').addEventListener('click', () => {
+    dispatch({ type: 'GOTO_SESSIONS' });
+  }, { signal });
+
+  root.querySelector('#btn-home').addEventListener('click', () => {
+    dispatch({ type: 'GOTO_HOME' });
+  }, { signal });
+
+  const timerToggle = root.querySelector('#timer-enabled');
+  timerToggle.addEventListener('change', () => {
+    root.querySelector('#timer-duration-group').hidden = !timerToggle.checked;
+  }, { signal });
+
+  const punisherToggle = root.querySelector('#penalty-wrong-answer');
+  punisherToggle.addEventListener('change', () => {
+    root.querySelector('#punisher-severity-group').hidden = !punisherToggle.checked;
+  }, { signal });
+
   const tempSlider = root.querySelector('#llm-temp');
   tempSlider.addEventListener('input', () => {
     root.querySelector('#llm-temp-output').textContent = parseFloat(tempSlider.value).toFixed(1);
@@ -333,6 +373,12 @@ function wireEvents(signal) {
         bonusEnabled: root.querySelector('#bonus-enabled').checked,
         difficulty: root.querySelector('input[name="difficulty"]:checked')?.value || 'balanced',
         audience: root.querySelector('input[name="audience"]:checked')?.value || 'general',
+        timerEnabled: root.querySelector('#timer-enabled').checked,
+        timePerQuestion: parseInt(root.querySelector('input[name="timePerQuestion"]:checked')?.value, 10) || 60,
+        penaltyNoAnswer: root.querySelector('#penalty-no-answer').checked,
+        penaltyWrongAnswer: root.querySelector('#penalty-wrong-answer').checked,
+        manchesTarget: parseInt(root.querySelector('input[name="manchesTarget"]:checked')?.value, 10) || 3,
+        punisherSeverity: root.querySelector('input[name="punisherSeverity"]:checked')?.value || 'punitive',
         baseUrl: root.querySelector('#llm-base-url').value.trim(),
         apiKey: root.querySelector('#llm-api-key').value.trim(),
         model: root.querySelector('#llm-model').value.trim(),
@@ -349,17 +395,14 @@ export function renderSetup(rootEl) {
   initLocalState();
 
   root.innerHTML = `
-    <section class="setup-screen screen" data-screen="setup" aria-labelledby="setup-title">
-      <header class="setup-header">
-        <div class="setup-header__brand">
-          <div class="app-name">
-            <strong id="setup-title">Quizz Canapé</strong>
-            <span>— quiz multijoueur local</span>
-          </div>
-          <p>Le savoir. La mauvaise foi. Le canapé.</p>
-        </div>
+    <section class="setup-screen screen arcade arcade--setup" data-screen="setup" aria-labelledby="setup-title">
+      <header class="arcade__bar setup-header">
+        <button id="btn-home" class="arcade-btn arcade-btn--icon" type="button" aria-label="Retour au menu">‹</button>
+        <h1 id="setup-title">Réglages de partie</h1>
+        <button id="btn-sessions" class="arcade-btn arcade-btn--small" type="button">Sessions</button>
         ${renderThemeSelect()}
       </header>
+      <p id="session-banner" class="arcade-plaque arcade-plaque--slim"></p>
       <form id="setup-form" novalidate>
         <fieldset class="panel players-panel">
           <legend>Joueurs <span id="player-count-label">2/6</span></legend>
@@ -401,10 +444,46 @@ export function renderSetup(rootEl) {
               `).join('')}
             </div>
           </div>
-          <label for="target-score">Score cible : <output id="target-score-output">15</output></label>
+          <div class="rule-group">
+            <span class="rule-group__label" id="manches-label">Format de la partie</span>
+            <div class="choice-group" role="radiogroup" aria-labelledby="manches-label">
+              ${MANCHE_CHOICES.map(c => `
+                <label class="choice-chip">
+                  <input type="radio" name="manchesTarget" value="${c.value}" />
+                  <span>${escapeHtml(c.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <label for="target-score">Score cible par manche : <output id="target-score-output">15</output></label>
           <input id="target-score" type="range" min="${TARGET_SCORE_MIN}" max="${TARGET_SCORE_MAX}" step="1" value="15" />
           <label class="toggle-row"><input id="two-point-lead" type="checkbox" /> <span class="toggle-track"></span> Il faut 2 points d'écart pour gagner</label>
           <label class="toggle-row"><input id="bonus-enabled" type="checkbox" /> <span class="toggle-track"></span> Activer les questions bonus ×2</label>
+          <label class="toggle-row"><input id="timer-enabled" type="checkbox" /> <span class="toggle-track"></span> Mode chronomètre</label>
+          <div class="rule-group" id="timer-duration-group" hidden>
+            <span class="rule-group__label" id="timer-label">Temps par question</span>
+            <div class="choice-group" role="radiogroup" aria-labelledby="timer-label">
+              ${TIMER_CHOICES.map(c => `
+                <label class="choice-chip">
+                  <input type="radio" name="timePerQuestion" value="${c.value}" />
+                  <span>${escapeHtml(c.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <label class="toggle-row"><input id="penalty-no-answer" type="checkbox" /> <span class="toggle-track"></span> −1 point si le joueur n'a pas répondu</label>
+          <label class="toggle-row"><input id="penalty-wrong-answer" type="checkbox" /> <span class="toggle-track"></span> Mode punisher : −1 point en cas de mauvaise réponse</label>
+          <div class="rule-group" id="punisher-severity-group" hidden>
+            <span class="rule-group__label" id="punisher-label">Sévérité</span>
+            <div class="choice-group" role="radiogroup" aria-labelledby="punisher-label">
+              ${PUNISHER_CHOICES.map(c => `
+                <label class="choice-chip">
+                  <input type="radio" name="punisherSeverity" value="${c.value}" />
+                  <span>${escapeHtml(c.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
         </fieldset>
         <details class="panel llm-panel" id="llm-config" ${REQUIRE_LLM_CONFIG ? 'open' : ''}>
           <summary>Modèle LLM <span class="llm-hint">${REQUIRE_LLM_CONFIG ? '— obligatoire' : '— optionnel, utilisez vos propres identifiants'}</span></summary>

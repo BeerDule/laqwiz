@@ -403,3 +403,244 @@ h1, h2 { text-shadow: var(--text-glow); }
   backdrop-filter: blur(24px) saturate(1.8);
   -webkit-backdrop-filter: blur(24px) saturate(1.8);
 }
+
+/* Bubble Island — pastel frosted glass over a cartoon island.
+   Assets: public/bubble-island/. The PNG frames supply the ring, not the fill,
+   so the island reads through every surface. Palette calibrated against the
+   darkest pixel of the backdrop (a palm frond, rgb 41,82,0): body text 5.4:1
+   on the bare wash, 8.6:1 on glass. */
+[data-color-theme="bubble-island"] {
+  color-scheme: light;
+  --bg-void: #cfe6f5;
+  --bg-surface: rgba(255, 255, 255, .55);
+  --bg-surface-raised: rgba(255, 255, 255, .72);
+  --bg-surface-soft: rgba(255, 255, 255, .86);
+  --color-accent-primary: #116482;
+  --color-accent-cyan: #0a6a8d;
+  --color-accent-pink: #983d61;
+  --color-accent-lime: #3a6a1f;
+  --color-success: #186c3b;
+  --color-error: #ad2f26;
+  --color-warning: #7e5500;
+  --color-text: #0d3b4f;
+  --color-muted: #1f4152;
+  --color-border: rgba(255, 255, 255, .65);
+  --color-overlay: rgba(20, 60, 85, .38);
+
+  /* island photo underneath, pastel wash painted on top */
+  --gradient-bg: url('/bubble-island/bg.png');
+  --texture: linear-gradient(140deg,
+    rgba(219, 234, 254, .72) 0%, rgba(233, 213, 255, .72) 25%,
+    rgba(251, 207, 232, .72) 50%, rgba(191, 219, 254, .72) 75%,
+    rgba(209, 250, 229, .72) 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .25));
+  --gradient-accent: none;
+  --accent-contrast: #06364b;
+  --on-success: #ffffff;
+  --on-pink: #ffffff;
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, .75), 0 8px 32px rgba(31, 78, 120, .16);
+  --shadow-pop: 0 8px 24px rgba(28, 167, 216, .3);
+  --glow-accent: 0 0 14px rgba(28, 167, 216, .35);
+  --text-glow: none;
+  --font-display: var(--font-sans);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+}
+[data-color-theme="bubble-island"] ::selection { background: #1ca7d8; color: #ffffff; }
+
+[data-color-theme="bubble-island"] body {
+  background-size: cover;
+  background-position: center center;
+}
+
+/* Preload every button state so the first hover doesn't flash */
+[data-color-theme="bubble-island"] body::after {
+  content: '';
+  position: fixed;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  background-image:
+    url('/bubble-island/btn-hover.png'), url('/bubble-island/btn-click.png'),
+    url('/bubble-island/btn-lock.png'), url('/bubble-island/btn-round-hover.png'),
+    url('/bubble-island/btn-round-click.png'), url('/bubble-island/btn-round-lock.png');
+}
+
+/* Frosted surfaces ringed by the sand frame (no `fill` — the glass shows through) */
+[data-color-theme="bubble-island"] .panel,
+[data-color-theme="bubble-island"] .question-card,
+[data-color-theme="bubble-island"] .option-card,
+[data-color-theme="bubble-island"] .answer-card,
+[data-color-theme="bubble-island"] .podium__row,
+[data-color-theme="bubble-island"] .player-card,
+[data-color-theme="bubble-island"] .leaderboard-mini__item {
+  border-style: solid;
+  border-width: 0;
+  border-image-source: url('/bubble-island/panel.png');
+  border-image-slice: 110;
+  border-image-width: 12px;
+  border-image-repeat: stretch;
+  background-color: var(--bg-surface);
+  background-image: var(--gradient-surface);
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  box-shadow: var(--shadow-card);
+}
+/* border-image paints inward without reserving space — keep content clear of the ring */
+[data-color-theme="bubble-island"] .panel { padding: var(--space-6); }
+[data-color-theme="bubble-island"] .question-card { padding: var(--space-8); }
+[data-color-theme="bubble-island"] .option-card,
+[data-color-theme="bubble-island"] .answer-card { padding: 16px 18px; }
+[data-color-theme="bubble-island"] .podium__row,
+[data-color-theme="bubble-island"] .player-card,
+[data-color-theme="bubble-island"] .leaderboard-mini__item {
+  border-image-width: 9px;
+  padding: 12px 14px;
+}
+[data-color-theme="bubble-island"] .game-screen > .leaderboard-mini {
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+}
+
+/* Blur is the expensive part — ease off where there are many surfaces on screen */
+@media (max-width: 767px) {
+  [data-color-theme="bubble-island"] .panel,
+  [data-color-theme="bubble-island"] .question-card,
+  [data-color-theme="bubble-island"] .option-card,
+  [data-color-theme="bubble-island"] .answer-card,
+  [data-color-theme="bubble-island"] .podium__row,
+  [data-color-theme="bubble-island"] .player-card,
+  [data-color-theme="bubble-island"] .leaderboard-mini__item,
+  [data-color-theme="bubble-island"] .game-screen > .leaderboard-mini {
+    backdrop-filter: blur(8px) saturate(1.3);
+    -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  }
+}
+
+/* Firefox < 103 and friends: fall back to an opaque surface rather than
+   transparent text over the island */
+@supports not (backdrop-filter: blur(1px)) {
+  [data-color-theme="bubble-island"] .panel,
+  [data-color-theme="bubble-island"] .question-card,
+  [data-color-theme="bubble-island"] .option-card,
+  [data-color-theme="bubble-island"] .answer-card,
+  [data-color-theme="bubble-island"] .podium__row,
+  [data-color-theme="bubble-island"] .player-card,
+  [data-color-theme="bubble-island"] .leaderboard-mini__item {
+    background-color: rgba(248, 252, 255, .93);
+  }
+}
+
+/* Bubble buttons — one pill PNG per interaction state */
+[data-color-theme="bubble-island"] .button {
+	border-style: solid;
+	border-width: 0;
+	border-image-source: url('/bubble-island/btn-normal.png');
+	border-image-slice: 350 fill;
+	border-image-width: 14px;
+	border-image-repeat: stretch;
+	background: #01d1f959;
+	backdrop-filter: blur(15px);
+	-webkit-backdrop-filter: none;
+	box-shadow: none;
+	color: var(--accent-contrast);
+	font-weight: 700;
+	padding-inline: 18px;
+	color: white;
+}
+[data-color-theme="bubble-island"] .button--large { border-image-width: 16px; padding-inline: 24px; }
+[data-color-theme="bubble-island"] .button:hover:not(:disabled) {
+  border-image-source: url('/bubble-island/btn-hover.png');
+  background: none;
+  filter: none;
+}
+[data-color-theme="bubble-island"] .button:active:not(:disabled) {
+  border-image-source: url('/bubble-island/btn-click.png');
+  background: none;
+}
+[data-color-theme="bubble-island"] .button:disabled {
+  border-image-source: url('/bubble-island/btn-lock.png');
+  opacity: 1;
+  color: rgba(6, 54, 75, .45);
+}
+[data-color-theme="bubble-island"] .button--danger:not(:disabled) { color: #8c1d10; }
+
+/* Round bubble for the icon buttons that carry no .button class */
+[data-color-theme="bubble-island"] .player-card__emoji,
+[data-color-theme="bubble-island"] .player-card__remove,
+[data-color-theme="bubble-island"] .option-card__player-btn {
+  border-style: solid;
+  border-width: 0;
+  border-image-source: url('/bubble-island/btn-round-normal.png');
+  border-image-slice: 348 fill;
+  border-image-width: 50%;
+  border-image-repeat: stretch;
+  background: none;
+  color: var(--accent-contrast);
+  font-weight: 700;
+}
+[data-color-theme="bubble-island"] .player-card__emoji:hover,
+[data-color-theme="bubble-island"] .player-card__remove:hover,
+[data-color-theme="bubble-island"] .option-card__player-btn:hover {
+  border-image-source: url('/bubble-island/btn-round-hover.png');
+  background: none;
+}
+[data-color-theme="bubble-island"] .option-card__player-btn.is-active,
+[data-color-theme="bubble-island"] .player-card__emoji:active,
+[data-color-theme="bubble-island"] .player-card__remove:active,
+[data-color-theme="bubble-island"] .option-card__player-btn:active {
+  border-image-source: url('/bubble-island/btn-round-click.png');
+  background: none;
+}
+[data-color-theme="bubble-island"] .player-card__remove:disabled,
+[data-color-theme="bubble-island"] .option-card__player-btn:disabled {
+  border-image-source: url('/bubble-island/btn-round-lock.png');
+  opacity: 1;
+}
+[data-color-theme="bubble-island"] .player-card__remove:hover { color: #8c1d10; }
+
+/* Inputs stay glassy rather than falling back to a flat fill */
+[data-color-theme="bubble-island"] input[type='text'],
+[data-color-theme="bubble-island"] input[type='search'],
+[data-color-theme="bubble-island"] input[type='password'],
+[data-color-theme="bubble-island"] input[type='number'],
+[data-color-theme="bubble-island"] select,
+[data-color-theme="bubble-island"] textarea {
+  background: rgba(255, 255, 255, .7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, .8);
+  color: var(--color-text);
+}
+
+/* Podium medals replace the emoji ranks */
+[data-color-theme="bubble-island"] .podium__rank {
+  color: transparent;
+  background: center / contain no-repeat;
+  min-width: 26px;
+  min-height: 28px;
+}
+[data-color-theme="bubble-island"] .podium__row:nth-child(1) .podium__rank { background-image: url('/bubble-island/medal-gold.png'); }
+[data-color-theme="bubble-island"] .podium__row:nth-child(2) .podium__rank { background-image: url('/bubble-island/medal-silver.png'); }
+[data-color-theme="bubble-island"] .podium__row:nth-child(3) .podium__rank { background-image: url('/bubble-island/medal-bronze.png'); }
+
+/* Star on the bonus badge, coin next to every score */
+[data-color-theme="bubble-island"] .badge--bonus::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  background: center / contain no-repeat url('/bubble-island/star.png');
+}
+[data-color-theme="bubble-island"] .answer-card__score::before {
+  content: '';
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  background: center / contain no-repeat url('/bubble-island/coin.png');
+}
