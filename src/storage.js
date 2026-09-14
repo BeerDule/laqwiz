@@ -1,0 +1,97 @@
+// storage.js — wrappers localStorage typés avec parse défensif.
+import { STORAGE_KEYS } from './constants.js';
+
+export function readJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn(`[storage] valeur ignorée pour ${key}`, error);
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+    return fallback;
+  }
+}
+
+export function writeJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn('[storage] écriture impossible', error);
+  }
+}
+
+// --- Joueurs ---
+
+export function loadPlayers() {
+  const raw = readJson(STORAGE_KEYS.players, null);
+  if (!Array.isArray(raw)) return null;
+  const valid = raw
+    .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string')
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      emoji: typeof p.emoji === 'string' ? p.emoji : '😀',
+      color: typeof p.color === 'string' ? p.color : '#a855f7',
+    }));
+  return valid.length ? valid : null;
+}
+
+export function savePlayers(players) {
+  writeJson(STORAGE_KEYS.players, players.map(({ id, name, emoji, color }) => ({
+    id, name, emoji, color,
+  })));
+}
+
+// --- Settings ---
+
+export function loadSettings() {
+  const raw = readJson(STORAGE_KEYS.settings, null);
+  if (!raw || typeof raw !== 'object') return null;
+
+  const out = {};
+  if (typeof raw.theme === 'string' && raw.theme.trim()) {
+    out.theme = raw.theme.slice(0, 60);
+  }
+  if (typeof raw.targetScore === 'number' && Number.isFinite(raw.targetScore)) {
+    out.targetScore = Math.min(30, Math.max(5, Math.round(raw.targetScore)));
+  }
+  out.twoPointLead = !!raw.twoPointLead;
+  out.bonusEnabled = !!raw.bonusEnabled;
+  // Les champs LLM ne sont JAMAIS lus depuis localStorage.
+  return out;
+}
+
+export function saveSettings(settings) {
+  writeJson(STORAGE_KEYS.settings, {
+    theme: settings.theme,
+    targetScore: settings.targetScore,
+    twoPointLead: settings.twoPointLead,
+    bonusEnabled: settings.bonusEnabled,
+  });
+}
+
+// --- Stats ---
+
+export function loadStats() {
+  const raw = readJson(STORAGE_KEYS.stats, null);
+  if (!raw || typeof raw !== 'object') {
+    return { gamesPlayed: 0, questionsAnswered: 0, correctAnswers: 0, perPlayer: {} };
+  }
+  return {
+    gamesPlayed: Number.isFinite(raw.gamesPlayed) ? raw.gamesPlayed : 0,
+    questionsAnswered: Number.isFinite(raw.questionsAnswered) ? raw.questionsAnswered : 0,
+    correctAnswers: Number.isFinite(raw.correctAnswers) ? raw.correctAnswers : 0,
+    perPlayer: (raw.perPlayer && typeof raw.perPlayer === 'object') ? raw.perPlayer : {},
+  };
+}
+
+export function saveStats(stats) {
+  writeJson(STORAGE_KEYS.stats, stats);
+}
+
+export function clearAll() {
+  Object.values(STORAGE_KEYS).forEach(k => {
+    try { localStorage.removeItem(k); } catch { /* ignore */ }
+  });
+}

@@ -1,0 +1,30 @@
+# Dépendances
+node_modules/
+
+# Variables d'environnement (CRITIQUE : contient la clé API)
+.env
+.env.*
+!.env.example
+
+# Build
+dist/
+dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Nix
+result
+result-*
+.direnv/

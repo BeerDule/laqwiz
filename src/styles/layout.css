@@ -1,0 +1,55 @@
+/* src/styles/layout.css — grilles, conteneurs, breakpoints (SPEC §13.5) */
+
+.screen {
+  width: min(100% - 2rem, var(--content-max));
+  margin-inline: auto;
+  padding-block: var(--space-8);
+}
+
+.setup-screen form { display: grid; gap: var(--space-6); }
+
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.player-answer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.game-screen {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.hero-heading {
+  display: grid;
+  gap: var(--space-2);
+  text-align: center;
+  padding-block: var(--space-6);
+}
+
+@media (min-width: 768px) {
+  .setup-screen form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .setup-screen .players-panel,
+  .setup-screen .settings-panel,
+  .setup-screen #btn-start,
+  .setup-screen .form-error { grid-column: 1 / -1; }
+}
+
+@media (max-width: 519px) {
+  .screen {
+    width: min(100% - 1.5rem, var(--content-max));
+    padding-block: var(--space-5);
+  }
+  .options-grid { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 1920px) {
+  html { font-size: 18px; }
+  .screen { max-width: 1400px; }
+  .game-screen .question-card { max-width: 1180px; }
+}
