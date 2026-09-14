@@ -113,7 +113,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [] }) {
     model: settings.model,
     temperature: settings.temperature,
     response_format: { type: 'json_object' },
-    max_tokens: 2048,
+    max_tokens: 4096,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },

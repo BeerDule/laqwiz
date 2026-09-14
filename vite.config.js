@@ -88,6 +88,17 @@ function llmProxyPlugin(env, { validate } = {}) {
           'Accept': req.headers['accept'] || 'application/json',
         };
 
+        // --- Injection du modèle serveur : le client ne choisit pas le modèle,
+        //     c'est le .env qui décide. On remplace le champ "model" du body. ---
+        let forwardedBody;
+        try {
+          const parsed = JSON.parse(rawBody);
+          parsed.model = model;
+          forwardedBody = JSON.stringify(parsed);
+        } catch {
+          forwardedBody = rawBody; // en cas d'échec de parse, on forward tel quel
+        }
+
         // --- Requête vers le provider ---
         const targetUrl = `${baseUrl}${req.url}`;
         const controller = new AbortController();
@@ -100,7 +111,7 @@ function llmProxyPlugin(env, { validate } = {}) {
           upstreamResponse = await fetch(targetUrl, {
             method: 'POST',
             headers: forwardHeaders,
-            body: rawBody,
+            body: forwardedBody,
             signal: controller.signal,
           });
         } catch (err) {
