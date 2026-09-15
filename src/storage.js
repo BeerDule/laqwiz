@@ -1,5 +1,8 @@
 // storage.js — wrappers localStorage typés avec parse défensif.
-import { STORAGE_KEYS, DIFFICULTY_CHOICES, AUDIENCE_CHOICES } from './constants.js';
+import {
+  STORAGE_KEYS, DIFFICULTY_CHOICES, AUDIENCE_CHOICES,
+  TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
+} from './constants.js';
 
 export function readJson(key, fallback) {
   try {
@@ -74,6 +77,39 @@ export function loadSettings() {
   if (typeof raw.apiKey === 'string' && raw.apiKey.trim()) {
     out.apiKey = raw.apiKey.slice(0, 300);
   }
+
+  // Règles de partie. Chaque valeur est revalidée contre la liste de choix :
+  // un localStorage bricolé à la main ne doit pas injecter n'importe quoi.
+  out.timerEnabled = !!raw.timerEnabled;
+  if (TIMER_CHOICES.some(c => c.value === raw.timePerQuestion)) {
+    out.timePerQuestion = raw.timePerQuestion;
+  }
+  out.penaltyNoAnswer = !!raw.penaltyNoAnswer;
+  out.penaltyWrongAnswer = !!raw.penaltyWrongAnswer;
+  if (PUNISHER_CHOICES.some(c => c.value === raw.punisherSeverity)) {
+    out.punisherSeverity = raw.punisherSeverity;
+  }
+  if (MANCHE_CHOICES.some(c => c.value === raw.manchesTarget)) {
+    out.manchesTarget = raw.manchesTarget;
+  }
+
+  // Source Wikipédia : seuls les identifiants sont persistés, jamais le texte
+  // de l'article — saveSettings est appelé à chaque dispatch.
+  if (raw.sourceMode === 'wikipedia' || raw.sourceMode === 'theme') {
+    out.sourceMode = raw.sourceMode;
+  }
+  if (typeof raw.sourceTitle === 'string') out.sourceTitle = raw.sourceTitle.slice(0, 200);
+  if (typeof raw.sourceLang === 'string' && /^[a-z-]{2,12}$/.test(raw.sourceLang)) {
+    out.sourceLang = raw.sourceLang;
+  }
+  if (typeof raw.sourceUrl === 'string') out.sourceUrl = raw.sourceUrl.slice(0, 500);
+
+  if (Number.isFinite(raw.temperature)) {
+    out.temperature = Math.min(2, Math.max(0, raw.temperature));
+  }
+  if (Number.isFinite(raw.batchSize)) {
+    out.batchSize = Math.min(20, Math.max(1, Math.round(raw.batchSize)));
+  }
   return out;
 }
 
@@ -85,6 +121,18 @@ export function saveSettings(settings) {
     bonusEnabled: settings.bonusEnabled,
     difficulty: settings.difficulty,
     audience: settings.audience,
+    timerEnabled: settings.timerEnabled,
+    timePerQuestion: settings.timePerQuestion,
+    penaltyNoAnswer: settings.penaltyNoAnswer,
+    penaltyWrongAnswer: settings.penaltyWrongAnswer,
+    punisherSeverity: settings.punisherSeverity,
+    manchesTarget: settings.manchesTarget,
+    sourceMode: settings.sourceMode,
+    sourceTitle: settings.sourceTitle,
+    sourceLang: settings.sourceLang,
+    sourceUrl: settings.sourceUrl,
+    temperature: settings.temperature,
+    batchSize: settings.batchSize,
     model: settings.model,
     baseUrl: settings.baseUrl,
     apiKey: settings.apiKey,

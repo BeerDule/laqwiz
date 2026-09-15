@@ -33,6 +33,9 @@ export const THEME_MAX_LENGTH = 60;
 export const TARGET_SCORE_MIN = 5;
 export const TARGET_SCORE_MAX = 30;
 export const BATCH_SIZE = 5;
+// Caractères d'article envoyés par lot (~900 tokens). Un article complet monte
+// à 178 000 caractères : le réexpédier à chaque lot serait ruineux.
+export const SOURCE_BUDGET_CHARS = 3500;
 export const BONUS_CHANCE = 0.15; // ~15 % de chance qu'une question soit bonus
 
 export const STORAGE_KEYS = {
@@ -55,6 +58,10 @@ export const DEFAULTS = {
   penaltyWrongAnswer: false, // mode punisher : -1 point si mauvaise réponse
   punisherSeverity: 'punitive', // 'punitive' | 'ultra', voir PUNISHER_CHOICES
   manchesTarget: 3,             // best-of, voir MANCHE_CHOICES
+  sourceMode: 'theme',          // 'theme' | 'wikipedia'
+  sourceTitle: '',              // titre exact de l'article
+  sourceLang: 'fr',             // sous-domaine Wikipédia
+  sourceUrl: '',                // pour l'affichage et le lien
   model: '',
   baseUrl: '',
   apiKey: '',

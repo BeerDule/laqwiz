@@ -102,7 +102,7 @@ const RATE_LIMIT_DELAYS = [2000, 4000, 8000];
  * Demande un lot de questions au LLM via le proxy /api.
  * @throws {ApiError} en cas d'échec définitif après retries.
  */
-export async function fetchQuestionBatch({ theme, batchSize, exclude = [] }) {
+export async function fetchQuestionBatch({ theme, batchSize, exclude = [], source = null }) {
   const settings = getState().settings;
   const difficulty = settings.difficulty || 'balanced';
   const audience = settings.audience || 'general';
@@ -111,7 +111,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [] }) {
     difficulty, audience,
   });
   const userPrompt = buildUserPrompt({
-    theme, batchSize, history: exclude, difficulty, audience,
+    theme, batchSize, history: exclude, difficulty, audience, source,
   });
 
   const body = {

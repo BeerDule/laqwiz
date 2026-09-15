@@ -3,7 +3,8 @@ import { normalizeQuestionText } from './validation.js';
 import { fetchQuestionBatch, toUiError } from './api.js';
 import { saveStats, clearAll, saveActiveSessionId } from './storage.js';
 import { putSession, putPartie } from './db.js';
-import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE } from './constants.js';
+import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS } from './constants.js';
+import { fetchArticle, sectionWindow } from './wikipedia.js';
 
 const isOnline = () => (typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -31,6 +32,10 @@ const INITIAL_STATE = Object.freeze({
     penaltyWrongAnswer: DEFAULTS.penaltyWrongAnswer,
     punisherSeverity: DEFAULTS.punisherSeverity,
     manchesTarget: DEFAULTS.manchesTarget,
+    sourceMode: DEFAULTS.sourceMode,
+    sourceTitle: DEFAULTS.sourceTitle,
+    sourceLang: DEFAULTS.sourceLang,
+    sourceUrl: DEFAULTS.sourceUrl,
     model: DEFAULTS.model,
     baseUrl: DEFAULTS.baseUrl,
     apiKey: DEFAULTS.apiKey,
@@ -43,6 +48,11 @@ const INITIAL_STATE = Object.freeze({
 
   // === Partie en cours : best-of de manches ===
   partie: null,  // { id, startedAt, manchesTarget, mancheIndex, manchesWon, manches[] }
+
+  // === Source Wikipédia (mode « article ») ===
+  // Volontairement HORS de `settings` : celui-ci est réécrit dans localStorage
+  // à chaque dispatch, et l'article pèse plusieurs kilo-octets.
+  source: null, // { lang, title, url, sections[], cursor, wrapped, exhausted }
 
   // === Questions ===
   questions: [],
@@ -256,6 +266,9 @@ function reducer(s, action) {
         s.history = [];
       }
       s.partie = newPartie(s);
+      // Rechargé à chaque partie : un re-téléchargement coûte quelques centaines
+      // de millisecondes et évite toute confusion si l'article a été changé.
+      s.source = null;
       s.players = s.players.map(p => ({ ...p, score: 0 }));
       s.questions = [];
       s.prefetchQueue = [];
@@ -380,6 +393,10 @@ function reducer(s, action) {
       s.phase = 'SETUP';
       break;
 
+    case 'SET_SOURCE':
+      s.source = action.source;
+      break;
+
     case 'GOTO_HOME':
       s.phase = 'HOME';
       break;
@@ -469,6 +486,47 @@ function reducer(s, action) {
   }
 }
 
+// --- Source Wikipédia ---
+
+/**
+ * Découpe la fenêtre de sections à envoyer pour le prochain lot et avance le
+ * curseur. Renvoie null hors mode article, ou une fois la source épuisée.
+ */
+function takeSourceWindow() {
+  const src = getState().source;
+  if (!src || src.exhausted) return null;
+  const { text, nextCursor, wrapped } = sectionWindow(
+    src.sections, src.cursor, SOURCE_BUDGET_CHARS
+  );
+  src.cursor = nextCursor;
+  if (wrapped) src.wrapped = true;
+  return { title: src.title, text };
+}
+
+/**
+ * L'article a fait le tour et ne rend plus rien d'inédit : on repasse en culture
+ * générale sur le même sujet plutôt que d'interrompre la partie.
+ */
+function exhaustSource(reason) {
+  const src = getState().source;
+  if (!src || src.exhausted) return;
+  src.exhausted = true;
+  document.dispatchEvent(new CustomEvent('qc:toast', {
+    detail: {
+      message: `« ${src.title} » est épuisé (${reason}) : les questions passent en culture générale sur ce sujet.`,
+      kind: 'info',
+    },
+  }));
+}
+
+/** Charge l'article avant le premier lot, en mode article seulement. */
+async function ensureSourceLoaded() {
+  const s = getState();
+  if (s.settings.sourceMode !== 'wikipedia' || s.source) return;
+  const article = await fetchArticle(s.settings.sourceTitle, s.settings.sourceLang);
+  dispatch({ type: 'SET_SOURCE', source: { ...article, cursor: 0, wrapped: false, exhausted: false } });
+}
+
 // --- Préchargement (SPEC §11) ---
 
 async function triggerInitialBatch() {
@@ -476,11 +534,13 @@ async function triggerInitialBatch() {
   dispatch({ type: 'SET_FETCHING', value: true });
   dispatch({ type: 'SET_PREFETCH_INFLIGHT', value: true });
   try {
+    await ensureSourceLoaded(); // en mode article : télécharge avant le 1er lot
     const s = getState();
     const result = await fetchQuestionBatch({
       theme: s.settings.theme,
       batchSize: s.settings.batchSize || BATCH_SIZE,
       exclude: [],
+      source: takeSourceWindow(),
     });
     dispatch({ type: 'BATCH_RECEIVED', questions: result.questions });
     if (getState().prefetchQueue.length > 0) {
@@ -501,11 +561,17 @@ function maybePrefetchNext() {
   if (s.prefetchInflight || displayedNumber < 3 || queueSize > 2) return;
   if (!s.ui.isOnline) return;
   dispatch({ type: 'SET_PREFETCH_INFLIGHT', value: true });
+  const sourceWindow = takeSourceWindow();
   fetchQuestionBatch({
     theme: s.settings.theme,
     batchSize: s.settings.batchSize || BATCH_SIZE,
     exclude: s.history,
+    source: sourceWindow,
   }).then(({ questions }) => {
+    // L'article a déjà fait le tour ET ne rend plus rien d'inédit : on bascule.
+    if (sourceWindow && questions.length === 0 && getState().source?.wrapped) {
+      exhaustSource('plus de question inédite');
+    }
     dispatch({ type: 'BATCH_RECEIVED', questions });
   }).catch(error => {
     dispatch({ type: 'SET_ERROR', error: toUiError(error) });

@@ -1196,3 +1196,36 @@ kbd.option-card__hint {
 }
 .session-partie__score { margin-left: auto; color: var(--color-muted); font-variant-numeric: tabular-nums; }
 .session-card__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* ===== Source Wikipédia ===== */
+.wiki-group { display: grid; gap: var(--space-2); margin-top: var(--space-3); }
+.wiki-search-wrap { position: relative; }
+.wiki-search-wrap input { width: 100%; }
+.wiki-results {
+  position: absolute;
+  z-index: 20;
+  inset-inline: 0;
+  top: calc(100% + 2px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-card);
+}
+.wiki-results li {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.wiki-results li:hover,
+.wiki-results li:focus-visible {
+  background: var(--bg-surface-soft);
+  outline: none;
+}
+.wiki-chosen { font-size: 12px; color: var(--color-muted); }
+.wiki-chosen strong { color: var(--color-text); }
+.wiki-lang { margin-left: 6px; opacity: .8; }

@@ -70,14 +70,39 @@ HISTORIQUE DES QUESTIONS DÉJÀ POSÉES (à NE PAS RÉPÉTER) :
 ${historique}`;
 }
 
+/**
+ * Consigne de source imposée. Placée en tête du message utilisateur pour que le
+ * texte de référence précède la demande, et formulée en interdiction explicite :
+ * sans ça, le modèle complète volontiers avec ce qu'il « sait » du sujet, ce qui
+ * réintroduit exactement les erreurs factuelles que la source doit écarter.
+ */
+export function buildSourceBlock(source) {
+  if (!source || !source.text) return '';
+  return `TEXTE SOURCE — extrait de l'article Wikipédia « ${source.title} » :
+"""
+${source.text}
+"""
+
+CONTRAINTE DE SOURCE (PRIORITAIRE SUR TOUT LE RESTE) :
+- Chaque question, chaque bonne réponse et chaque explication doit être
+  vérifiable DANS LE TEXTE SOURCE ci-dessus, et nulle part ailleurs.
+- N'utilise AUCUNE connaissance extérieure à ce texte, même si tu la crois juste.
+- Si le texte ne permet pas de produire le nombre demandé de questions
+  distinctes, produis-en moins plutôt que d'inventer.
+- Les options fausses et l'option drôle peuvent, elles, être inventées.
+
+`;
+}
+
 export function buildUserPrompt({
   theme, batchSize, history = [], difficulty = 'balanced', audience = 'general',
+  source = null,
 }) {
   const historique = formatHistory(history);
   const difficultyRule = DIFFICULTY_RULES[difficulty] || DIFFICULTY_RULES.balanced;
   const audienceRule = AUDIENCE_RULES[audience] || AUDIENCE_RULES.general;
 
-  return `Génère maintenant un lot de ${batchSize} question(s) sur le thème "${theme}".
+  return `${buildSourceBlock(source)}Génère maintenant un lot de ${batchSize} question(s) sur le thème "${theme}".
 
 Difficulté demandée : ${difficultyRule}
 Public visé : ${audienceRule}

@@ -8,6 +8,7 @@ import {
   DIFFICULTY_CHOICES, AUDIENCE_CHOICES, TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
 } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+import { searchArticles, parseArticleUrl } from '../wikipedia.js';
 
 // En production (build statique déployé), le mode BYOK est obligatoire :
 // chaque joueur doit renseigner sa propre configuration LLM.
@@ -53,7 +54,20 @@ function nextEmoji() {
     || PLAYER_EMOJIS[players.length % PLAYER_EMOJIS.length];
 }
 
+/**
+ * L'article choisi ne compte que tant que la case est cochée. On garde `wikiPick`
+ * intact pour qu'un décochage suivi d'un recochage retrouve la sélection, mais
+ * sans ce filtre le formulaire partirait en mode article alors que le MJ croit
+ * l'avoir désactivé.
+ */
+function activeWikiPick() {
+  return root?.querySelector('#wiki-enabled')?.checked ? wikiPick : null;
+}
+
+/** Priorité : article Wikipédia > thème libre > thème prédéfini. */
 function currentTheme() {
+  const wiki = activeWikiPick();
+  if (wiki) return wiki.title;
   return customTheme.trim() || selectedPreset || '';
 }
 
@@ -97,9 +111,16 @@ function validateForm() {
     }
     seen.add(key);
   }
+  // Le mode article exige un choix explicite : une recherche tapée mais jamais
+  // validée ne doit pas lancer une partie silencieusement sans source.
+  if (root.querySelector('#wiki-enabled')?.checked && !activeWikiPick()) {
+    return { ok: false, msg: 'Choisissez un article dans la liste, ou collez son URL.' };
+  }
   const theme = currentTheme();
   if (!theme) return { ok: false, msg: 'Choisissez un thème.' };
-  if (theme.length < THEME_MIN_LENGTH || theme.length > THEME_MAX_LENGTH) {
+  // Un titre d'article vient de Wikipédia et peut légitimement dépasser la
+  // limite prévue pour un thème saisi à la main.
+  if (!activeWikiPick() && (theme.length < THEME_MIN_LENGTH || theme.length > THEME_MAX_LENGTH)) {
     return { ok: false, msg: `Le thème doit faire entre ${THEME_MIN_LENGTH} et ${THEME_MAX_LENGTH} caractères.` };
   }
   if (!getState().ui.isOnline) {
@@ -202,6 +223,97 @@ function renderThemes() {
   if (customTheme) root.querySelector('#custom-theme').value = customTheme;
 }
 
+// --- Source Wikipédia ---
+
+let wikiPick = null;   // { lang, title, url } choisi par le MJ
+let wikiDebounce = null;
+let wikiSeq = 0;       // ignore les réponses arrivées dans le désordre
+
+function showWikiChoice() {
+  const el = root.querySelector('#wiki-chosen');
+  const results = root.querySelector('#wiki-results');
+  results.hidden = true;
+  results.innerHTML = '';
+  root.querySelector('#wiki-search').setAttribute('aria-expanded', 'false');
+  if (!wikiPick) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `Article retenu : <strong>${escapeHtml(wikiPick.title)}</strong>
+    <span class="wiki-lang">${escapeHtml(wikiPick.lang)}.wikipedia.org</span>`;
+}
+
+function renderWikiResults(items) {
+  const results = root.querySelector('#wiki-results');
+  const input = root.querySelector('#wiki-search');
+  if (!items.length) {
+    results.hidden = true;
+    results.innerHTML = '';
+    input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  results.innerHTML = items.map(it => `
+    <li role="option" tabindex="0" data-title="${escapeHtml(it.title)}" data-url="${escapeHtml(it.url)}">
+      ${escapeHtml(it.title)}
+    </li>`).join('');
+  results.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+}
+
+async function runWikiSearch(raw) {
+  const pasted = parseArticleUrl(raw);
+  if (pasted) { // une URL collée n'a pas besoin de la recherche
+    wikiPick = { ...pasted, url: raw.trim() };
+    root.querySelector('#wiki-search').value = pasted.title;
+    showWikiChoice();
+    return;
+  }
+  const seq = ++wikiSeq;
+  try {
+    const items = await searchArticles(raw);
+    if (seq !== wikiSeq || !root) return; // une frappe plus récente a pris la main
+    renderWikiResults(items);
+  } catch {
+    if (seq === wikiSeq && root) renderWikiResults([]);
+  }
+}
+
+function wireWikiSearch(signal) {
+  const toggle = root.querySelector('#wiki-enabled');
+  const group = root.querySelector('#wiki-group');
+  const input = root.querySelector('#wiki-search');
+  const results = root.querySelector('#wiki-results');
+
+  toggle.addEventListener('change', () => {
+    group.hidden = !toggle.checked;
+  }, { signal });
+
+  input.addEventListener('input', () => {
+    wikiPick = null;
+    showWikiChoice();
+    clearTimeout(wikiDebounce);
+    const value = input.value;
+    // Anti-rebond : sans ça, chaque frappe déclenche un appel à Wikipédia.
+    wikiDebounce = setTimeout(() => runWikiSearch(value), 250);
+  }, { signal });
+
+  const choose = (li) => {
+    wikiPick = {
+      lang: parseArticleUrl(li.dataset.url)?.lang || 'fr',
+      title: li.dataset.title,
+      url: li.dataset.url,
+    };
+    input.value = li.dataset.title;
+    showWikiChoice();
+  };
+  results.addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-title]');
+    if (li) choose(li);
+  }, { signal });
+  results.addEventListener('keydown', (e) => {
+    const li = e.target.closest('li[data-title]');
+    if (li && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); choose(li); }
+  }, { signal });
+}
+
 function renderSettings() {
   const { settings: s, session } = getState();
   const banner = root.querySelector('#session-banner');
@@ -216,6 +328,15 @@ function renderSettings() {
   root.querySelector('#timer-enabled').checked = s.timerEnabled;
   root.querySelector('#penalty-no-answer').checked = s.penaltyNoAnswer;
   root.querySelector('#penalty-wrong-answer').checked = s.penaltyWrongAnswer;
+
+  const wikiOn = s.sourceMode === 'wikipedia' && !!s.sourceTitle;
+  root.querySelector('#wiki-enabled').checked = wikiOn;
+  root.querySelector('#wiki-group').hidden = !wikiOn;
+  wikiPick = wikiOn
+    ? { lang: s.sourceLang || 'fr', title: s.sourceTitle, url: s.sourceUrl || '' }
+    : null;
+  if (wikiOn) root.querySelector('#wiki-search').value = s.sourceTitle;
+  showWikiChoice();
   const mancheInput = root.querySelector(
     `input[name="manchesTarget"][value="${s.manchesTarget || 3}"]`
   );
@@ -331,6 +452,8 @@ function wireEvents(signal) {
     dispatch({ type: 'GOTO_HOME' });
   }, { signal });
 
+  wireWikiSearch(signal);
+
   const timerToggle = root.querySelector('#timer-enabled');
   timerToggle.addEventListener('change', () => {
     root.querySelector('#timer-duration-group').hidden = !timerToggle.checked;
@@ -378,6 +501,10 @@ function wireEvents(signal) {
         penaltyNoAnswer: root.querySelector('#penalty-no-answer').checked,
         penaltyWrongAnswer: root.querySelector('#penalty-wrong-answer').checked,
         manchesTarget: parseInt(root.querySelector('input[name="manchesTarget"]:checked')?.value, 10) || 3,
+        sourceMode: activeWikiPick() ? 'wikipedia' : 'theme',
+        sourceTitle: activeWikiPick()?.title || '',
+        sourceLang: activeWikiPick()?.lang || 'fr',
+        sourceUrl: activeWikiPick()?.url || '',
         punisherSeverity: root.querySelector('input[name="punisherSeverity"]:checked')?.value || 'punitive',
         baseUrl: root.querySelector('#llm-base-url').value.trim(),
         apiKey: root.querySelector('#llm-api-key').value.trim(),
@@ -403,7 +530,11 @@ export function renderSetup(rootEl) {
         ${renderThemeSelect()}
       </header>
       <p id="session-banner" class="arcade-plaque arcade-plaque--slim"></p>
-      <form id="setup-form" novalidate>
+      <!-- autocomplete="off" sur le formulaire, pas seulement sur les champs :
+           Firefox restaure l'état des cases, radios et curseurs au rechargement,
+           et la soumission LIT le DOM. Sans ça, une partie peut démarrer avec des
+           réglages restaurés par le navigateur que personne n'a choisis. -->
+      <form id="setup-form" novalidate autocomplete="off">
         <fieldset class="panel players-panel">
           <legend>Joueurs <span id="player-count-label">2/6</span></legend>
           <div id="players-list" class="players-list"></div>
@@ -418,6 +549,17 @@ export function renderSetup(rootEl) {
             </select>
             <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
             <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
+          </div>
+          <label class="toggle-row"><input id="wiki-enabled" type="checkbox" /> <span class="toggle-track"></span> Composer les questions depuis une page Wikipédia</label>
+          <div class="wiki-group" id="wiki-group" hidden>
+            <label class="field-label" for="wiki-search">Article source</label>
+            <div class="wiki-search-wrap">
+              <input id="wiki-search" type="search" autocomplete="off" spellcheck="false"
+                placeholder="Cherchez un article, ou collez son URL"
+                role="combobox" aria-expanded="false" aria-controls="wiki-results" aria-autocomplete="list" />
+              <ul id="wiki-results" class="wiki-results" role="listbox" hidden></ul>
+            </div>
+            <p id="wiki-chosen" class="wiki-chosen" hidden></p>
           </div>
         </fieldset>
         <fieldset class="panel settings-panel">
