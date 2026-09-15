@@ -1,5 +1,16 @@
 /* src/styles/layout.css — full-viewport responsive layout */
 
+/* ===== L'attribut hidden doit gagner =====
+   Le navigateur applique `[hidden] { display: none }`, mais c'est une règle de
+   feuille utilisateur-agent : n'importe quelle règle AUTEUR posant `display` la
+   bat, même à spécificité égale. Résultat, tout élément stylé en
+   `display: grid/flex` restait visible malgré `el.hidden = true` — la liste des
+   parties interrompues, la durée du chrono, la sévérité du punisher et la
+   recherche Wikipédia étaient toutes concernées.
+   `!important` est ici le bon outil : on veut précisément qu'aucune règle de
+   présentation ne puisse ressusciter un élément déclaré masqué. */
+[hidden] { display: none !important; }
+
 /* ===== Screen container ===== */
 .screen {
   width: 100%;

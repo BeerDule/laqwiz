@@ -804,7 +804,6 @@ dialog form {
   background: rgba(204, 167, 0, .08);
   font-size: 12px;
 }
-.retry-banner[hidden] { display: none; }
 .retry-banner span { flex: 1; }
 
 /* ===== Keyboard hints ===== */
