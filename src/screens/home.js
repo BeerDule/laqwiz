@@ -4,6 +4,7 @@
 import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChips } from '../components/playerChip.js';
+import { CREDITS } from '../constants.js';
 
 let teardown = null;
 let root = null;
@@ -67,9 +68,18 @@ function menuHtml(s) {
         ${session ? '<button id="btn-settings" class="arcade-btn">Réglages de partie</button>' : ''}
       </nav>
 
-      <!-- Version visible : sur un déploiement, c'est le seul moyen de savoir
-           quel commit tourne réellement quand un bug est signalé. -->
-      <p class="arcade__version">${escapeHtml(__APP_VERSION__)}</p>
+      <footer class="arcade__footer">
+        <ul class="arcade__credits">
+          ${CREDITS.map(c => `
+            <li class="arcade__credit">
+              <span aria-hidden="true">${c.emoji}</span>
+              <strong>${escapeHtml(c.name)}</strong> ${escapeHtml(c.role)}
+            </li>`).join('')}
+        </ul>
+        <!-- Version visible : sur un déploiement, c'est le seul moyen de savoir
+             quel commit tourne réellement quand un bug est signalé. -->
+        <p class="arcade__version">${escapeHtml(__APP_VERSION__)}</p>
+      </footer>
     </section>
   `;
 }

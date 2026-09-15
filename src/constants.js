@@ -175,6 +175,13 @@ export const BUILTIN_MODES = [
   },
 ];
 
+/** Crédits affichés en pied de l'écran d'accueil. */
+export const CREDITS = [
+  { emoji: '👑', name: 'Lukia', role: 'le boss' },
+  { emoji: '🌿', name: 'Westi', role: 'le druide' },
+  { emoji: '🍳', name: 'Lio', role: 'le cuisto' },
+];
+
 /** Mode appliqué à une installation neuve. */
 export const DEFAULT_MODE_ID = 'epice';
 export const MODE_NAME_MAX_LENGTH = 24;
