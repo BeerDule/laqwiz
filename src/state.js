@@ -599,6 +599,10 @@ function reducer(s, action) {
     case 'RESET_ALL': {
       const fresh = structuredClone(INITIAL_STATE);
       fresh.ui.isOnline = s.ui.isOnline;
+      // La config LLM survit : elle est globale à l'appareil, pas propre à la
+      // soirée qu'on remet à zéro. Sans cette ligne, l'abonné de main.js
+      // réécrirait une config vide par-dessus celle que clearAll() épargne.
+      fresh.llm = { ...s.llm };
       for (const k of Object.keys(s)) delete s[k];
       Object.assign(s, fresh);
       clearAll();

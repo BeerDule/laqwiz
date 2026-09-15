@@ -122,8 +122,7 @@ export function saveSettings(settings) {
 // Clé distincte de celle des réglages de jeu : elle est globale à l'appareil et
 // n'a rien à faire dans un instantané de partie.
 
-export function loadLlmConfig() {
-  const raw = readJson(STORAGE_KEYS.llm, null);
+function sanitizeLlm(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const out = {};
   if (typeof raw.model === 'string' && raw.model.trim()) out.model = raw.model.slice(0, 120);
@@ -132,6 +131,31 @@ export function loadLlmConfig() {
   if (Number.isFinite(raw.temperature)) out.temperature = Math.min(2, Math.max(0, raw.temperature));
   if (Number.isFinite(raw.batchSize)) out.batchSize = Math.min(20, Math.max(1, Math.round(raw.batchSize)));
   return out;
+}
+
+/**
+ * Récupère la configuration LLM depuis les réglages de jeu, où elle vivait
+ * avant d'avoir sa propre clé. Sans cela, tout appareil déjà utilisé perd sa
+ * clé API au premier chargement de cette version et doit la resaisir.
+ *
+ * Les champs sont retirés du blob de réglages dans la foulée : une clé API n'a
+ * rien à faire dans une entrée que `persistResume` recopie en entier.
+ */
+function migrateLlmFromSettings() {
+  const raw = readJson(STORAGE_KEYS.settings, null);
+  const migrated = sanitizeLlm(raw);
+  if (!migrated || !Object.keys(migrated).length) return null;
+
+  for (const k of ['model', 'baseUrl', 'apiKey', 'temperature', 'batchSize']) delete raw[k];
+  writeJson(STORAGE_KEYS.settings, raw);
+  writeJson(STORAGE_KEYS.llm, migrated);
+  return migrated;
+}
+
+export function loadLlmConfig() {
+  const stored = readJson(STORAGE_KEYS.llm, null);
+  if (!stored) return migrateLlmFromSettings();
+  return sanitizeLlm(stored);
 }
 
 export function saveLlmConfig(llm) {
@@ -179,8 +203,17 @@ export function saveActiveSessionId(id) {
   } catch { /* quota exceeded */ }
 }
 
+/**
+ * Remise à zéro de la soirée : joueurs, réglages, stats, session active.
+ *
+ * La configuration LLM est volontairement épargnée. Elle est globale à
+ * l'appareil et coûte une resaisie de clé API, alors que ce bouton sert à
+ * repartir d'une feuille blanche entre deux parties. Pour tout effacer, y
+ * compris les identifiants, c'est `wipeLocalStorage()` (écran Paramètres).
+ */
 export function clearAll() {
-  Object.values(STORAGE_KEYS).forEach(k => {
+  Object.entries(STORAGE_KEYS).forEach(([name, k]) => {
+    if (name === 'llm') return;
     try { localStorage.removeItem(k); } catch { /* ignore */ }
   });
 }
