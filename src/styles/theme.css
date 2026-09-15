@@ -118,6 +118,57 @@
   /* Nerko One reste le défaut du jeton ci-dessus ; les thèmes qui suivent
      le redirigent vers leur propre fonte. Paper Quest ne le redéfinit pas et
      conserve donc Nerko One. */
+
+  /* ===== Échelle « jeu télé » =====
+   * Le produit se joue à trois mètres d'un canapé autant qu'à quarante
+   * centimètres d'un portable. Aucune taille fixe ne sert les deux : chaque pas
+   * est un clamp dont la borne basse tient le 320 px et la borne haute la TV.
+   * Ces jetons remplacent progressivement les tailles en dur (11-15 px) qui
+   * faisaient de l'écran de jeu une boîte de dialogue. */
+  --text-hero:     clamp(2.2rem, 7vw, 4.5rem);
+  --text-question: clamp(1.75rem, 3.2vw, 3rem);
+  --text-option:   clamp(1.05rem, 1.6vw, 1.5rem);
+  --text-player:   clamp(1rem, 1.3vw, 1.25rem);
+  --text-ui:       clamp(.9rem, 1vw, 1.05rem);
+  --text-meta:     .8125rem;
+  /* Boutons de menu : le PLANCHER de 19 px n'est pas esthétique, il est
+   * réglementaire. Au-dessus de 18,66 px en gras, WCAG bascule sur le critère
+   * « grand texte » (3:1). En dessous, le critère redevient 4,5:1 — que les
+   * plaques peintes de Paper Quest n'atteignent pas (mesuré 3,69 à 4,79:1).
+   * Le clamp peut monter, jamais descendre sous 19. */
+  --text-menu:     clamp(19px, 1.6vw, 26px);
+  --text-menu-lg:  clamp(21px, 2.1vw, 32px);
+
+  /* ===== Scène =====
+   * La coquille spatiale : un fond fixe et une vignette, posés par deux
+   * calques de #stage-* (voir index.html et stage.css). Neutres par défaut —
+   * chaque thème les habille dans son propre bloc, comme pour --texture. */
+  --stage-backdrop: none;
+  --stage-backdrop-size: cover;
+  --stage-vignette: none;
+
+  /* ===== Matière =====
+   * Comment une carte est CONSTRUITE, indépendamment de sa couleur : c'est ce
+   * qui manquait pour que les dix thèmes soient dix identités plutôt que dix
+   * repeintures. --material-depth donne l'épaisseur, --material-sheen le
+   * reflet de surface. */
+  --material-edge: 1px solid var(--color-border);
+  --material-depth: var(--shadow-card);
+  --material-sheen: none;
+
+  /* ===== Mouvement =====
+   * Signature d'entrée du thème. Tout est neutralisé par le bloc
+   * prefers-reduced-motion de components.css. */
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+  --motion-enter-dur: 320ms;
+  --motion-pop: 1;
+
+  /* Focus — jeton DÉDIÉ, et c'est l'arbitrage de la divergence signalée par
+   * DAVINCI.md §18 : la SPEC demande 3 px de cyan, le code appliquait 1 px
+   * d'accent en retrait. Le cyan disparaît sur Paper Quest, le 1 px en retrait
+   * est introuvable sur les biseaux de Windows 98. Un jeton par thème est la
+   * seule réponse qui survive aux dix. */
+  --color-focus: var(--color-accent-primary);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -130,7 +181,10 @@ body {
   background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-sans);
-  font-size: 13px;
+  /* 13 px était la taille d'un éditeur de code, pas d'un jeu joué à distance.
+     Le clamp tient le 320 px en borne basse et la TV en borne haute — la
+     surcharge mobile qui remontait à 16 px devient inutile. */
+  font-size: var(--text-ui);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -148,7 +202,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { font-family: var(--font-button); }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .4; }
-:focus-visible { outline: 1px solid var(--color-accent-primary); outline-offset: -1px; }
+/* 3 px, posé À L'EXTÉRIEUR du contrôle. L'ancien `outline-offset: -1px`
+ * dessinait le liseré par-dessus la bordure de l'élément, là où il se
+ * confondait avec elle — c'est ce qui le rendait introuvable sur les biseaux
+ * de Windows 98 et sur les cadres 9-slice de Paper Quest. */
+:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 ::selection { background: #264f78; color: #ffffff; }
 
 h1, h2, h3 { margin: 0; line-height: 1.15; font-weight: 600; }
@@ -164,9 +222,6 @@ h1, h2 { text-shadow: var(--text-glow); }
 
 /* ===== Mobile-friendly ===== */
 @media (max-width: 767px) {
-  body {
-    font-size: 16px;
-  }
   h1 { font-size: 1.35rem; }
   h2 { font-size: 1.1rem; }
   h3 { font-size: .8rem; }
@@ -292,6 +347,9 @@ h1, h2 { text-shadow: var(--text-glow); }
   --radius-xl: 0px;
 }
 [data-color-theme="win98"] ::selection { background: #000080; color: #fff; }
+/* Le bleu marine de l'accent se noie dans le gris bosselé : le noir est à la
+   fois le plus contrasté sur #c0c0c0 et l'indicateur authentique de l'époque. */
+[data-color-theme="win98"] { --color-focus: #000000; }
 /* Win98 — the app window is gray; teal desktop peeks on overscroll */
 [data-color-theme="win98"] html { background: #008080; }
 
@@ -629,10 +687,12 @@ h1, h2 { text-shadow: var(--text-glow); }
 	backdrop-filter: blur(15px);
 	-webkit-backdrop-filter: none;
 	box-shadow: none;
+	/* Une seule déclaration de couleur : il y en avait deux, et la première
+	   (--accent-contrast) était morte. C'est donc le blanc qui s'appliquait,
+	   sur une pilule pastel — le pire des deux pour le contraste. */
 	color: var(--accent-contrast);
 	font-weight: 700;
 	padding-inline: 18px;
-	color: white;
 }
 [data-color-theme="bubble-island"] .button--large { border-image-width: 16px; padding-inline: 24px; }
 [data-color-theme="bubble-island"] .button:hover:not(:disabled) {
@@ -953,7 +1013,7 @@ h1, h2 { text-shadow: var(--text-glow); }
   background: none;
   box-shadow: none;
   color: #3a1408;
-  font-size: 21px;
+  font-size: var(--text-menu-lg);
 }
 
 /* Bubble Island — mêmes surfaces et boutons que ses écrans de jeu. */
@@ -1089,4 +1149,423 @@ h1, h2 { text-shadow: var(--text-glow); }
   font-display: swap;
   src: url('/fonts/baloo2-700.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ===================================================================
+ * MATIÈRE ET MOUVEMENT — une identité par thème
+ * ===================================================================
+ *
+ * Les blocs ci-dessus donnent à chaque thème ses COULEURS. C'est ce qui a
+ * longtemps fait que les dix thèmes se ressemblaient malgré leurs palettes :
+ * ils repeignaient tous la même carte plate à bord de 1 px.
+ *
+ * Cette section leur donne ce qui manquait — de quoi une surface est FAITE, et
+ * comment elle ARRIVE à l'écran. Aucune palette n'est modifiée ici, aucune
+ * intention n'est changée : Windows 98 reste bosselé et gris, Matrix reste un
+ * terminal vert, Paper Quest reste du parchemin.
+ *
+ *   --stage-backdrop / --stage-vignette  la scène, sur les calques #stage-*
+ *   --material-edge / -depth / -sheen    de quoi la carte est faite
+ *   --motion-ease / -enter-dur / -pop    comment elle arrive
+ * =================================================================== */
+
+/* VS Code — l'éditeur. Intention : plat, sobre, sans effet. On ne lui ajoute
+   donc PAS d'épaisseur : on lui donne son décor, les guides d'indentation, et
+   un mouvement bref et sec. La sobriété est le sujet, pas un manque. */
+[data-color-theme="default"] {
+  --stage-backdrop: repeating-linear-gradient(90deg,
+    rgba(255, 255, 255, .022) 0 1px, transparent 1px 72px);
+  --stage-vignette: linear-gradient(180deg, rgba(255, 255, 255, .03), transparent 220px);
+  --material-edge: 1px solid var(--color-border);
+  --material-depth: none;
+  --material-sheen: none;
+  --motion-ease: cubic-bezier(.4, 0, .2, 1);
+  --motion-enter-dur: 180ms;
+  --motion-pop: .35;
+}
+
+/* Matrix — le tube cathodique. Le phosphore déborde des bords, les coins
+   s'assombrissent comme sur un écran courbe. Un terminal ne rebondit pas :
+   le mouvement est court et sans élan. */
+[data-color-theme="matrix"] {
+  --stage-backdrop: radial-gradient(90% 60% at 50% 110%, rgba(0, 255, 65, .16), transparent 70%);
+  --stage-vignette: radial-gradient(130% 100% at 50% 50%, transparent 45%, rgba(0, 0, 0, .75) 100%);
+  --material-edge: 1px solid var(--color-border);
+  --material-depth: 0 0 0 1px rgba(0, 255, 65, .08), 0 0 28px rgba(0, 255, 65, .1);
+  --material-sheen: repeating-linear-gradient(0deg,
+    rgba(0, 255, 65, .05) 0 1px, transparent 1px 3px);
+  --motion-ease: linear;
+  --motion-enter-dur: 120ms;
+  --motion-pop: .15;
+}
+
+/* Girly — le rêve. Halos diffus, reflet nacré sur la tranche des cartes, et
+   une arrivée qui rebondit comme un sticker qu'on décolle. */
+[data-color-theme="girly"] {
+  --stage-backdrop:
+    radial-gradient(45% 40% at 18% 12%, rgba(255, 111, 181, .3), transparent 70%),
+    radial-gradient(50% 45% at 85% 78%, rgba(209, 140, 255, .28), transparent 70%);
+  --stage-vignette: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(23, 10, 24, .6) 100%);
+  --material-edge: 1px solid var(--color-border);
+  --material-depth: 0 10px 30px rgba(255, 105, 180, .22);
+  --material-sheen: linear-gradient(180deg, rgba(255, 255, 255, .14), transparent 55%);
+  --motion-ease: cubic-bezier(.34, 1.45, .64, 1);
+  --motion-enter-dur: 380ms;
+  --motion-pop: 1.2;
+}
+
+/* Windows 98 — le biseau. Le double relief des contrôles classiques, et
+   SURTOUT aucune animation : en 1998 une fenêtre apparaissait, elle n'entrait
+   pas en scène. C'est la signature de mouvement la plus fidèle du lot. */
+[data-color-theme="win98"] {
+  --stage-backdrop: none;
+  --stage-vignette: none;
+  --material-edge: 1px solid #808080;
+  --material-depth:
+    inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #ffffff,
+    inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;
+  --material-sheen: none;
+  --motion-ease: steps(1, end);
+  --motion-enter-dur: 1ms;
+  --motion-pop: 0;
+}
+
+/* Jungle — le bois gravé. Veines verticales sous la canopée, ombre portée
+   franche et sans flou : une plaque est épaisse, elle ne flotte pas. Elle
+   tombe lourdement. */
+[data-color-theme="jungle"] {
+  --stage-backdrop:
+    radial-gradient(70% 50% at 50% -5%, rgba(168, 211, 74, .18), transparent 70%),
+    repeating-linear-gradient(90deg,
+      rgba(0, 0, 0, .16) 0 2px, transparent 2px 9px, rgba(0, 0, 0, .08) 9px 11px, transparent 11px 22px);
+  --stage-vignette: radial-gradient(125% 95% at 50% 40%, transparent 45%, rgba(10, 13, 5, .78) 100%);
+  --material-edge: 2px solid var(--color-border);
+  --material-depth: 0 4px 0 rgba(0, 0, 0, .38);
+  --material-sheen: linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 40%);
+  --motion-ease: cubic-bezier(.2, .9, .3, 1);
+  --motion-enter-dur: 260ms;
+  --motion-pop: .8;
+}
+
+/* Kids Friendly — le jouet. Contour épais, ombre PLEINE sous la carte (le
+   plastique moulé, pas le flou d'une ombre douce), et une arrivée qui écrase
+   et rebondit. */
+[data-color-theme="kids"] {
+  --stage-backdrop:
+    radial-gradient(28% 28% at 12% 20%, rgba(255, 179, 0, .3), transparent 70%),
+    radial-gradient(24% 24% at 88% 30%, rgba(38, 212, 236, .3), transparent 70%),
+    radial-gradient(30% 30% at 70% 88%, rgba(255, 79, 154, .26), transparent 70%);
+  --stage-vignette: none;
+  --material-edge: 3px solid var(--color-border);
+  --material-depth: 0 6px 0 rgba(4, 6, 44, .45);
+  --material-sheen: linear-gradient(180deg, rgba(255, 255, 255, .18), transparent 45%);
+  --motion-ease: cubic-bezier(.3, 1.6, .5, 1);
+  --motion-enter-dur: 420ms;
+  --motion-pop: 1.45;
+}
+
+/* Apple — le verre propre. Filet d'un pixel, ombre stratifiée, reflet discret
+   en haut de surface. Ressort court et maîtrisé. */
+[data-color-theme="apple"] {
+  --stage-backdrop: radial-gradient(60% 45% at 50% 0%, rgba(0, 122, 255, .1), transparent 70%);
+  --stage-vignette: radial-gradient(120% 90% at 50% 45%, transparent 60%, rgba(60, 60, 67, .12) 100%);
+  --material-edge: 1px solid var(--color-border);
+  --material-depth: 0 1px 2px rgba(0, 0, 0, .05), 0 8px 24px rgba(0, 0, 0, .07);
+  --material-sheen: linear-gradient(180deg, rgba(255, 255, 255, .5), transparent 50%);
+  --motion-ease: cubic-bezier(.34, 1.3, .64, 1);
+  --motion-enter-dur: 320ms;
+  --motion-pop: .6;
+}
+
+/* Apple Glass — le même verre, plus épais. Liseré blanc, halo porté large,
+   reflet marqué : la carte est une lame de verre posée sur le fond pastel. */
+[data-color-theme="apple-glass"] {
+  --stage-backdrop: radial-gradient(55% 45% at 50% 8%, rgba(255, 255, 255, .55), transparent 70%);
+  --stage-vignette: radial-gradient(125% 95% at 50% 45%, transparent 55%, rgba(30, 40, 80, .16) 100%);
+  --material-edge: 1px solid var(--color-border);
+  --material-depth: inset 0 1px 0 rgba(255, 255, 255, .8), 0 12px 40px rgba(31, 38, 135, .16);
+  --material-sheen: linear-gradient(180deg, rgba(255, 255, 255, .55), transparent 55%);
+  --motion-ease: cubic-bezier(.34, 1.3, .64, 1);
+  --motion-enter-dur: 340ms;
+  --motion-pop: .7;
+}
+
+/* Bubble Island — la matière vient déjà des PNG 9-slice, posés plus haut avec
+   une spécificité supérieure : on ne redéfinit ici que la scène et le
+   mouvement, élastique comme ses bulles. */
+[data-color-theme="bubble-island"] {
+  --stage-backdrop: none;
+  --stage-vignette: radial-gradient(130% 100% at 50% 40%, transparent 55%, rgba(20, 60, 85, .22) 100%);
+  --motion-ease: cubic-bezier(.3, 1.5, .5, 1);
+  --motion-enter-dur: 360ms;
+  --motion-pop: 1.3;
+}
+
+/* Paper Quest — la table de jeu. Le parchemin est posé sur des planches, sous
+   une lumière de bougie qui laisse les coins dans l'ombre. L'ombre portée est
+   franche et sans flou, comme celle du kit. Le papier claque sur la table. */
+[data-color-theme="paper"] {
+  --stage-backdrop:
+    radial-gradient(60% 45% at 50% 0%, rgba(255, 246, 214, .55), transparent 70%),
+    repeating-linear-gradient(90deg,
+      rgba(86, 14, 18, .1) 0 3px, transparent 3px 96px),
+    repeating-linear-gradient(0deg,
+      rgba(86, 14, 18, .05) 0 2px, transparent 2px 140px);
+  --stage-vignette: radial-gradient(120% 95% at 50% 35%, transparent 48%, rgba(74, 31, 20, .34) 100%);
+  --material-edge: 2px solid var(--color-border);
+  --material-depth: 0 3px 0 rgba(86, 14, 18, .22);
+  --material-sheen: linear-gradient(180deg, rgba(255, 255, 255, .45), transparent 45%);
+  --motion-ease: cubic-bezier(.25, 1.2, .5, 1);
+  --motion-enter-dur: 240ms;
+  --motion-pop: .75;
+}
+
+/* ===================================================================
+ * PAPER QUEST — le kit sur les composants de la refonte
+ * ===================================================================
+ *
+ * La refonte a introduit sept composants que ce thème n'habillait pas : le
+ * tampon de révélation, le delta de points, le rail de score, le chrono, la
+ * pastille A/B/C/D, les marches du podium, la rangée de jetons. Ils tombaient
+ * donc sur les jetons génériques — des rectangles cernés, corrects mais muets.
+ * Le thème s'arrêtait là où le jeu commençait.
+ *
+ * Douze des vingt-deux sprites de public/paper-ui/ ne servaient à rien. Ils
+ * sont câblés ci-dessous, chacun là où son SENS correspond, jamais pour le
+ * décor seul.
+ *
+ * Deux contraintes qui décident de tout :
+ *   1. `border-image` ne réserve pas d'espace — padding ≥ border-image-width,
+ *      sinon le cadre recouvre le texte ;
+ *   2. les plaques peintes (bar-*.png) sont de luminance moyenne : aucune encre
+ *      n'y atteint 4,5:1. Elles ne portent donc QUE du grand texte (≥ 18,66 px
+ *      gras) ou pas de texte du tout.
+ * =================================================================== */
+
+/* --- Les grandes surfaces de jeu deviennent des feuilles de papier --------- */
+/* paper.png : feuille froissée, cernée d'un liseré mauve. Le contenu est du
+   texte long, donc on veut du clair sous l'encre — c'est exactement ce sprite,
+   et pas le parchemin de frame.png, trop chargé pour de la lecture. */
+[data-color-theme="paper"] .question-card,
+[data-color-theme="paper"] .answer-card {
+  border-style: solid;
+  border-width: 0;
+  border-image-source: url('/paper-ui/paper.png');
+  /* PAS de `fill` : la zone centrale du sprite porte l'ombre du froissé, et
+     l'étirer de 482 px à 1400 px la transformait en traînée diagonale en
+     travers de la question. On ne garde que le bord déchiré, et l'intérieur
+     reçoit la teinte exacte du papier, échantillonnée dans le PNG (#fdfdeb ;
+     le creux du froissé est à #ece9dc). */
+  border-image-slice: 60;
+  border-image-width: 18px;
+  border-image-repeat: stretch;
+  border-radius: 0;
+  background: #fdfdeb;
+  box-shadow: none;
+}
+/* padding ≥ border-image-width (18px), sinon la feuille mord sur le texte */
+[data-color-theme="paper"] .question-card { padding: clamp(24px, 2.5vw, 40px); }
+[data-color-theme="paper"] .answer-card { padding: 20px; }
+
+/* --- Panneaux et marches du podium : le parchemin lacé ------------------- */
+/* frame.png habille déjà .arcade-plaque et .arcade-card ; l'étendre aux
+   panneaux de réglages et aux marches met enfin les menus et le jeu dans la
+   même matière. slice/width repris à l'identique pour que les coutures se
+   répètent pareil. */
+[data-color-theme="paper"] .panel,
+[data-color-theme="paper"] .podium--steps .podium__row {
+  border-style: solid;
+  border-width: 0;
+  border-image-source: url('/paper-ui/frame.png');
+  border-image-slice: 110 fill;
+  border-image-width: 26px;
+  border-image-repeat: round;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+[data-color-theme="paper"] .panel { padding: var(--space-8); }
+[data-color-theme="paper"] .podium--steps .podium__row { padding: 30px 28px; }
+
+/* --- La pastille A/B/C/D -------------------------------------------------- */
+/* Pas de plaque peinte : la lettre est en --text-option, dont la borne basse
+   (16,8 px) passe SOUS le seuil « grand texte ». On applique donc la grammaire
+   du thème — parchemin cerné d'encre — comme pour ses boutons. */
+[data-color-theme="paper"] .option-card__key {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  background-image: none;
+  color: var(--color-text);
+}
+
+/* --- Le rail de score : une plaque peinte qui se remplit ------------------ */
+/* Aucun texte dessus, donc la contrainte de contraste ne s'applique pas.
+   bar-d (bleu) pour tout le monde, bar-a (orange) pour qui mène — la couleur
+   REDOUBLE le liseré du couloir meneur, elle ne le remplace pas. */
+[data-color-theme="paper"] .leaderboard-mini__rail {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-soft);
+  height: 14px;
+}
+[data-color-theme="paper"] .leaderboard-mini__fill {
+  background-color: transparent;
+  background-image: url('/paper-ui/bar-d.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: none;
+}
+[data-color-theme="paper"] .leaderboard-mini__item--leader .leaderboard-mini__fill {
+  background-image: url('/paper-ui/bar-a.png');
+}
+/* Une étoile marque le meneur, pour ne pas dépendre de la seule couleur.
+   Elle se pose DANS le jeton, pas sur le couloir : celui-ci est une grille à
+   cinq colonnes, un ::before y deviendrait un sixième élément renvoyé à la
+   ligne suivante. Et c'est ::before, parce que ::after porte déjà l'info-bulle
+   de .player-chip. */
+[data-color-theme="paper"] .leaderboard-mini__item--leader .leaderboard-mini__token::before {
+  content: '';
+  width: 16px;
+  height: 15px;
+  margin-right: 3px;
+  flex: none;
+  background: center / contain no-repeat url('/paper-ui/ico-star.png');
+}
+
+/* --- Le tampon de révélation --------------------------------------------- */
+/* La tuile ✓ du kit remplace le glyphe, exactement comme .podium__rank
+   remplace les émojis de rang : color transparent + sprite en fond. */
+[data-color-theme="paper"] .stamp--correct .stamp__icon {
+  color: transparent;
+  width: 1.5em;
+  height: 1.35em;
+  background: center / contain no-repeat url('/paper-ui/ico-check.png');
+}
+
+/* --- Le delta de points --------------------------------------------------- */
+[data-color-theme="paper"] .answer-delta {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+[data-color-theme="paper"] .answer-delta--plus::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 5px;
+  vertical-align: -2px;
+  background: center / contain no-repeat url('/paper-ui/coin.png');
+}
+
+/* --- Le CTA de l'écran de jeu -------------------------------------------- */
+/* Même traitement que #btn-start sur l'écran de réglages : la plaque orange du
+   kit. Elle impose son prix — le libellé passe à --text-menu-lg (plancher
+   19 px), sans quoi il tomberait sous le seuil « grand texte » et le contraste
+   exigé repasserait à 4,5:1, que cette plaque n'atteint pas. */
+[data-color-theme="paper"] #btn-reveal {
+  border: 0;
+  border-style: solid;
+  border-width: 0;
+  border-image-source: url('/paper-ui/bar-a.png');
+  border-image-slice: 0 40 fill;
+  border-image-width: 0 18px;
+  border-image-repeat: stretch;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #3a1408;
+  font-size: var(--text-menu-lg);
+}
+
+/* --- Le chrono ------------------------------------------------------------ */
+[data-color-theme="paper"] .timer {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+/* --- Verrouillage : le médaillon de bois du kit --------------------------- */
+/* Un joueur exclu par la mort subite, et un avatar déjà pris par quelqu'un
+   d'autre, sont deux fois le même état : hors d'atteinte, et on doit voir
+   pourquoi. lock.png le dit sans couleur ni opacité. */
+[data-color-theme="paper"] .option-card__player-btn:disabled,
+[data-color-theme="paper"] .emoji-picker__item:disabled {
+  /* Le cadenas se pose EN COIN, il ne remplace pas l'avatar : on doit toujours
+     savoir DE QUI il s'agit. `color: transparent` n'aurait de toute façon rien
+     masqué — un emoji couleur est une image, pas une encre. */
+  opacity: 1;
+  background-color: var(--bg-surface-soft);
+  position: relative;
+}
+[data-color-theme="paper"] .option-card__player-btn:disabled::before,
+[data-color-theme="paper"] .emoji-picker__item:disabled::before {
+  content: '';
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  background: center / contain no-repeat url('/paper-ui/lock.png');
+}
+
+/* --- Boutons d'icône ------------------------------------------------------ */
+/* Les tuiles du kit portent leur propre plaque : on annule le texte et on pose
+   le sprite, comme .arcade-btn--icon le fait déjà avec ico-left. */
+[data-color-theme="paper"] .player-card__remove {
+  border: 0;
+  font-size: 0;
+  background: center / contain no-repeat url('/paper-ui/ico-close.png');
+}
+[data-color-theme="paper"] .add-player-btn::before {
+  content: '';
+  width: 22px;
+  height: 20px;
+  margin-right: 8px;
+  background: center / contain no-repeat url('/paper-ui/ico-plus.png');
+}
+/* Ce bouton ramène au menu principal : c'est une maison, pas une flèche.
+   ico-left reste le défaut de .arcade-btn--icon pour les autres usages. */
+[data-color-theme="paper"] #btn-home {
+  background-image: url('/paper-ui/ico-home.png');
+}
+/* Tuiles devant les entrées de menu. Elles n'ont pas à porter de texte : le
+   libellé reste sur la plaque, la tuile ne fait que l'annoncer. */
+[data-color-theme="paper"] #btn-sessions::before,
+[data-color-theme="paper"] #btn-app-settings::before {
+  content: '';
+  width: 26px;
+  height: 24px;
+  margin-right: 10px;
+  flex: none;
+  background: center / contain no-repeat;
+}
+[data-color-theme="paper"] #btn-sessions::before { background-image: url('/paper-ui/ico-list.png'); }
+[data-color-theme="paper"] #btn-app-settings::before { background-image: url('/paper-ui/ico-gear.png'); }
+
+/* Le décompte de parties gagnées d'une carte de session : une tuile se pose
+   mieux dans une ligne de statistiques que l'objet trophée, qui reste réservé
+   à la première marche du podium. */
+/* Le mode sélectionné se distinguait par --color-accent-primary sur sa bordure
+   — soit exactement la teinte que ce thème donne DÉJÀ à toutes les bordures.
+   L'état sélectionné était donc quasi invisible ici. L'étoile du kit le dit
+   sans dépendre de la couleur, comme le fait déjà .arcade-card--active. */
+[data-color-theme="paper"] .mode-card--on {
+  background: var(--bg-surface-soft);
+  box-shadow: 0 3px 0 rgba(86, 14, 18, .3);
+}
+[data-color-theme="paper"] .mode-card--on .mode-card__name::after {
+  content: '';
+  display: inline-block;
+  width: 15px;
+  height: 16px;
+  margin-left: 5px;
+  vertical-align: -3px;
+  background: center / contain no-repeat url('/paper-ui/star-gold.png');
+}
+
+[data-color-theme="paper"] .arcade-trophy::before {
+  background-image: url('/paper-ui/ico-trophy.png');
+  width: 24px;
+  height: 22px;
 }

@@ -11,8 +11,10 @@ let lastIndex = -1;
 let activePlayerId = null;
 let lastErrorTs = null;
 let lastOnline = null;
+let lastLaneSig = null;
 let timerId = null;
 let timeLeft = 0;
+let timeTotal = 0;
 let timeUp = false;
 
 function escapeHtml(s) {
@@ -43,6 +45,10 @@ function paintTimer() {
   const el = root?.querySelector('#question-timer');
   if (!el) return;
   el.textContent = timeUp ? 'Temps écoulé' : formatTime(timeLeft);
+  // Jauge de vidange : le CSS lit --t (1 → 0) pour peindre le temps restant.
+  // Une propriété custom plutôt qu'un second élément — rien à démonter, et le
+  // chrono reste strictement local (il ne passe toujours pas par dispatch()).
+  el.style.setProperty('--t', timeTotal > 0 ? String(Math.max(0, timeLeft / timeTotal)) : '0');
   el.classList.toggle('timer--urgent', !timeUp && timeLeft <= 10);
   el.classList.toggle('timer--over', timeUp);
 }
@@ -64,7 +70,8 @@ function startTimer() {
   if (!s.settings.timerEnabled) return;
   // On vise une échéance plutôt que de décrémenter : setInterval dérive et se
   // fait brider quand l'onglet passe en arrière-plan.
-  const deadline = Date.now() + (s.settings.timePerQuestion || 60) * 1000;
+  timeTotal = s.settings.timePerQuestion || 60;
+  const deadline = Date.now() + timeTotal * 1000;
   timeLeft = Math.ceil((deadline - Date.now()) / 1000);
   paintTimer();
   timerId = setInterval(() => {
@@ -78,16 +85,18 @@ const SHELL = `
   <section class="game-screen screen" data-screen="game">
     <header class="game-header">
       <button id="btn-quit" class="button button--ghost">Quitter</button>
-      <div class="progress">
-        <div class="progress-text">
-          <span id="question-number"></span>
-          <span id="question-theme" class="question-theme"></span>
-        </div>
-        <div class="progress-bar"><span id="progress-fill"></span></div>
+      <div class="game-header__center">
+        <span id="question-number" class="game-header__step"></span>
+        <span id="question-theme" class="question-theme"></span>
       </div>
       ${renderThemeSelect()}
     </header>
-    <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores"></div>
+    <!-- La piste. Elle remplace l'ancienne barre de progression, qui mesurait
+         la question courante sur la file de préfetch — une valeur qui RECULAIT
+         quand la génération prenait de l'avance, et qui ne disait rien au
+         joueur. Ici on montre ce qui décide réellement : la course au score
+         cible (manche), les manches gagnées (partie), et qui a déjà répondu. -->
+    <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores" aria-live="polite"></div>
     <div id="retry-banner" class="retry-banner" hidden>
       <span id="retry-message"></span>
       <button id="btn-retry" class="button button--ghost">Réessayer la génération</button>
@@ -113,7 +122,7 @@ function questionHtml(s) {
   const difficulty = DIFFICULTY_LABELS[q.difficulty] || q.difficulty;
   const bonus = s.isBonusRound;
 
-  const optionsHtml = q.options.map((o, i) => {
+  const optionsHtml = q.options.map((o) => {
     // Un joueur exclu par la mort subite ne peut plus répondre : son score
     // n'est plus affecté, lui laisser un bouton actif serait trompeur.
     const playerBtns = s.players.map(p => playerChip(p, {
@@ -133,9 +142,8 @@ function questionHtml(s) {
       <div class="option-card__row">
         <span class="option-card__key">${o.key}</span>
         <span class="option-card__text">${escapeHtml(o.text)}</span>
-        <kbd class="option-card__hint">${i + 1}</kbd>
       </div>
-      <div class="option-card__players">${playerBtns}</div>
+      <div class="option-card__players" style="--n:${s.players.length}">${playerBtns}</div>
     </div>
   `}).join('');
 
@@ -190,40 +198,54 @@ function revealHtml(s) {
     let badge = '';
     if (o.key === q.answer) {
       cls += ' option-card--correct';
-      badge = '<span class="badge badge--easy">Bonne réponse</span>';
+      // L'icône porte une classe : c'est ce qui permet à un thème de la
+      // remplacer par son propre sprite, comme Paper Quest le fait déjà pour
+      // .podium__rank (color: transparent + background). Sans classe, il
+      // faudrait viser `span[aria-hidden]`, ce qui casserait au premier ajout.
+      badge = '<span class="stamp stamp--correct"><span class="stamp__icon" aria-hidden="true">✓</span> Bonne réponse</span>';
     } else if (o.key === q.funnyOption) {
       cls += ' option-card--funny';
-      badge = '<span class="badge badge--funny">Option drôle</span>';
+      badge = '<span class="stamp stamp--funny"><span class="stamp__icon" aria-hidden="true">😂</span> Option drôle</span>';
     } else {
       cls += ' option-card--muted';
     }
-    return `<div class="${cls}" data-key="${o.key}"><div class="option-card__row"><span class="option-card__key">${o.key}</span><span>${escapeHtml(o.text)}</span></div>${badge}</div>`;
+    return `<div class="${cls}" data-key="${o.key}"><div class="option-card__row"><span class="option-card__key">${o.key}</span><span class="option-card__text">${escapeHtml(o.text)}</span></div>${badge}</div>`;
   }).join('');
 
   const resultsHtml = s.players.map(p => {
     const ans = s.roundAnswers[p.id];
     let result;
     let cls = 'answer-card';
+    // Icône + libellé + delta chiffré. L'ancien rendu ne portait qu'un symbole
+    // (✓ / ✕ / —) et une couleur : DAVINCI §13 demande que la compréhension ne
+    // repose jamais sur la seule couleur, et donne ces libellés exacts.
+    const ligne = (variante, icone, libelle, delta) =>
+      `<span class="answer-result answer-result--${variante}">`
+      + `<span class="answer-result__icon" aria-hidden="true">${icone}</span>`
+      + `<span class="answer-result__label">${libelle}</span>`
+      + `<span class="answer-delta answer-delta--${delta.startsWith('−') ? 'moins' : 'plus'}">${delta}</span>`
+      + '</span>';
+
     if (p.eliminated) {
       cls += ' answer-card--out';
-      result = '<span class="answer-result answer-result--none">☠ Exclu de la manche · +0</span>';
+      result = ligne('none', '☠', 'Exclu de la manche', '+0');
     } else if (!ans) {
       const lost = s.roundPenalties[p.id] || 0;
       if (lost > 0) {
         cls += ' answer-card--wrong';
-        result = `<span class="answer-result answer-result--wrong">— Pas de réponse · −${lost}</span>`;
+        result = ligne('wrong', '—', 'Pas de réponse', `−${lost}`);
       } else {
-        result = '<span class="answer-result answer-result--none">— Pas de réponse · +0</span>';
+        result = ligne('none', '—', 'Pas de réponse', '+0');
       }
     } else if (ans === q.answer) {
       cls += ' answer-card--correct';
-      result = `<span class="answer-result answer-result--correct">✓ +${bonusMult}</span>`;
+      result = ligne('correct', '✓', 'Correct', `+${bonusMult}`);
     } else {
       cls += ' answer-card--wrong';
       const lost = s.roundPenalties[p.id] || 0;
       result = lost > 0
-        ? `<span class="answer-result answer-result--wrong">✕ −${lost}</span>`
-        : '<span class="answer-result answer-result--wrong">✕ +0</span>';
+        ? ligne('wrong', '✕', 'Incorrect', `−${lost}`)
+        : ligne('wrong', '✕', 'Incorrect', '+0');
     }
     return `
       <div class="${cls}">
@@ -275,39 +297,79 @@ function revealHtml(s) {
 
 let signal = null;
 
+/**
+ * La piste : un couloir par joueur.
+ *
+ * L'ordre suit le ROSTER, pas le score. Un classement qui se retrie à chaque
+ * bonne réponse fait sauter les couloirs sous les yeux du MJ au moment précis
+ * où il cherche la ligne d'un joueur ; le meneur est signalé par son couloir,
+ * pas par sa position.
+ *
+ * Trois niveaux lus d'un coup d'œil : la manche en tête, la course au score
+ * cible dans le remplissage, les manches gagnées dans les pastilles.
+ */
 function renderLeaderboard() {
   const el = root.querySelector('#leaderboard-mini');
   if (!el) return;
   const s = getState();
-  const ranked = [...s.players].sort((a, b) => b.score - a.score);
-  const leaderId = ranked[0]?.id;
-  el.innerHTML = ranked.map(p => `
-    <span class="leaderboard-mini__item ${p.id === leaderId ? 'leaderboard-mini__item--leader' : ''}">
-      <span aria-hidden="true">${p.emoji}</span>${escapeHtml(p.name)} · ${p.score}
-    </span>
-  `).join('');
+  const cible = Math.max(1, s.settings.targetScore || 1);
+  const best = Math.max(0, ...s.players.map(p => p.score));
+  const manchesT = s.partie?.manchesTarget || s.settings.manchesTarget || 1;
+
+  const head = s.partie ? `
+    <div class="leaderboard-mini__head">
+      <span class="leaderboard-mini__manche">Manche ${s.partie.mancheIndex + 1} sur ${manchesT}</span>
+      <span class="leaderboard-mini__goal">Premier à ${cible} points</span>
+    </div>` : '';
+
+  const lanes = s.players.map(p => {
+    const won = s.partie?.manchesWon?.[p.id] || 0;
+    const pips = Array.from({ length: manchesT }, (_, i) =>
+      `<span class="manche-pip${i < won ? ' manche-pip--won' : ''}"></span>`).join('');
+    const pct = Math.min(100, Math.round((p.score / cible) * 100));
+    // Le meneur se distingue par son couloir. À 0 partout, personne ne mène.
+    const leader = best > 0 && p.score === best;
+    const repondu = Boolean(s.roundAnswers[p.id]);
+    return `
+      <li class="leaderboard-mini__item${leader ? ' leaderboard-mini__item--leader' : ''}${p.eliminated ? ' leaderboard-mini__item--out' : ''}"
+          data-answered="${repondu ? 'true' : 'false'}">
+        ${playerChip(p, {
+          className: 'leaderboard-mini__token',
+          suffix: p.eliminated ? '☠' : '',
+        })}
+        <span class="leaderboard-mini__name">${escapeHtml(p.name)}</span>
+        <span class="leaderboard-mini__rail">
+          <span class="leaderboard-mini__fill" style="width:${pct}%"></span>
+        </span>
+        <span class="manche-pips" aria-label="${won} manche${won > 1 ? 's' : ''} gagnée${won > 1 ? 's' : ''}">${pips}</span>
+        <span class="leaderboard-mini__score">${p.score}<span class="leaderboard-mini__target">/${cible}</span></span>
+      </li>`;
+  }).join('');
+
+  // La piste porte aria-live="polite" et renderLeaderboard() tourne à CHAQUE
+  // dispatch : sans cette garde, un lecteur d'écran réannoncerait les six
+  // couloirs à chaque jeton posé. On ne touche au DOM que si le rendu change
+  // réellement — ce qui économise aussi six reconstructions par clic.
+  const sig = head + lanes;
+  if (sig === lastLaneSig) return;
+  lastLaneSig = sig;
+  el.innerHTML = `${head}<ol class="leaderboard-mini__lanes">${lanes}</ol>`;
 }
 
 function updateHeader() {
   const s = getState();
   const numEl = root.querySelector('#question-number');
-  const fillEl = root.querySelector('#progress-fill');
   const themeEl = root.querySelector('#question-theme');
   if (s.phase === 'QUESTION' || s.phase === 'REVEAL') {
     const q = s.questions[s.currentIndex];
-    const n = s.currentIndex + 1;
-    const prepared = s.questions.length + s.prefetchQueue.length;
-    const manche = s.partie
-      ? `Manche ${s.partie.mancheIndex + 1}/${s.partie.manchesTarget} · `
-      : '';
-    numEl.textContent = `${manche}Question ${n} · ${prepared} préparée${prepared > 1 ? 's' : ''}`;
+    // La manche est portée par la piste : l'en-tête ne garde que le numéro de
+    // question et le sujet. Le décompte de la file de préfetch était une
+    // information d'ingénierie, pas de jeu — il part.
+    numEl.textContent = `Question ${s.currentIndex + 1}`;
     themeEl.textContent = q?.theme || '';
-    const pct = Math.min(100, Math.round((n / Math.max(prepared, 1)) * 100));
-    fillEl.style.width = `${pct}%`;
   } else {
     numEl.textContent = '';
     themeEl.textContent = '';
-    fillEl.style.width = '0%';
   }
   renderLeaderboard();
 }
@@ -459,6 +521,7 @@ export function renderGame(rootEl) {
   lastIndex = -1;
   activePlayerId = null;
   lastErrorTs = null;
+  lastLaneSig = null; // le DOM est neuf : la signature précédente ne vaut plus
   timeUp = false;
   lastOnline = getState().ui.isOnline;
 

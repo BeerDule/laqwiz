@@ -6,8 +6,24 @@ let rafId = 0;
 let particles = [];
 let resizeHandler = null;
 
-function randomColor() {
-  const palette = ['#007acc', '#0098ff', '#c586c0', '#6a9955', '#cca700', '#4ec9b0'];
+/**
+ * Palette du THÈME ACTIF, lue une fois au lancement.
+ *
+ * Les six couleurs étaient celles de VS Code, en dur : des confettis bleu
+ * éditeur tombaient sur Paper Quest, sur Girly et sur Matrix. Les jetons
+ * d'accent existent déjà pour ça — autant les lire. Une seule lecture de
+ * getComputedStyle par lancement, pas une par particule.
+ */
+function themePalette() {
+  const cs = getComputedStyle(document.documentElement);
+  const palette = [
+    '--color-accent-primary', '--color-accent-cyan', '--color-accent-pink',
+    '--color-accent-lime', '--color-warning', '--color-success',
+  ].map(t => cs.getPropertyValue(t).trim()).filter(Boolean);
+  return palette.length ? palette : ['#007acc'];
+}
+
+function randomColor(palette) {
   return palette[Math.floor(Math.random() * palette.length)];
 }
 
@@ -20,10 +36,13 @@ export function launchConfetti({ durationMs = 2500, intensity = 120 } = {}) {
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const count = reduced ? Math.min(20, intensity) : intensity;
+  const palette = themePalette();
 
   canvas = document.createElement('canvas');
   canvas.setAttribute('aria-hidden', 'true');
-  canvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;';
+  // z-index 0 et non 9999 : le contenu de l'écran de victoire se place à 1, les
+  // confettis tombent donc DERRIÈRE le podium au lieu de le recouvrir.
+  canvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:0;';
   document.body.appendChild(canvas);
   ctx = canvas.getContext('2d');
 
@@ -47,7 +66,7 @@ export function launchConfetti({ durationMs = 2500, intensity = 120 } = {}) {
       y: -20 - Math.random() * window.innerHeight * 0.3,
       w: 6 + Math.random() * 8,
       h: 8 + Math.random() * 10,
-      color: randomColor(),
+      color: randomColor(palette),
       vx: (Math.random() - 0.5) * 2.2,
       vy: 2 + Math.random() * 3.5,
       rot: Math.random() * Math.PI,

@@ -34,10 +34,10 @@
   flex-direction: column;
   gap: var(--space-5);
   color: var(--color-text);
-  font-size: 15px;
-  background-color: var(--bg-void);
-  background-image: var(--texture), var(--gradient-bg);
-  background-attachment: fixed;
+  /* Aucun fond ici. `body` peint DÉJÀ exactement la même chose
+     (--bg-void + --texture + --gradient-bg, en attachment fixed) : le répéter
+     posait un calque opaque par-dessus la scène, et privait au passage les
+     menus du `background-size: cover` que Bubble Island ne pose que sur body. */
 }
 
 /* ===== Titres ===== */
@@ -48,7 +48,7 @@
      et annulerait les fontes des autres thèmes. */
   font-family: var(--font-display, var(--font-sans));
   font-weight: 400;
-  font-size: clamp(2.2rem, 8vw, 4rem);
+  font-size: var(--text-hero);
   letter-spacing: 0;
   color: var(--color-text);
   text-shadow: var(--text-glow);
@@ -85,10 +85,9 @@
   box-shadow: var(--shadow-card);
   color: var(--color-text);
   font-family: var(--font-button);
-  /* 19px gras : au-dessus du seuil « grand texte » WCAG (18,66px gras), où le
-     critère de contraste applicable tombe à 3:1. Plusieurs thèmes posent des
-     surfaces de luminance moyenne sur lesquelles aucune encre n'atteint 4,5:1. */
-  font-size: 19px;
+  /* Voir --text-menu dans theme.css : 19 px est un plancher de contraste, pas
+     un choix de goût. Le jeton peut grandir sur grand écran, jamais rétrécir. */
+  font-size: var(--text-menu);
   font-weight: 700;
   letter-spacing: .01em;
   cursor: pointer;
@@ -105,15 +104,15 @@
   border-color: var(--color-accent-primary);
   box-shadow: var(--shadow-pop);
   color: var(--accent-contrast);
-  font-size: 21px;
-  min-height: 58px;
-  padding-inline: 34px;
+  font-size: var(--text-menu-lg);
+  min-height: 64px;
+  padding-inline: 38px;
 }
 .arcade-btn--primary:hover:not(:disabled) {
   background-color: var(--color-accent-primary);
   filter: brightness(1.08);
 }
-.arcade-btn--small { min-height: 40px; font-size: 19px; padding-inline: 18px; }
+.arcade-btn--small { min-height: 44px; font-size: var(--text-menu); padding-inline: 18px; }
 .arcade-btn--danger { color: var(--color-error); }
 
 .arcade-btn--icon {
@@ -130,7 +129,7 @@
   gap: var(--space-4);
   justify-content: center;
   align-content: start;
-  width: min(340px, 100%);
+  width: min(420px, 100%);
   margin-inline: auto;
 }
 .arcade__menu .arcade-btn { width: 100%; }
@@ -138,11 +137,11 @@
 /* ===== Surfaces ===== */
 .arcade-plaque,
 .arcade-card {
-  border: 1px solid var(--color-border);
+  border: var(--material-edge);
   border-radius: var(--radius-lg);
   background-color: var(--bg-surface);
-  background-image: var(--gradient-surface);
-  box-shadow: var(--shadow-card);
+  background-image: var(--material-sheen), var(--gradient-surface);
+  box-shadow: var(--material-depth);
   color: var(--color-text);
 }
 
@@ -154,13 +153,13 @@
 }
 .arcade-plaque__label {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-meta);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--color-muted);
 }
-.arcade-plaque__name { display: block; font-size: 18px; margin-top: 2px; }
+.arcade-plaque__name { display: block; font-size: var(--text-option); margin-top: 4px; }
 .arcade-plaque__roster { display: flex; gap: 4px; justify-content: center; margin-top: var(--space-3); }
 
 /* ===== Grille de sessions ===== */
@@ -188,9 +187,9 @@
 }
 .arcade-card--active { border-color: var(--color-accent-primary); box-shadow: var(--shadow-pop); }
 .arcade-card__head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.arcade-card__name { font-size: 17px; line-height: 1.2; }
-.arcade-card__date { font-size: 12px; color: var(--color-muted); }
-.arcade-card__muted { font-size: 12px; color: var(--color-muted); }
+.arcade-card__name { font-size: var(--text-option); line-height: 1.2; }
+.arcade-card__date { font-size: var(--text-meta); color: var(--color-muted); }
+.arcade-card__muted { font-size: var(--text-meta); color: var(--color-muted); }
 .arcade-card__roster { display: flex; gap: 4px; flex-wrap: wrap; }
 .arcade-card__stat { font-size: 13px; font-weight: 600; }
 .arcade-card__trophies { display: flex; gap: var(--space-4); flex-wrap: wrap; min-height: 28px; }
@@ -211,11 +210,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  font-size: 17px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
+  width: 40px;
+  height: 40px;
+  font-size: var(--text-player);
+  border-radius: var(--radius-md);
+  border: var(--material-edge);
   background: var(--bg-surface-raised);
 }
 
@@ -238,7 +237,7 @@
   text-align: left;
   font-weight: 700;
 }
-.arcade--setup #btn-start { min-height: 54px; font-size: 19px; }
+.arcade--setup #btn-start { min-height: 64px; font-size: var(--text-menu-lg); }
 
 /* Version de l'application, discrète en pied de menu */
 .arcade__version {

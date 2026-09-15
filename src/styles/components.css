@@ -1,22 +1,34 @@
 /* src/styles/components.css — flat desktop components */
 
 /* ===== Buttons ===== */
+/* Une seule grammaire de bouton pour toute l'application.
+ *
+ * Les menus (`.arcade-btn`, 48 px / 19 px) et le jeu (`.button`, 28 px / 13 px)
+ * formaient deux échelles étrangères l'une à l'autre : passer de l'accueil à la
+ * partie faisait rétrécir l'interface d'un facteur 1,5, et c'était le JEU qui
+ * était le petit des deux. Les quatre tailles ci-dessous se rejoignent.
+ *
+ * `--small` n'avait de règle QUE dans le bloc mobile : sur desktop, la classe
+ * était posée par setup.js sans rien produire. */
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 28px;
-  padding: 2px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 16px;
+  border: var(--material-edge);
+  border-radius: var(--radius-md);
   background: var(--bg-surface-raised);
+  background-image: var(--material-sheen), var(--gradient-surface);
+  box-shadow: var(--material-depth);
   color: var(--color-text);
-  font-size: 13px;
-  font-weight: 400;
-  transition: background var(--transition-fast);
+  font-size: var(--text-ui);
+  font-weight: 600;
+  transition: background var(--transition-fast), transform var(--transition-fast);
   white-space: nowrap;
 }
+.button--small { min-height: 34px; padding: 2px 12px; font-size: var(--text-meta); }
 .button:hover:not(:disabled) { background: var(--bg-surface-soft); }
 .button:active:not(:disabled) { background: var(--bg-surface-soft); }
 
@@ -36,7 +48,12 @@
 }
 .button--ghost:hover:not(:disabled) { background: var(--bg-surface-soft); }
 
-.button--large { min-height: 32px; padding: 4px 14px; }
+.button--large {
+  min-height: 52px;
+  padding: 6px 26px;
+  font-size: var(--text-option);
+}
+.button:active:not(:disabled) { transform: translateY(1px); }
 
 .button--danger {
   color: var(--color-error);
@@ -45,38 +62,56 @@
 
 /* ===== Panels ===== */
 .panel {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  border: var(--material-edge);
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
-  background-image: var(--gradient-surface);
-  box-shadow: var(--shadow-card);
+  background-image: var(--material-sheen), var(--gradient-surface);
+  box-shadow: var(--material-depth);
 }
 .panel legend {
+  /* Une <legend> DÉCOUPE nativement la bordure de son <fieldset> : elle se
+     place dans le trait, qui s'interrompt derrière elle. Avec une bordure de
+     1 px ça passait inaperçu ; sur un cadre 9-slice ça laisse une encoche en
+     plein milieu du laçage. Flotter la légende lui retire ce traitement
+     spécial : elle redevient un bloc normal DANS le panneau, et le cadre court
+     sans interruption. `width: 100%` garantit que le contenu passe dessous. */
+  float: left;
+  width: 100%;
   padding: 0;
-  font-weight: 600;
-  font-size: 11px;
+  margin-bottom: var(--space-3);
+  font-weight: 700;
+  font-size: var(--text-meta);
   color: var(--color-muted);
   text-transform: uppercase;
   letter-spacing: .08em;
 }
+/* Le contenu qui suit doit DÉGAGER le flottant. Une grille ou un flex
+   établissent un contexte de formatage : au lieu de s'écouler sous la légende,
+   ils se rangeaient à côté d'elle et débordaient du panneau par la droite. */
+.panel legend + * { clear: both; }
 
 /* ===== Form controls ===== */
-label { display: block; font-size: 13px; }
-.field-label { font-weight: 500; margin-bottom: 4px; color: var(--color-muted); }
+label { display: block; font-size: var(--text-ui); }
+.field-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--color-muted);
+  font-size: var(--text-meta);
+}
 
 input[type='text'],
 input[type='search'],
 input[type='password'],
 select {
   width: 100%;
-  min-height: 28px;
-  padding: 2px 6px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  min-height: 40px;
+  padding: 4px 12px;
+  border: var(--material-edge);
+  border-radius: var(--radius-md);
   background: var(--bg-void);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--text-ui);
 }
 input[type='text']:focus,
 input[type='search']:focus,
@@ -143,11 +178,11 @@ output {
 .toggle-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 28px;
+  gap: 10px;
+  min-height: 40px;
   cursor: pointer;
   margin-block: 6px;
-  font-size: 13px;
+  font-size: var(--text-ui);
 }
 .toggle-row input[type='checkbox'] {
   position: absolute;
@@ -180,7 +215,10 @@ output {
 }
 .toggle-row input:checked + .toggle-track::after {
   transform: translateX(14px);
-  background: #fff;
+  /* Le curseur repose sur la piste en couleur d'accent : --accent-contrast est
+     précisément le jeton « ce qui se pose sur l'accent ». Le #fff en dur
+     disparaissait sur les accents clairs (Paper Quest, Kids). */
+  background: var(--accent-contrast);
 }
 
 /* ===== Choice chips (radio segmented control) ===== */
@@ -190,8 +228,8 @@ output {
   margin-block: 10px;
 }
 .rule-group__label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--text-meta);
+  font-weight: 700;
   color: var(--color-muted);
   text-transform: uppercase;
   letter-spacing: .08em;
@@ -215,13 +253,13 @@ output {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 28px;
-  padding: 2px 12px;
-  border: 1px solid var(--color-border);
+  min-height: 40px;
+  padding: 4px 18px;
+  border: var(--material-edge);
   border-radius: 999px;
   background: var(--bg-surface-raised);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: var(--text-ui);
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 .choice-chip:hover span { background: var(--bg-surface-soft); }
@@ -260,39 +298,40 @@ output {
 .llm-panel input[type='range'] { margin-top: 4px; width: 100%; }
 .llm-test-btn { margin-top: 14px; }
 .llm-test-result { display: block; margin-top: 6px; font-size: 13px; min-height: 1.2em; }
-.llm-test-result--ok { color: #22c55e; }
-.llm-test-result--error { color: #f87171; }
+.llm-test-result--ok { color: var(--color-success); }
+.llm-test-result--error { color: var(--color-error); }
 
 /* ===== Player cards (setup) ===== */
 .players-list { display: grid; gap: 6px; }
 
 .player-card {
   display: grid;
-  grid-template-columns: 20px auto 1fr 14px 24px;
+  grid-template-columns: 24px auto 1fr 14px 36px;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  gap: 10px;
+  padding: 8px 12px;
+  border: var(--material-edge);
+  border-radius: var(--radius-md);
   background: var(--bg-surface-raised);
-  box-shadow: var(--shadow-card);
+  background-image: var(--material-sheen), var(--gradient-surface);
+  box-shadow: var(--material-depth);
 }
 .player-card__number {
-  font-size: 11px;
+  font-size: var(--text-meta);
   color: var(--color-muted);
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
 }
 .player-card__emoji {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  width: 40px;
+  height: 40px;
+  border: var(--material-edge);
+  border-radius: var(--radius-md);
   background: var(--bg-void);
-  font-size: 16px;
+  font-size: var(--text-player);
   cursor: pointer;
   padding: 0;
 }
@@ -306,8 +345,8 @@ output {
   flex: none;
 }
 .player-card__remove {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -326,10 +365,9 @@ output {
   width: 100%;
   border-style: dashed;
   color: var(--color-muted);
-  min-height: 28px;
 }
 
-/* ===== Game header ===== */
+/* ===== En-tête de jeu ===== */
 .game-header {
   display: flex;
   align-items: center;
@@ -338,144 +376,294 @@ output {
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border);
 }
-.progress { flex: 1; min-width: 120px; }
-.progress-text {
+.game-header__center {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
+  justify-content: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 120px;
+  flex-wrap: wrap;
+}
+.game-header__step {
+  font-size: var(--text-meta);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
   color: var(--color-muted);
-  margin-bottom: 3px;
 }
 .question-theme {
   display: inline-flex;
   align-items: center;
-  margin:auto;
-  padding: 0 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
+  /* L'ancien `margin: auto` dans un flex servait de centrage bricolé ; le
+     centrage est maintenant porté par .game-header__center. */
+  padding: 2px 12px;
+  border: var(--material-edge);
+  border-radius: 999px;
   background: var(--bg-surface-raised);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--material-depth);
   color: var(--color-text);
+  font-size: var(--text-ui);
   font-weight: 600;
   letter-spacing: .01em;
 }
-.progress-bar {
-  height: 3px;
-  border-radius: 2px;
+
+/* ===== La piste =====
+ * Un couloir par joueur, en ordre de roster. `.leaderboard-mini__item` garde
+ * son nom de classe : c'est le point d'accroche des thèmes Apple, Apple Glass,
+ * Bubble Island et Paper Quest, qui y posent leur matière. Un couloir EST une
+ * surface, la règle de ces thèmes reste juste. */
+.leaderboard-mini {
+  display: grid;
+  gap: var(--space-2);
+}
+.leaderboard-mini__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--text-meta);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.leaderboard-mini__manche { color: var(--color-text); }
+.leaderboard-mini__goal { color: var(--color-muted); }
+
+/* À six joueurs, six couloirs empilés prenaient près de 300 px avant même que
+   la question s'affiche. Ils se répartissent donc en colonnes dès qu'il y a la
+   place : deux ou trois de front, une seule rangée ou deux. */
+.leaderboard-mini__lanes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(240px, 30%), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+.leaderboard-mini__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 7rem) 1fr auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 10px;
+  border: var(--material-edge);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--material-depth);
+  font-size: var(--text-meta);
+  transition: opacity var(--transition-base), border-color var(--transition-base);
+}
+/* Qui n'a pas encore répondu reste en retrait : le MJ voit qui il attend. */
+.leaderboard-mini__item[data-answered='false'] { opacity: .72; }
+.leaderboard-mini__item--leader {
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-pop);
+}
+.leaderboard-mini__item--out { opacity: .45; }
+.leaderboard-mini__token { font-size: var(--text-player); }
+.leaderboard-mini__name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.leaderboard-mini__rail {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
   background: var(--bg-surface-soft);
   overflow: hidden;
 }
-.progress-bar span {
+.leaderboard-mini__fill {
   display: block;
   height: 100%;
-  width: 0;
-  background: var(--color-accent-primary);
+  background-color: var(--color-accent-primary);
+  background-image: var(--gradient-accent);
   box-shadow: var(--glow-accent);
   transition: width var(--transition-base);
 }
-
-/* ===== Leaderboard mini ===== */
-.leaderboard-mini { display: flex; gap: 4px; flex-wrap: wrap; }
-.leaderboard-mini__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 1px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  background: var(--bg-surface-raised);
-  box-shadow: var(--shadow-card);
-  font-size: 12px;
+.leaderboard-mini__score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
-.leaderboard-mini__item--leader { border-color: var(--color-accent-primary); }
-
-/* ===== Question card ===== */
+.leaderboard-mini__target { color: var(--color-muted); font-weight: 400; }
+/* ===== La carte-question =====
+ * Le point focal absolu de l'écran. Elle est DISTRIBUÉE : la perspective vit
+ * dans la fonction transform elle-même (voir `card-deal` dans stage.css) et non
+ * sur un parent — ça évite d'introduire un contexte d'empilement et un bloc
+ * conteneur sur #game-body, qui devient une grille en phase REVEAL. */
 .question-card {
-  padding: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: clamp(var(--space-5), 2.5vw, var(--space-10));
+  border: var(--material-edge);
+  border-radius: var(--radius-lg);
   background: var(--bg-surface);
-  background-image: var(--gradient-surface);
-  box-shadow: var(--shadow-card);
+  background-image: var(--material-sheen), var(--gradient-surface);
+  box-shadow: var(--material-depth);
 }
 .question-meta {
   display: flex;
-  gap: 6px;
-  margin-bottom: var(--space-3);
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
 }
-.question-card h2 { margin-bottom: var(--space-4); font-size: 15px; }
+/* 28 à 48 px selon la largeur, au lieu de 15 px fixes. C'est la correction la
+   plus importante de la refonte : une question de quiz illisible à trois mètres
+   d'un canapé ne remplit pas sa fonction. */
+.question-card h2 {
+  margin-bottom: var(--space-6);
+  /* La fonte de LECTURE, pas celle d'affichage. Le sélecteur `h1, h2` de
+     theme.css impose --font-display, ce qui allait tant que le titre de
+     question faisait 15 px ; à 48 px sur trois lignes, une fonte à chasse fixe
+     rend l'énoncé pénible. Les titres courts gardent --font-display. */
+  font-family: var(--font-sans);
+  font-size: var(--text-question);
+  font-weight: 700;
+  line-height: 1.15;
+  text-wrap: balance;
+}
 
 /* Validation — toujours visible, pleine largeur sous les options */
 #btn-reveal {
   display: flex;
   justify-content: center;
   width: 100%;
-  margin-top: var(--space-4);
+  max-width: 480px;
+  margin-inline: auto;
+  margin-top: var(--space-6);
+  min-height: 56px;
+  font-size: var(--text-option);
 }
 
-/* ===== Options ===== */
+/* ===== Options =====
+ * Quatre touches de plateau, pas quatre lignes de formulaire. */
 .options-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: var(--space-3);
 }
 .option-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 40px;
-  padding: 8px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  gap: var(--space-3);
+  /* Pas de min-height : une option courte sans tampon donnait une grande boîte
+     vide, et quatre boîtes vides font un mur. La carte se dimensionne sur son
+     contenu — c'est la rangée de jetons qui fixe sa hauteur réelle. */
+  padding: var(--space-4);
+  border: var(--material-edge);
+  border-radius: var(--radius-lg);
   background: var(--bg-surface-raised);
-  background-image: var(--gradient-surface);
-  box-shadow: var(--shadow-card);
-  font-size: 13px;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  background-image: var(--material-sheen), var(--gradient-surface);
+  box-shadow: var(--material-depth);
+  font-size: var(--text-option);
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    transform var(--transition-fast);
 }
-.option-card:hover { background: var(--bg-surface-soft); }
+/* La garde `:not()` manquait : en phase REVEAL les cartes figées réagissaient
+   encore au survol, ce qui laissait croire qu'on pouvait encore répondre. */
+.option-card:not(.option-card--correct):not(.option-card--funny):not(.option-card--muted):hover {
+  background: var(--bg-surface-soft);
+}
 .option-card__row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-4);
 }
+/* L'énoncé occupe la rangée. C'est lui qui la tient depuis que la pastille de
+   raccourci a été retirée : c'était son `margin-left: auto` qui poussait la
+   rangée sur toute la largeur.
+   (`text-wrap: balance` ne s'applique qu'à un conteneur de bloc — sur ce <span>
+   il était sans effet ; l'équilibrage utile est celui du titre de question.) */
+.option-card__text {
+  flex: 1;
+  min-width: 0;
+}
+/* La lettre est une touche, pas une puce : c'est elle qui rend l'option
+   identifiable SANS dépendre de la couleur, et qui fait le lien visuel avec le
+   raccourci clavier 1/2/3/4. */
 .option-card__key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-void);
-  color: var(--color-accent-primary);
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: var(--radius-md);
+  /* En aplat d'accent, pas en --bg-void : sur Paper Quest, --bg-void est du
+     parchemin, c'est-à-dire la couleur même de la carte — la pastille y était
+     purement invisible. Même problème sur Windows 98 et Apple. */
+  background-color: var(--color-accent-primary);
+  background-image: var(--gradient-accent);
+  color: var(--accent-contrast);
+  font-family: var(--font-display);
+  font-size: var(--text-option);
   font-weight: 700;
-  font-size: 12px;
+  line-height: 1;
   flex: none;
 }
+/* La rangée de jetons : UNE seule ligne, toujours.
+ *
+ * C'est le point qui avait cassé la mise en page. Ces boutons sont répétés dans
+ * les QUATRE options — six joueurs, ça fait vingt-quatre pastilles à l'écran.
+ * En flex-wrap à 44 px, chaque carte partait en deux ou trois lignes de
+ * hauteurs inégales : quatre cartes de tailles différentes, et la question
+ * repoussée hors de l'écran.
+ *
+ * `grid-auto-flow: column` + `grid-auto-columns: minmax(0, 1fr)` force une
+ * rangée unique dont les jetons se partagent la largeur disponible. La hauteur
+ * d'une carte devient prévisible, et les quatre s'alignent. */
 .option-card__players {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  justify-content: start;
+  /* Colle la rangée de jetons en bas. Les quatre cartes s'étirent à la hauteur
+     de la plus haute (comportement de grille) ; sans ce `auto`, un énoncé sur
+     deux lignes décalait ses jetons par rapport aux trois autres cartes, et
+     c'est ce désalignement qui donnait l'impression de désordre. */
+  margin-top: auto;
+  /* Des colonnes en 1fr étalaient six jetons sur 650 px : ils ne se lisaient
+     plus comme un groupe. La rangée se cale sur le NOMBRE de joueurs (--n,
+     posé par game.js) et retombe à 100 % quand la carte est trop étroite —
+     donc jamais de débordement. */
+  width: min(100%, calc(var(--n, 6) * 3.4rem));
 }
+/* Les jetons de joueur : l'interaction centrale du jeu. Ils occupent leur
+   colonne, plafonnés à 44 px pour ne pas devenir énormes à deux joueurs. */
 .option-card__player-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  width: 100%;
+  min-width: 0;
+  max-width: 44px;
+  aspect-ratio: 1;
+  border: var(--material-edge);
+  border-radius: var(--radius-md);
   background: var(--bg-void);
-  font-size: 15px;
+  font-size: var(--text-player);
+  line-height: 1;
   cursor: pointer;
   padding: 0;
   position: relative;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    transform var(--transition-fast);
 }
-.option-card__player-btn:hover { border-color: var(--color-accent-primary); background: var(--bg-surface-soft); }
-.option-card__player-btn.is-active { background: var(--color-accent-primary); border-color: var(--color-accent-primary); }
+.option-card__player-btn:hover:not(:disabled) {
+  border-color: var(--color-accent-primary);
+  background: var(--bg-surface-soft);
+}
+/* Le jeton POSÉ : anneau plein, et la petite écrasée du geste. */
+.option-card__player-btn.is-active {
+  background-color: var(--color-accent-primary);
+  background-image: var(--gradient-accent);
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-pop);
+  animation: token-place 260ms var(--motion-ease);
+}
 
 /* Popover — nom du joueur au survol / focus. Porté par .player-chip pour que
    toutes les pastilles de l application se comportent pareil. */
@@ -506,6 +694,33 @@ output {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+/* ===== Tampons de révélation =====
+ * Forme + icône + texte + couleur. Aucune des quatre n'est seule porteuse du
+ * sens : le tampon reste compréhensible en niveaux de gris. */
+.stamp {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border: 2px solid currentColor;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-ui);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+  transform-origin: left center;
+  animation: stamp-in 320ms var(--motion-ease) both;
+}
+.stamp--correct { color: var(--color-success); }
+.stamp--funny { color: var(--color-accent-pink); }
+.stamp__icon { display: inline-block; line-height: 1; }
+
+/* La bonne réponse se soulève du plateau — une fois, 620 ms. */
+.option-card--correct { animation: lift-in 620ms var(--motion-ease) 120ms; }
+
 .option-card--correct {
   border-color: var(--color-success);
   background: rgba(78, 201, 176, .08);
@@ -525,10 +740,14 @@ output {
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 0 6px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  /* Le fond à 16 % d'opacité disparaît sur les thèmes clairs (Paper Quest,
+     Apple, Windows 98). Le liseré en `currentColor` rend la pastille lisible
+     partout sans toucher aux couleurs sémantiques. */
+  border: 1px solid currentColor;
+  font-size: var(--text-meta);
+  font-weight: 700;
   letter-spacing: .03em;
 }
 .badge--easy   { background: rgba(78, 201, 176, .15); background: color-mix(in srgb, var(--color-success) 16%, transparent); color: var(--color-success); }
@@ -558,10 +777,29 @@ output {
 .answer-result {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
+  flex: 1;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--text-ui);
 }
+.answer-result__icon { font-size: 1.2em; line-height: 1; }
+.answer-result__label { white-space: nowrap; }
+/* Le gain ou la perte : c'est le moment que le jeu produit. Il était rendu en
+   12 px au milieu d'une ligne de formulaire. */
+.answer-delta {
+  margin-left: auto;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: var(--bg-surface-soft);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-option);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  animation: delta-rise 520ms var(--motion-ease) 140ms both;
+}
+.answer-delta--plus { color: var(--color-success); }
+.answer-delta--moins { color: var(--color-error); }
 .answer-result--correct { color: var(--color-success); }
 .answer-result--wrong   { color: var(--color-error); }
 .answer-result--none    { color: var(--color-muted); }
@@ -580,9 +818,9 @@ output {
   padding: var(--space-3);
   border-left: 2px solid var(--color-accent-primary);
   background: var(--bg-surface-raised);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  font-size: 12px;
-  color: var(--color-muted);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-size: var(--text-ui);
+  color: var(--color-text);
 }
 
 /* ===== Toast (status bar style) ===== */
@@ -650,6 +888,65 @@ output {
   font-family: var(--font-mono);
   font-size: 13px;
 }
+
+/* ===== Le podium de victoire =====
+ * Trois vraies marches. `.podium--steps` ne fait que RÉORGANISER des
+ * `.podium__row` : l'écran de fin de manche garde son podium en lignes, et les
+ * sprites de médaille de Paper Quest / Bubble Island continuent de tomber sur
+ * `.podium__row:nth-child(1|2|3) .podium__rank`. */
+.podium--steps {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-4);
+  list-style: none;
+  padding: 0;
+  margin-block: var(--space-10) var(--space-8);
+}
+.podium--steps .podium__row {
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: var(--space-2);
+  flex: 1 1 0;
+  max-width: 220px;
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  animation: rise-in 420ms var(--motion-ease) calc(var(--step, 0) * 90ms) both;
+}
+/* Ordre VISUEL 2 · 1 · 3, ordre DOM 1 · 2 · 3 : le classement reste juste pour
+   un lecteur d'écran, et les sprites des thèmes restent accrochés. */
+.podium--steps .podium__row:nth-child(1) { order: 2; min-height: 300px; }
+.podium--steps .podium__row:nth-child(2) { order: 1; min-height: 240px; }
+.podium--steps .podium__row:nth-child(3) { order: 3; min-height: 200px; }
+.podium--steps .podium__rank { font-size: var(--text-option); }
+.podium--steps .podium__emoji { font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1; }
+.podium--steps .podium__info { width: 100%; }
+.podium--steps .podium__info .answer-card__name { font-size: var(--text-option); }
+.podium--steps .podium__bar { margin-top: var(--space-2); }
+.podium--steps .answer-card__score { font-size: var(--text-ui); }
+
+/* Places 4 et suivantes — elles n'étaient tout simplement pas affichées. */
+.podium-rest {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.podium-rest__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 12px;
+  border: var(--material-edge);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-size: var(--text-ui);
+}
+.podium-rest__rank { font-family: var(--font-mono); font-weight: 700; color: var(--color-muted); }
+.podium-rest__name { font-weight: 600; }
+.podium-rest__score { margin-left: auto; color: var(--color-muted); }
 
 /* ===== Victory recap ===== */
 .recap {
@@ -748,13 +1045,24 @@ dialog form {
 
 /* ===== Victory header ===== */
 .victory-header {
-  padding-bottom: var(--space-5);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  padding-bottom: var(--space-6);
   margin-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border);
 }
-.victory-header .winner-title { font-size: 16px; font-weight: 600; }
-.victory-header p { color: var(--color-muted); margin-top: 2px; font-size: 12px; }
-.victory-theme { margin-top: var(--space-3); }
+.victory-theme { justify-self: end; margin-bottom: var(--space-5); }
+.victory-winner-token { font-size: clamp(3rem, 9vw, 5.5rem); line-height: 1; }
+/* Le titre du point culminant de la partie était rendu en 16 px. */
+.victory-header .winner-title {
+  font-size: var(--text-hero);
+  font-weight: 700;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+.victory-header p { color: var(--color-muted); margin-top: var(--space-2); font-size: var(--text-ui); }
+.recap__subtitle { margin-top: var(--space-5); }
 
 /* ===== Gap message ===== */
 .gap-msg {
@@ -801,27 +1109,13 @@ dialog form {
   padding: 6px 10px;
   border: 1px solid var(--color-warning);
   border-radius: var(--radius-sm);
-  background: rgba(204, 167, 0, .08);
+  /* Seul des sept rgba() du fichier à n'avoir aucun repli color-mix : c'était
+     un jaune VS Code peint sur les dix thèmes. */
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
   font-size: 12px;
 }
 .retry-banner span { flex: 1; }
 
-/* ===== Keyboard hints ===== */
-kbd.option-card__hint {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-void);
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-}
 
 /* ===== Screen transitions ===== */
 .screen { animation: screen-in 100ms ease; }
@@ -829,10 +1123,7 @@ kbd.option-card__hint {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-@keyframes question-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+
 @keyframes success-pulse {
   50% { border-color: var(--color-success); }
 }
@@ -849,7 +1140,7 @@ kbd.option-card__hint {
   to { opacity: 1; transform: none; }
 }
 
-.question-card { animation: question-enter var(--transition-base); }
+.question-card { animation: card-deal var(--motion-enter-dur) var(--motion-ease) both; }
 .answer-card--correct { animation: success-pulse 600ms ease 2; }
 .answer-card--wrong { animation: error-shake 350ms ease; }
 .score-float { animation: score-float 700ms ease forwards; }
@@ -865,29 +1156,28 @@ kbd.option-card__hint {
 
 /* ===== Mobile touch-friendly ===== */
 @media (max-width: 767px) {
-  /* Buttons — 44px minimum touch target */
+  /* Boutons — 44 px est le PLANCHER tactile, pas la cible. Les tailles de texte
+     restent en clamp() : les valeurs fixes posées ici (15 px, 16 px) écrasaient
+     l'échelle, et `--large` finissait plus petit sur mobile que sur desktop. */
   .button {
     min-height: 44px;
-    padding: 6px 14px;
-    font-size: 15px;
+    padding: 6px 18px;
   }
   .button--large {
-    min-height: 48px;
-    padding: 8px 18px;
-    font-size: 16px;
+    min-height: 54px;
+    padding: 8px 22px;
   }
   .button--small {
-    min-height: 36px;
+    min-height: 38px;
   }
 
-  /* Form controls */
+  /* Champs de formulaire */
   input[type='text'],
   input[type='search'],
   input[type='password'],
   select {
     min-height: 44px;
-    padding: 4px 10px;
-    font-size: 16px;
+    padding: 4px 12px;
   }
   select {
     padding-right: 32px;
@@ -907,11 +1197,10 @@ kbd.option-card__hint {
     height: 20px;
   }
 
-  /* Toggle switch */
+  /* Interrupteurs */
   .toggle-row {
     min-height: 44px;
     gap: 10px;
-    font-size: 15px;
   }
   .toggle-track {
     width: 42px;
@@ -933,90 +1222,77 @@ kbd.option-card__hint {
     padding: var(--space-4);
   }
 
-  /* Player cards (setup) */
+  /* Cartes joueur */
   .player-card {
-    grid-template-columns: 24px 36px 1fr 14px 36px;
+    grid-template-columns: 24px 44px 1fr 14px 44px;
     gap: 10px;
     padding: 8px 10px;
   }
-  .player-card__number {
-    font-size: 13px;
-  }
   .player-card__emoji {
-    width: 36px;
-    height: 36px;
-    font-size: 20px;
+    width: 44px;
+    height: 44px;
   }
   .player-card__name {
-    min-height: 32px !important;
-    font-size: 15px !important;
+    min-height: 40px !important;
   }
   .player-card__color {
     width: 14px;
     height: 14px;
   }
   .player-card__remove {
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
+    width: 44px;
+    height: 44px;
   }
   .add-player-btn {
     min-height: 44px;
-    font-size: 15px;
   }
 
-  /* Game header */
+  /* En-tête de jeu */
   .game-header {
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
   }
-  .progress-text {
-    font-size: 13px;
-  }
 
-  /* Leaderboard mini */
+  /* La piste — sous 768 px le prénom sort du couloir : le jeton et son
+     info-bulle suffisent, et la barre récupère la largeur. */
   .leaderboard-mini__item {
-    padding: 4px 10px;
-    font-size: 13px;
+    grid-template-columns: auto 1fr auto auto;
+    padding: 6px 10px;
   }
+  .leaderboard-mini__name { display: none; }
 
-  /* Question card */
+  /* Carte-question — les tailles restent en clamp() : elles ont déjà leur
+     borne basse calibrée pour le 320 px. Y remettre une valeur fixe (c'était
+     16 px) annulerait toute l'échelle. */
   .question-card {
-    padding: var(--space-4);
-  }
-  .question-card h2 {
-    font-size: 16px;
+    padding: var(--space-5);
   }
   .question-meta {
     gap: 8px;
     margin-bottom: var(--space-4);
   }
 
-  /* Option cards */
+  /* Options — UNE colonne.
+     La même règle existe dans layout.css, mais elle n'a jamais pris effet :
+     l'ordre d'import est theme → layout → stage → components → arcade, donc à
+     spécificité égale c'est components.css qui gagne. Les options restaient
+     donc sur deux colonnes à 320 px. Invisible tant que le texte faisait 13 px,
+     intenable à 17 px. La règle doit vivre ICI pour s'appliquer. */
   .options-grid {
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
   }
   .option-card {
-    min-height: 48px;
-    padding: 10px 12px;
-    font-size: 15px;
+    padding: var(--space-4);
     gap: 8px;
   }
-  .option-card__key {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-  }
+  /* Surtout PAS de largeur fixe ici : elle casserait la répartition en
+     colonnes. À six joueurs sur 320 px, chaque jeton fait ~44 px — le plancher
+     tactile est atteint par le partage, pas par une valeur en dur. */
   .option-card__player-btn {
-    width: 38px;
-    height: 38px;
-    font-size: 18px;
+    max-width: 52px;
   }
-  kbd.option-card__hint {
-    min-width: 26px;
-    height: 26px;
-    font-size: 13px;
-  }
+
 
   /* Answer entry (player answers) */
   .answer-entry {
@@ -1058,13 +1334,9 @@ kbd.option-card__hint {
     font-size: 14px;
   }
 
-  /* Victory */
-  .victory-header .winner-title {
-    font-size: 18px;
-  }
-  .victory-header p {
-    font-size: 14px;
-  }
+  /* Victoire — le titre et les marches restent en clamp(), dont la borne basse
+     est déjà calibrée pour le 320 px. L'ancien `font-size: 18px` posé ici
+     écrasait toute l'échelle sur mobile. */
   .podium__row {
     grid-template-columns: 28px 32px 1fr auto;
     gap: 12px;
@@ -1080,6 +1352,16 @@ kbd.option-card__hint {
   .podium__row .answer-card__score {
     font-size: 15px;
   }
+  /* Trois marches à 300 px de haut sur un écran de 320 px de large tiennent la
+     hauteur d'un écran entier : on tasse. */
+  .podium--steps {
+    gap: var(--space-2);
+    margin-block: var(--space-6) var(--space-5);
+  }
+  .podium--steps .podium__row { padding: var(--space-4) var(--space-2); }
+  .podium--steps .podium__row:nth-child(1) { min-height: 180px; }
+  .podium--steps .podium__row:nth-child(2) { min-height: 150px; }
+  .podium--steps .podium__row:nth-child(3) { min-height: 130px; }
   .victory-actions {
     gap: 8px;
   }
@@ -1130,26 +1412,35 @@ kbd.option-card__hint {
 }
 
 /* ===== Timer (mode chronomètre) ===== */
+/* Le chrono ne dit plus seulement combien il reste, il le MONTRE : la pilule se
+   vide de gauche à droite. `--t` (1 → 0) est réglé par paintTimer() ; le
+   décompte reste strictement local et ne passe toujours pas par dispatch(). */
 .timer {
+  --timer-tint: var(--color-accent-primary);
   display: inline-flex;
   align-items: center;
   margin-left: auto;
-  padding: 0 8px;
-  min-height: 20px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface-raised);
+  padding: 0 16px;
+  min-height: 40px;
+  border: var(--material-edge);
+  border-radius: 999px;
+  background-color: var(--bg-surface-raised);
+  background-image: linear-gradient(90deg,
+    color-mix(in srgb, var(--timer-tint) 32%, transparent) 0 calc(var(--t, 1) * 100%),
+    transparent calc(var(--t, 1) * 100%));
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-option);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
 }
 .timer--urgent {
+  --timer-tint: var(--color-warning);
   border-color: var(--color-warning);
   color: var(--color-warning);
 }
 .timer--over {
+  --timer-tint: var(--color-error);
   border-color: var(--color-error);
   color: var(--color-error);
 }
@@ -1282,27 +1573,33 @@ kbd.option-card__hint {
   gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
+/* Les cartes de mode sont le premier choix de l'écran de règles : elles étaient
+   plus petites que les pastilles de difficulté qu'elles pilotent. */
 .mode-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-width: 5.5rem;
-  padding: var(--space-2);
+  gap: 4px;
+  min-width: 7rem;
+  padding: var(--space-4) var(--space-3);
   border: 2px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--bg-surface-raised);
+  background-image: var(--material-sheen), var(--gradient-surface);
+  box-shadow: var(--material-depth);
   color: var(--color-text);
   font-family: var(--font-button);
   cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
 }
+.mode-card:active { transform: translateY(1px); }
 .mode-card:hover { border-color: var(--color-accent-primary); }
 .mode-card--on {
   border-color: var(--color-accent-primary);
   background: var(--bg-surface-soft);
 }
-.mode-card__emoji { font-size: 1.5rem; line-height: 1.2; }
-.mode-card__name { font-size: 0.85rem; text-align: center; }
+.mode-card__emoji { font-size: 2rem; line-height: 1.2; }
+.mode-card__name { font-size: var(--text-meta); text-align: center; }
 .mode-card--new { border-style: dashed; opacity: 0.75; }
 .mode-status {
   margin: 0 0 var(--space-2);
@@ -1318,7 +1615,7 @@ kbd.option-card__hint {
 .emoji-picker {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 4px;
   margin-top: 6px;
   padding-top: 8px;
@@ -1332,7 +1629,7 @@ kbd.option-card__hint {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: var(--bg-void);
-  font-size: 18px;
+  font-size: var(--text-player);
   line-height: 1;
   cursor: pointer;
 }

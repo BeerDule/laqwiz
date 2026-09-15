@@ -42,7 +42,7 @@
 }
 
 .game-screen > .leaderboard-mini {
-  padding: var(--space-2) var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border);
   background: var(--bg-surface);
 }
@@ -52,8 +52,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-5);
   overflow-y: auto;
+  /* Sans borne, le corps de jeu s'étalait sur toute la largeur d'un 4K : une
+     bande de petites cartes au lieu d'un plateau. */
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
 }
 
 /* ===== Options grid ===== */
@@ -76,8 +81,12 @@
 
 /* ===== Victory screen ===== */
 .victory-screen {
-  max-width: 720px;
+  max-width: 980px;
   margin-inline: auto;
+  /* Au-dessus du canevas de confettis (z-index 0) : ils tombent DERRIÈRE le
+     podium au lieu de le recouvrir. */
+  position: relative;
+  z-index: 1;
 }
 
 /* ===== LLM config panel spans full width ===== */
@@ -147,7 +156,9 @@
   .game-screen .answer-entry {
     grid-column: 2;
     grid-row: 1 / 3;
-    max-height: calc(100dvh - 140px);
+    /* L'en-tête a grandi (la piste s'y est ajoutée) : 140 px sous-estimait sa
+       hauteur et produisait deux barres de défilement imbriquées. */
+    max-height: calc(100dvh - 220px);
     overflow-y: auto;
   }
 
@@ -156,12 +167,12 @@
   }
 }
 
-/* ===== Options: 4-col on wide screens ===== */
-@media (min-width: 900px) {
-  .options-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
+/* ===== Options : un damier 2 × 2, à toutes les largeurs de bureau =====
+   L'ancienne règle passait à quatre colonnes dès 900 px. Quatre colonnes, ça
+   veut dire ~200 px chacune : l'énoncé part sur quatre lignes, la rangée de six
+   jetons tombe à 25 px, et les cartes prennent des hauteurs différentes. Pour
+   quatre propositions lues à trois mètres, deux grandes cartes par rangée
+   valent mieux que quatre petites — c'est aussi la disposition d'un plateau. */
 
 /* ===== Mobile: single column, compact, touch-friendly ===== */
 @media (max-width: 767px) {

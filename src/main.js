@@ -1,6 +1,9 @@
 // main.js — bootstrap, routage d'écrans, hydratation (SPEC §9.5, §12.1).
+// L'ordre fait la cascade (pas de @layer dans ce projet) :
+// theme → layout → stage → components → arcade.
 import './styles/theme.css';
 import './styles/layout.css';
+import './styles/stage.css';
 import './styles/components.css';
 import './styles/arcade.css';
 

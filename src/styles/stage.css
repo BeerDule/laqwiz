@@ -1,0 +1,92 @@
+/* src/styles/stage.css — la scène.
+ *
+ * Ce fichier introduit la seule chose qui manquait à l'application pour qu'elle
+ * se lise comme un JEU plutôt que comme une page : un espace. Un fond fixe, une
+ * vignette, un plateau central posé dessus.
+ *
+ * Même discipline qu'arcade.css : AUCUNE couleur en dur, AUCUN sprite. Tout
+ * passe par --stage-* et --material-*, que chaque thème habille dans son propre
+ * bloc de theme.css. Sur un thème qui ne les définit pas, les calques sont
+ * strictement invisibles et le rendu est celui d'avant.
+ */
+
+/* ===== Calques de scène =====
+ * Deux div fixes dans index.html, hors de #app. Les écrans remplacent
+ * innerHTML : les poser là plutôt qu'en pseudo-éléments de body leur évite
+ * d'être redessinés à chaque changement d'écran — et évite surtout la collision
+ * avec le body::after de Bubble Island, qui précharge ses PNG de boutons. */
+#stage-backdrop,
+#stage-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Le fond du body est peint sur le canevas, donc SOUS les z-index négatifs :
+     ces calques s'intercalent entre lui et le contenu. */
+  z-index: -1;
+}
+#stage-backdrop {
+  z-index: -2;
+  background-image: var(--stage-backdrop);
+  background-size: var(--stage-backdrop-size);
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+#stage-vignette {
+  background-image: var(--stage-vignette);
+}
+
+
+/* ===== Signatures de mouvement =====
+ * Chaque thème choisit la sienne en réglant --motion-ease, --motion-enter-dur
+ * et --motion-pop. Les durées sont toutes neutralisées par le bloc
+ * prefers-reduced-motion de components.css, qui cible `*` et passe après. */
+
+/* La carte est DISTRIBUÉE : elle arrive de loin, légèrement de biais. */
+@keyframes card-deal {
+  from {
+    opacity: 0;
+    /* La perspective est DANS la fonction transform, pas sur un parent : poser
+       `perspective` sur #game-body en ferait un contexte d'empilement et un
+       bloc conteneur pour les descendants fixed, alors qu'il devient une
+       grille en phase REVEAL. */
+    transform: perspective(1400px) translate3d(0, 20px, -140px) rotateX(9deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1400px) translate3d(0, 0, 0) rotateX(0deg);
+  }
+}
+
+/* Un jeton qu'on pose : il tombe et s'écrase légèrement. */
+@keyframes token-place {
+  0%   { transform: scale(calc(1 + .35 * var(--motion-pop))); }
+  60%  { transform: scale(calc(1 - .06 * var(--motion-pop))); }
+  100% { transform: none; }
+}
+
+/* Le tampon de l'option drôle : il claque en biais. */
+@keyframes stamp-in {
+  0%   { opacity: 0; transform: rotate(-12deg) scale(calc(1 + .8 * var(--motion-pop))); }
+  100% { opacity: 1; transform: rotate(-6deg) scale(1); }
+}
+
+/* La bonne réponse se SOULÈVE du plateau. */
+@keyframes lift-in {
+  0%   { transform: none; }
+  55%  { transform: translateY(calc(-6px * var(--motion-pop))) scale(calc(1 + .03 * var(--motion-pop))); }
+  100% { transform: none; }
+}
+
+/* Le delta de points : il surgit, dépasse, et se pose. Il RESTE lisible — un
+   gain qui s'efface oblige à regarder au bon moment. */
+@keyframes delta-rise {
+  0%   { opacity: 0; transform: translateY(10px) scale(.8); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(calc(1 + .08 * var(--motion-pop))); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Entrée générique d'un bloc de contenu, plus sobre que la distribution. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
