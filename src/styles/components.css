@@ -1292,22 +1292,54 @@ kbd.option-card__hint {
   padding: var(--space-2);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--bg-surface-raised);
   color: var(--color-text);
   font-family: var(--font-button);
   cursor: pointer;
 }
-.mode-card:hover { border-color: var(--color-accent); }
+.mode-card:hover { border-color: var(--color-accent-primary); }
 .mode-card--on {
-  border-color: var(--color-accent);
-  background: var(--color-surface-alt);
+  border-color: var(--color-accent-primary);
+  background: var(--bg-surface-soft);
 }
 .mode-card__emoji { font-size: 1.5rem; line-height: 1.2; }
 .mode-card__name { font-size: 0.85rem; text-align: center; }
 .mode-card--new { border-style: dashed; opacity: 0.75; }
 .mode-status {
   margin: 0 0 var(--space-2);
-  color: var(--color-text-secondary);
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 .mode-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* --- Grille de choix d'avatar --- */
+/* Rangée pleine largeur DANS la grille de la carte (5 colonnes) plutôt qu'un
+   flottant positionné : pas de z-index à arbitrer entre les dix thèmes, et rien
+   qui déborde d'un conteneur à overflow caché. */
+.emoji-picker {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+.emoji-picker__item {
+  aspect-ratio: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-void);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.emoji-picker__item:hover:not(:disabled) { border-color: var(--color-accent-primary); }
+.emoji-picker__item:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: 1px; }
+.emoji-picker__item--on { border-color: var(--color-accent-primary); background: var(--bg-surface-soft); }
+/* Pris par un autre joueur : encore visible pour comprendre pourquoi, mais
+   clairement hors d'atteinte. */
+.emoji-picker__item:disabled { opacity: 0.3; cursor: not-allowed; }

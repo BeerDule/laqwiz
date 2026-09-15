@@ -1,8 +1,37 @@
 // constants.js — valeurs constantes partagées par l'application.
 
+/**
+ * Avatars des joueurs.
+ *
+ * Choisis pour rester lisibles à 24 px sur les dix thèmes : aplat saturé, masse
+ * sombre ou motif interne contrasté. Les pastels (panda, koala, licorne) ont été
+ * écartés — leur contour se dissout sur les thèmes clairs et il ne reste que les
+ * yeux. Tous sont en un seul point de code : pas de séquence ZWJ qui pourrait
+ * s'afficher en plusieurs glyphes, et la comparaison stricte reste fiable.
+ */
 export const PLAYER_EMOJIS = [
-  '😀', '🦊', '🐼', '🐸', '🐙', '🦄', '🐯', '🐨', '🦁', '🐵',
+  // Canon jeu vidéo
+  '👾', '🤖', '👻', '👽', '👹', '🐲', '🍄', '💣', '💀', '👺', '🎃',
+  // Visages d'animaux à forte signature
+  '🦊', '🦁', '🐵', '🦝', '🐷', '🐗', '🦓', '🐮', '🐴', '🐺', '🐻', '🐸',
+  // Créatures à silhouette tranchée
+  '🐙', '🐧', '🦉', '🐝', '🐞', '🦀', '🐢',
 ];
+
+/**
+ * Noms français des avatars, pour les lecteurs d'écran et les info-bulles.
+ * Sans cela, la grille de choix n'annoncerait que « bouton » trente fois.
+ */
+export const PLAYER_EMOJI_LABELS = {
+  '👾': 'Invader', '🤖': 'Robot', '👻': 'Fantôme', '👽': 'Alien', '👹': 'Oni',
+  '🐲': 'Dragon', '🍄': 'Champignon', '💣': 'Bombe', '💀': 'Crâne',
+  '👺': 'Tengu', '🎃': 'Citrouille',
+  '🦊': 'Renard', '🦁': 'Lion', '🐵': 'Singe', '🦝': 'Raton laveur',
+  '🐷': 'Cochon', '🐗': 'Sanglier', '🦓': 'Zèbre', '🐮': 'Vache',
+  '🐴': 'Cheval', '🐺': 'Loup', '🐻': 'Ours', '🐸': 'Grenouille',
+  '🐙': 'Poulpe', '🐧': 'Manchot', '🦉': 'Hibou', '🐝': 'Abeille',
+  '🐞': 'Coccinelle', '🦀': 'Crabe', '🐢': 'Tortue',
+};
 
 // Palette auto dans l'ordre : violet, cyan, rose, lime, ambre, bleu.
 export const PLAYER_COLORS = [

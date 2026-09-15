@@ -1,6 +1,6 @@
 // storage.js — wrappers localStorage typés avec parse défensif.
 import {
-  STORAGE_KEYS, DIFFICULTY_CHOICES, AUDIENCE_CHOICES,
+  STORAGE_KEYS, PLAYER_EMOJIS, DIFFICULTY_CHOICES, AUDIENCE_CHOICES,
   TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
 } from './constants.js';
 
@@ -34,7 +34,7 @@ export function loadPlayers() {
     .map(p => ({
       id: p.id,
       name: p.name,
-      emoji: typeof p.emoji === 'string' ? p.emoji : '😀',
+      emoji: typeof p.emoji === 'string' ? p.emoji : PLAYER_EMOJIS[0],
       color: typeof p.color === 'string' ? p.color : '#a855f7',
     }));
   return valid.length ? valid : null;

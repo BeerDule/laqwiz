@@ -1,7 +1,7 @@
 // screens/setup.js — écran SETUP (joueurs, thème, règles) (SPEC §12.2).
 import { getState, dispatch, subscribe } from '../state.js';
 import {
-  PLAYER_EMOJIS, PLAYER_COLORS, PRESET_THEMES,
+  PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, PLAYER_COLORS, PRESET_THEMES,
   MIN_PLAYERS, MAX_PLAYERS, NAME_MAX_LENGTH,
   THEME_MIN_LENGTH, THEME_MAX_LENGTH,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
@@ -28,6 +28,8 @@ let root = null;
 let players = [];
 // Mode sélectionné. `null` = réglages sans mode d'origine (« Personnalisé »).
 let selectedModeId = null;
+// Joueur dont la grille d'avatars est ouverte. Une seule à la fois.
+let pickerFor = null;
 let idCounter = 0;
 let selectedPreset = null;
 let customTheme = '';
@@ -151,6 +153,27 @@ function validateForm() {
   return { ok: true };
 }
 
+/**
+ * Grille de choix d'avatar.
+ *
+ * Remplace l'ancien défilement au clic : à trente avatars, atteindre le bon
+ * demandait jusqu'à trente clics, sans retour en arrière. Les avatars déjà pris
+ * par un autre joueur sont désactivés — deux joueurs identiques sur le plateau
+ * rendraient l'attribution des points illisible.
+ */
+function emojiPickerHtml(player) {
+  const pris = new Set(players.filter(x => x.id !== player.id).map(x => x.emoji));
+  const cases = PLAYER_EMOJIS.map((e) => {
+    const nom = PLAYER_EMOJI_LABELS[e] || e;
+    const actif = e === player.emoji;
+    return `<button type="button" class="emoji-picker__item${actif ? ' emoji-picker__item--on' : ''}"
+      data-emoji="${e}" ${pris.has(e) ? 'disabled' : ''}
+      aria-label="${escapeHtml(nom)}${pris.has(e) ? ' (déjà pris)' : ''}"
+      aria-pressed="${actif}" title="${escapeHtml(nom)}">${e}</button>`;
+  }).join('');
+  return `<div class="emoji-picker" role="group" aria-label="Choisir un avatar">${cases}</div>`;
+}
+
 function renderPlayersList() {
   const list = root.querySelector('#players-list');
   list.innerHTML = '';
@@ -161,10 +184,11 @@ function renderPlayersList() {
     const displayName = p.name.trim() || `Joueur ${i + 1}`;
     card.innerHTML = `
       <span class="player-card__number">${i + 1}</span>
-      <button type="button" class="player-card__emoji" aria-label="Choisir l'emoji de ${escapeHtml(displayName)}">${p.emoji}</button>
+      <button type="button" class="player-card__emoji" aria-expanded="${p.id === pickerFor}" aria-label="Choisir l'emoji de ${escapeHtml(displayName)}">${p.emoji}</button>
       <input type="text" class="player-card__name" maxlength="${NAME_MAX_LENGTH}" value="${escapeHtml(p.name)}" placeholder="Prénom" autocomplete="off" aria-label="Prénom du joueur ${i + 1}" />
       <span class="player-card__color" style="background:${p.color}" aria-hidden="true"></span>
       ${players.length > MIN_PLAYERS ? `<button type="button" class="player-card__remove" aria-label="Supprimer ${escapeHtml(displayName)}">✕</button>` : ''}
+      ${p.id === pickerFor ? emojiPickerHtml(p) : ''}
     `;
     list.appendChild(card);
   });
@@ -467,6 +491,12 @@ function renderSettings() {
   renderModes();
 }
 
+function closePicker() {
+  if (!pickerFor) return;
+  pickerFor = null;
+  renderPlayersList();
+}
+
 function removePlayer(id) {
   if (players.length <= MIN_PLAYERS) return;
   players = players.filter(p => p.id !== id);
@@ -609,21 +639,43 @@ function wireEvents(signal) {
   }, { signal });
 
   list.addEventListener('click', (e) => {
+    const choix = e.target.closest('.emoji-picker__item');
+    if (choix) {
+      const id = choix.closest('.player-card').dataset.id;
+      const p = players.find(x => x.id === id);
+      if (p) p.emoji = choix.dataset.emoji;
+      closePicker();
+      // Le focus revient au déclencheur : sans cela il repartait en haut de
+      // page, la grille venant d'être retirée du document.
+      root.querySelector(`.player-card[data-id="${id}"] .player-card__emoji`)?.focus();
+      return;
+    }
     const emojiBtn = e.target.closest('.player-card__emoji');
     if (emojiBtn) {
-      const card = emojiBtn.closest('.player-card');
-      const p = players.find(x => x.id === card.dataset.id);
-      if (p) {
-        const i = PLAYER_EMOJIS.indexOf(p.emoji);
-        p.emoji = PLAYER_EMOJIS[(i + 1) % PLAYER_EMOJIS.length];
-        emojiBtn.textContent = p.emoji;
-      }
+      const id = emojiBtn.closest('.player-card').dataset.id;
+      pickerFor = pickerFor === id ? null : id;
+      renderPlayersList();
+      root.querySelector(`.player-card[data-id="${id}"] .emoji-picker__item:not([disabled])`)?.focus();
       return;
     }
     const removeBtn = e.target.closest('.player-card__remove');
     if (removeBtn) {
       removePlayer(removeBtn.closest('.player-card').dataset.id);
     }
+  }, { signal });
+
+  // Échap et clic à l'extérieur ferment la grille.
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !pickerFor) return;
+    const id = pickerFor;
+    closePicker();
+    root.querySelector(`.player-card[data-id="${id}"] .player-card__emoji`)?.focus();
+  }, { signal });
+
+  document.addEventListener('click', (e) => {
+    if (!pickerFor || !root) return;
+    if (e.target.closest('.emoji-picker') || e.target.closest('.player-card__emoji')) return;
+    closePicker();
   }, { signal });
 
   select.addEventListener('change', () => {
