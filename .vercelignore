@@ -1,0 +1,12 @@
+# Matière première graphique : seuls les sprites découpés (public/) sont servis
+craft/
+iimport/
+
+# Outils et documentation : inutiles au build
+demo/
+SPEC.md
+AGENTS.md
+CLAUDE.md
+README.md
+flake.nix
+flake.lock

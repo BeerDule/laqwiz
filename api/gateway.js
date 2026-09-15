@@ -4,7 +4,9 @@
 // transmet au provider LLM configuré côté serveur (.env) ou côté client
 // (en-têtes X-LLM-* pour le mode BYOK).
 
-export const config = { runtime: 'nodejs20.x' };
+// Node 20 est déprécié chez Vercel au 1er octobre 2026. 22.x est aussi la
+// version utilisée par le flake Nix du projet.
+export const config = { runtime: 'nodejs22.x' };
 
 function sendError(status, code, message) {
   return new Response(JSON.stringify({ error: { code, message } }), {
@@ -34,6 +36,47 @@ async function handleHealth() {
   });
 }
 
+// Plages réservées qu'une URL fournie par le client ne doit jamais atteindre :
+// sinon la fonction devient un proxy ouvert vers le réseau interne de l'hôte.
+const BLOCKED_HOSTNAMES = new Set(['localhost', 'ip6-localhost', 'ip6-loopback']);
+
+function isPrivateAddress(host) {
+  // IPv6 littéral entre crochets
+  const h = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+  if (h === '::1' || h === '::') return true;
+  if (/^f[cd][0-9a-f]{2}:/i.test(h)) return true;  // unique-local fc00::/7
+  if (/^fe[89ab][0-9a-f]:/i.test(h)) return true;  // link-local fe80::/10
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (!v4) return false;
+  const [a, b] = v4.slice(1).map(Number);
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 169 && b === 254) return true;          // link-local / métadonnées cloud
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  return false;
+}
+
+/**
+ * Valide une base d'URL FOURNIE PAR LE CLIENT (mode BYOK). Renvoie un message
+ * d'erreur, ou null si l'URL est acceptable.
+ *
+ * Défense en profondeur, pas une garantie : un nom d'hôte public qui résout vers
+ * une adresse privée (DNS rebinding) passerait ce filtre. Pour aller plus loin il
+ * faudrait résoudre le nom et revalider l'IP avant connexion.
+ */
+function rejectUnsafeUpstream(raw) {
+  let url;
+  try { url = new URL(raw); } catch { return 'URL de provider invalide.'; }
+  if (url.protocol !== 'https:') return 'Le provider doit être joignable en https.';
+  const host = url.hostname.toLowerCase();
+  if (BLOCKED_HOSTNAMES.has(host) || host.endsWith('.localhost') || host.endsWith('.internal')) {
+    return 'Adresse de provider non autorisée.';
+  }
+  if (isPrivateAddress(host)) return 'Adresse de provider non autorisée.';
+  return null;
+}
+
 async function handleChat(request) {
   const { baseUrl: serverBaseUrl, apiKey: serverApiKey, model: serverModel } = getServerConfig();
 
@@ -49,6 +92,13 @@ async function handleChat(request) {
   // Config effective : BYOK prime sur serveur
   const clientBaseUrl = String(request.headers.get('x-llm-base-url') || '').trim().replace(/\/+$/, '');
   const clientApiKey = String(request.headers.get('x-llm-api-key') || '').trim();
+  // Seule l'URL venant du client est filtrée : celle du .env est choisie par
+  // l'exploitant, qui a le droit de viser un service interne.
+  if (clientBaseUrl) {
+    const refus = rejectUnsafeUpstream(clientBaseUrl);
+    if (refus) return sendError(400, 'UNSAFE_LLM_BASE_URL', refus);
+  }
+
   const effectiveBaseUrl = clientBaseUrl || serverBaseUrl;
   const effectiveApiKey = clientApiKey || serverApiKey;
 
@@ -109,7 +159,7 @@ async function handleChat(request) {
   });
 }
 
-export default async function handler(request) {
+async function handler(request) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api\/?/, '');
 
@@ -134,3 +184,10 @@ export default async function handler(request) {
 
   return sendError(404, 'NOT_FOUND', `Route inconnue : ${path}`);
 }
+
+// Export « fetch Web Standard », l'une des trois signatures que Vercel reconnaît
+// dans /api. Une fonction exportée par défaut serait traitée comme le handler
+// Node (request, response) : ce code recevrait alors un IncomingMessage, sur
+// lequel `headers.get()` n'existe pas et `url` est relative — et le Response
+// renvoyé serait ignoré.
+export default { fetch: handler };

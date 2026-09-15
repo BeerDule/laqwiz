@@ -197,7 +197,9 @@ export default defineConfig(({ mode, command }) => {
     build: {
       target: 'es2022',
       outDir: 'dist',
-      sourcemap: true,
+      // Dev uniquement : en production c'était 211 Ko de sourcemap servis
+      // publiquement pour rien.
+      sourcemap: command === 'serve',
       cssCodeSplit: false,
     },
     plugins: [llmProxyPlugin(env, { validate: command === 'serve' })],
