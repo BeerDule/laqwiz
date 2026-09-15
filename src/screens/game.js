@@ -2,6 +2,7 @@
 import { getState, dispatch, subscribe, hasMancheWinner, manchesNeeded, retryGeneration } from '../state.js';
 import { DIFFICULTY_LABELS } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+import { playerChip } from '../components/playerChip.js';
 
 let teardown = null;
 let root = null;
@@ -14,6 +15,7 @@ let lastOnline = null;
 let timerId = null;
 let timeLeft = 0;
 let timeUp = false;
+let lastLaneSig = null;
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -88,7 +90,7 @@ const SHELL = `
       </div>
       ${renderThemeSelect()}
     </header>
-    <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores"></div>
+    <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores" aria-live="polite"></div>
     <div id="retry-banner" class="retry-banner" hidden>
       <span id="retry-message"></span>
       <button id="btn-retry" class="button button--ghost">Réessayer la génération</button>
@@ -279,17 +281,63 @@ function revealHtml(s) {
 
 let signal = null;
 
+/**
+ * La piste : un couloir par joueur.
+ *
+ * L'ordre suit le ROSTER, pas le score. Un classement qui se retrie à chaque
+ * bonne réponse fait sauter les couloirs sous les yeux du MJ au moment précis
+ * où il cherche la ligne d'un joueur ; le meneur est signalé par son couloir,
+ * pas par sa position.
+ *
+ * Trois niveaux lus d'un coup d'œil : la manche en tête, la course au score
+ * cible dans le remplissage, les manches gagnées dans les pastilles.
+ */
 function renderLeaderboard() {
   const el = root.querySelector('#leaderboard-mini');
   if (!el) return;
   const s = getState();
-  const ranked = [...s.players].sort((a, b) => b.score - a.score);
-  const leaderId = ranked[0]?.id;
-  el.innerHTML = ranked.map(p => `
-    <span class="leaderboard-mini__item ${p.id === leaderId ? 'leaderboard-mini__item--leader' : ''}">
-      <span aria-hidden="true">${p.emoji}</span>${escapeHtml(p.name)} · ${p.score}
-    </span>
-  `).join('');
+  const cible = Math.max(1, s.settings.targetScore || 1);
+  const best = Math.max(0, ...s.players.map(p => p.score));
+  const manchesT = s.partie?.manchesTarget || s.settings.manchesTarget || 1;
+
+  const head = s.partie ? `
+    <div class="leaderboard-mini__head">
+      <span class="leaderboard-mini__manche">Manche ${s.partie.mancheIndex + 1} sur ${manchesT}</span>
+      <span class="leaderboard-mini__goal">Premier à ${cible} points</span>
+    </div>` : '';
+
+  const lanes = s.players.map(p => {
+    const won = s.partie?.manchesWon?.[p.id] || 0;
+    const pips = Array.from({ length: manchesT }, (_, i) =>
+      `<span class="manche-pip${i < won ? ' manche-pip--won' : ''}"></span>`).join('');
+    const pct = Math.min(100, Math.round((p.score / cible) * 100));
+    // Le meneur se distingue par son couloir. À 0 partout, personne ne mène.
+    const leader = best > 0 && p.score === best;
+    const repondu = Boolean(s.roundAnswers[p.id]);
+    return `
+      <li class="leaderboard-mini__item${leader ? ' leaderboard-mini__item--leader' : ''}${p.eliminated ? ' leaderboard-mini__item--out' : ''}"
+          data-answered="${repondu ? 'true' : 'false'}">
+        ${playerChip(p, {
+          className: 'leaderboard-mini__token',
+          suffix: p.eliminated ? '☠' : '',
+        })}
+        <span class="leaderboard-mini__name">${escapeHtml(p.name)}</span>
+        <span class="leaderboard-mini__rail">
+          <span class="leaderboard-mini__fill" style="width:${pct}%"></span>
+        </span>
+        <span class="manche-pips" aria-label="${won} manche${won > 1 ? 's' : ''} gagnée${won > 1 ? 's' : ''}">${pips}</span>
+        <span class="leaderboard-mini__score">${p.score}<span class="leaderboard-mini__target">/${cible}</span></span>
+      </li>`;
+  }).join('');
+
+  // La piste porte aria-live="polite" et renderLeaderboard() tourne à CHAQUE
+  // dispatch : sans cette garde, un lecteur d'écran réannoncerait les six
+  // couloirs à chaque jeton posé. On ne touche au DOM que si le rendu change
+  // réellement — ce qui économise aussi six reconstructions par clic.
+  const sig = head + lanes;
+  if (sig === lastLaneSig) return;
+  lastLaneSig = sig;
+  el.innerHTML = `${head}<ol class="leaderboard-mini__lanes">${lanes}</ol>`;
 }
 
 function updateHeader() {
@@ -555,6 +603,7 @@ export function renderGame(rootEl) {
   activePlayerId = null;
   lastErrorTs = null;
   timeUp = false;
+  lastLaneSig = null; // DOM neuf : la signature de la piste ne vaut plus
   lastOnline = getState().ui.isOnline;
 
   root.innerHTML = SHELL;

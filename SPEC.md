@@ -1808,7 +1808,7 @@ pas de `z-index` à arbitrer entre les dix thèmes, rien qui déborde d'un conte
   <header class="game-header">
     <button id="btn-quit" class="button button--ghost">Quitter</button>
     <div class="progress"><span id="question-number"></span><div class="progress-bar"><span></span></div></div>
-    <div id="leaderboard-mini" aria-label="Scores"></div>
+    <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores" aria-live="polite"></div>
   </header>
   <article id="question-card" class="question-card" aria-live="polite">
     <div class="question-meta"><span id="difficulty-badge"></span><span id="bonus-badge"></span></div>
@@ -1824,7 +1824,7 @@ pas de `z-index` à arbitrer entre les dix thèmes, rien qui déborde d'un conte
 ```
 
 - Desktop : header horizontal, question centrée max-width 980 px, options en grille 2×2.
-- Afficher le numéro (« Question 3 »), un indicateur non trompeur (« 3 préparées »), et le mini-classement trié par score.
+- Afficher le numéro (« Question 3 »), un indicateur non trompeur (« 3 préparées »), et la piste (`#leaderboard-mini`) : un couloir par joueur dans l'ordre du roster — pas trié par score —, avec rail de progression vers `targetScore`, pastilles de manches gagnées, et meneur signalé par le liseré de son couloir.
 - Ne pas afficher `answer`, `funnyOption` ou l'explication avant `REVEAL`.
 - Les options sont de grandes cartes/boutons ≥ 44×44 px, avec lettre, texte, et un raccourci visible `1`, `2`, `3`, `4`.
 - Les cartes sont lisibles à 3 m : texte minimum 1.25rem sur écran large.

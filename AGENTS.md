@@ -401,6 +401,32 @@ BYOK/repli. Toute évolution doit toucher les deux.
 ### Pas de git dans le PATH par défaut
 `nix shell nixpkgs#git --command git ...`
 
+### La piste (`#leaderboard-mini`)
+La barre d'état de l'écran de jeu : un **couloir par joueur**, sous l'en-tête, pendant `LOADING`,
+`QUESTION`, `REVEAL` et `MANCHE_END`. Gabarit dans `SHELL` (game.js), style dans `components.css`,
+fond/filet dans `layout.css`, sprites de thème dans `theme.css`.
+
+- **L'ordre suit le roster, jamais le score.** Un classement retrié à chaque bonne réponse fait
+  sauter les couloirs sous les yeux du MJ au moment où il cherche la ligne d'un joueur. Le meneur
+  est signalé par le **liseré** de son couloir, pas par sa position.
+- `renderLeaderboard()` tourne à **chaque `dispatch()`** et lit l'état sans jamais écrire. Le
+  conteneur porte `aria-live="polite"` : la garde `lastLaneSig` n'est pas une optimisation, elle
+  empêche un lecteur d'écran de réannoncer six couloirs à chaque jeton posé. La retirer impose de
+  retirer aussi `aria-live` ; la garder impose de **remettre `lastLaneSig = null` à chaque montage**,
+  sinon un remontage laisse la piste vide.
+- `.leaderboard-mini__item` est une grille à **cinq colonnes** : ne jamais y poser de
+  `::before`/`::after` (ce serait un sixième élément de grille implicite). `::after` est déjà pris
+  sur le jeton (`playerChip` y attache l'info-bulle de nom) : un thème pose son marqueur en `::before`.
+- Le nom de classe `.leaderboard-mini__item` est un **contrat de thème** (Apple, Apple Glass,
+  Bubble Island, Paper Quest s'y accrochent) : le renommer éteint leur matière sans erreur.
+- Les pastilles `.manche-pip` sont **partagées** avec le podium de fin de manche.
+- Paper Quest pilote le rail par sprites (`bar-a.png` / `bar-d.png`), pas par le dégradé par défaut.
+
+### Un jeton CSS inventé échoue en silence
+`var(--jeton)` pointant vers une variable inexistante rend la déclaration invalide **sans erreur** :
+le fond disparaît, l'état sélectionné ne se distingue plus, rien n'est signalé. Vérifier l'existence
+de chaque jeton dans `theme.css` (racine ou bloc de thème) avant de le référencer.
+
 ## Tests
 
 Il n'y a **pas de framework de test** dans le projet. La logique de `state.js` se teste en
