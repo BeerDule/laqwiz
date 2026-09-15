@@ -720,7 +720,16 @@ h1, h2 { text-shadow: var(--text-glow); }
 /* Paper Quest — parchemin et plaques peintes, découpés du kit public/paper-ui/.
    Palette échantillonnée sur les sprites : parchemin #f8c8a8 cerné de #560e12,
    papier #f8f8e8, bandeaux orange/olive/rouge/bleu. */
-[data-color-theme="paper"] {
+/* `.arcade` partage cette palette : les écrans de menu gardent l'identité papier
+ * quel que soit le thème sélectionné. Les variables CSS s'héritent de l'ancêtre
+ * le PLUS PROCHE, donc `.arcade` l'emporte sur `<html>` pour tout son sous-arbre,
+ * sans question de spécificité.
+ *
+ * C'est ce qui rend la chose robuste : tout composant réutilisé dans un menu —
+ * y compris ceux ajoutés plus tard — hérite automatiquement des bonnes couleurs,
+ * au lieu de devoir être corrigé un par un dans arcade.css. */
+[data-color-theme="paper"],
+.arcade {
   color-scheme: light;
   --bg-void: #e9d5b2;
   --bg-surface: #fdf8ea;

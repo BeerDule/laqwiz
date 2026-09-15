@@ -3,9 +3,19 @@
  * Habillage papier/parchemin découpé du kit `iimport/` vers public/paper-ui/.
  * Ces écrans (accueil, sélecteur de sessions, réglages) gardent cette identité
  * quel que soit le thème sélectionné : c'est le menu du jeu, pas une surface de
- * contenu. Les couleurs sont donc figées ici et NON reprises des jetons — sinon
- * le texte deviendrait illisible en Matrix ou Win98, où les valeurs partent dans
- * l'autre sens.
+ * contenu. Sans ça, le texte deviendrait illisible en Matrix ou Win98, où les
+ * valeurs partent dans l'autre sens.
+ *
+ * La façon dont ça tient : theme.css attache la palette Paper Quest à `.arcade`
+ * en plus du thème lui-même. Les variables CSS s'héritant de l'ancêtre le plus
+ * proche, `.arcade` l'emporte sur `<html>` pour tout son sous-arbre — donc TOUT
+ * composant réutilisé dans un menu, y compris ceux ajoutés plus tard, prend les
+ * bonnes couleurs sans qu'on ait à le corriger ici.
+ *
+ * Ce fichier ne porte donc que le structurel : cadres 9-slice, plaques peintes,
+ * mises en page. Les seules couleurs en dur restantes sont celles calées sur les
+ * sprites (encre des plaques, crème des libellés) — elles n'ont pas d'équivalent
+ * dans la palette.
  *
  * Les sprites sont dessinés à main levée : les bords ne sont pas droits et les
  * découpes 9-slice ci-dessous sont jugées à l'œil, pas mesurées (les détecteurs
@@ -29,8 +39,11 @@
 }
 
 .arcade {
-  --arcade-ink: #4a1f14;
-  --arcade-ink-soft: #6d4534;
+  /* Alias vers la palette, définie une seule fois dans theme.css et partagée
+     avec le thème Paper Quest. Pas de valeur en dur ici : une couleur changée
+     là-bas doit suivre partout. */
+  --arcade-ink: var(--color-text);
+  --arcade-ink-soft: var(--color-muted);
   --arcade-frame: url('/paper-ui/frame.png');
 
   position: relative;
@@ -42,10 +55,8 @@
   gap: var(--space-5);
   color: var(--arcade-ink);
   font-size: 15px;
-  background-color: #efe0c4;
-  background-image:
-    radial-gradient(120% 80% at 50% 0%, rgba(255, 252, 240, .95) 0%, rgba(240, 222, 190, 0) 60%),
-    linear-gradient(170deg, #f6e8ce 0%, #e9d5b2 55%, #ddc49c 100%);
+  background-color: var(--bg-void);
+  background-image: var(--texture), var(--gradient-bg);
   background-attachment: fixed;
 }
 
@@ -57,7 +68,7 @@
   font-size: clamp(2.2rem, 8vw, 4rem);
   color: #fff7e2;
   letter-spacing: 0; /* le resserrement convenait à la sans, pas à ce display */
-  -webkit-text-stroke: 3px #560e12;
+  -webkit-text-stroke: 3px var(--color-border);
   paint-order: stroke fill;
   text-shadow: 0 5px 0 rgba(86, 14, 18, .35);
 }
@@ -72,7 +83,7 @@
 .arcade__bar h1 {
   font-size: clamp(1.3rem, 4vw, 2rem);
   color: #fff7e2;
-  -webkit-text-stroke: 3px #560e12;
+  -webkit-text-stroke: 3px var(--color-border);
   paint-order: stroke fill;
   margin-right: auto;
 }
@@ -116,7 +127,7 @@
   color: rgba(58, 20, 8, .55);
   cursor: default;
 }
-.arcade-btn:focus-visible { outline: 3px solid #560e12; outline-offset: 3px; }
+.arcade-btn:focus-visible { outline: 3px solid var(--color-border); outline-offset: 3px; }
 
 .arcade-btn--primary {
   border-image-source: url('/paper-ui/bar-a.png');
@@ -244,7 +255,7 @@
   font-size: 17px;
   border-radius: 6px;
   background: #fdf6e3;
-  border: 2px solid #560e12;
+  border: 2px solid var(--color-border);
   box-shadow: 0 2px 0 rgba(86, 14, 18, .25);
 }
 
@@ -288,9 +299,9 @@
    Les plaques peintes sont réservées aux grands boutons — à cette taille aucune
    encre n'y atteint 4,5:1 (voir le commentaire du thème `paper`). */
 .arcade--setup .button {
-  border: 2px solid #560e12;
+  border: 2px solid var(--color-border);
   border-radius: 6px;
-  background: #fdf8ea;
+  background: var(--bg-surface);
   box-shadow: 0 2px 0 rgba(86, 14, 18, .25);
   color: var(--arcade-ink);
   text-shadow: none;
@@ -298,14 +309,14 @@
   min-height: 38px;
   padding-inline: 18px;
 }
-.arcade--setup .button:hover:not(:disabled) { background: #f4e9cf; filter: none; }
+.arcade--setup .button:hover:not(:disabled) { background: var(--bg-surface-soft); filter: none; }
 .arcade--setup .button:active:not(:disabled) {
-  background: #f4e9cf;
+  background: var(--bg-surface-soft);
   transform: translateY(2px);
   box-shadow: none;
 }
 .arcade--setup .button:disabled { opacity: .5; box-shadow: none; }
-.arcade--setup .button--danger { color: #a8202c; }
+.arcade--setup .button--danger { color: var(--color-error); }
 
 /* Seul le bouton de lancement est assez grand pour porter une plaque peinte :
    à 21px gras, le seuil WCAG applicable est 3:1, atteint par l'orange. */
@@ -333,8 +344,8 @@
 .arcade--setup input[type='number'],
 .arcade--setup select,
 .arcade--setup textarea {
-  background: #fdf8ea;
-  border: 2px solid #560e12;
+  background: var(--bg-surface);
+  border: 2px solid var(--color-border);
   border-radius: 6px;
   color: var(--arcade-ink);
   min-height: 38px;
@@ -342,20 +353,20 @@
 }
 .arcade--setup .player-card {
   border-radius: 8px;
-  border: 2px solid #560e12;
+  border: 2px solid var(--color-border);
   background: rgba(253, 246, 227, .7);
 }
 .arcade--setup .choice-chip span {
   border-radius: 6px;
-  border: 2px solid #560e12;
-  background: #fdf8ea;
+  border: 2px solid var(--color-border);
+  background: var(--bg-surface);
   color: var(--arcade-ink);
   font-weight: 700;
 }
 .arcade--setup .choice-chip input:checked + span {
   background: #e69912;
-  border-color: #560e12;
+  border-color: var(--color-border);
   color: #fff7e2;
 }
 .arcade--setup .toggle-row { color: var(--arcade-ink); font-weight: 600; }
-.arcade--setup .form-error { color: #a8202c; font-weight: 700; }
+.arcade--setup .form-error { color: var(--color-error); font-weight: 700; }
