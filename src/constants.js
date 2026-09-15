@@ -79,7 +79,7 @@ export const BONUS_CHANCE = 0.15; // ~15 % de chance qu'une question soit bonus
 export const MODE_RULE_KEYS = [
   'targetScore', 'twoPointLead', 'bonusEnabled', 'difficulty', 'audience',
   'timerEnabled', 'timePerQuestion', 'penaltyNoAnswer', 'penaltyWrongAnswer',
-  'punisherSeverity', 'manchesTarget',
+  'punisherSeverity', 'manchesTarget', 'suddenDeathEnabled', 'suddenDeathStrikes',
 ];
 
 /**
@@ -106,6 +106,7 @@ export const BUILTIN_MODES = [
       timerEnabled: false, timePerQuestion: 60,
       penaltyNoAnswer: false, penaltyWrongAnswer: false,
       punisherSeverity: 'punitive', manchesTarget: 1,
+      suddenDeathEnabled: false, suddenDeathStrikes: 3,
     },
   },
   {
@@ -121,6 +122,7 @@ export const BUILTIN_MODES = [
       timerEnabled: true, timePerQuestion: 60,
       penaltyNoAnswer: false, penaltyWrongAnswer: false,
       punisherSeverity: 'punitive', manchesTarget: 1,
+      suddenDeathEnabled: false, suddenDeathStrikes: 3,
     },
   },
   {
@@ -136,6 +138,7 @@ export const BUILTIN_MODES = [
       timerEnabled: true, timePerQuestion: 60,
       penaltyNoAnswer: false, penaltyWrongAnswer: true,
       punisherSeverity: 'punitive', manchesTarget: 1,
+      suddenDeathEnabled: false, suddenDeathStrikes: 3,
     },
   },
   {
@@ -151,6 +154,7 @@ export const BUILTIN_MODES = [
       timerEnabled: true, timePerQuestion: 60,
       penaltyNoAnswer: false, penaltyWrongAnswer: true,
       punisherSeverity: 'punitive', manchesTarget: 1,
+      suddenDeathEnabled: false, suddenDeathStrikes: 3,
     },
   },
   {
@@ -166,6 +170,7 @@ export const BUILTIN_MODES = [
       timerEnabled: true, timePerQuestion: 30,
       penaltyNoAnswer: true, penaltyWrongAnswer: true,
       punisherSeverity: 'ultra', manchesTarget: 3,
+      suddenDeathEnabled: false, suddenDeathStrikes: 3,
     },
   },
 ];
@@ -224,6 +229,13 @@ export const MANCHE_CHOICES = [
 
 // Sévérité du mode punisher : « ultra » applique aussi le ×2 des questions
 // bonus à la perte, « punitive » retire toujours 1 point.
+export const SUDDEN_DEATH_CHOICES = [
+  { value: 1, label: '1 faute' },
+  { value: 2, label: '2 fautes' },
+  { value: 3, label: '3 fautes' },
+  { value: 5, label: '5 fautes' },
+];
+
 export const PUNISHER_CHOICES = [
   { value: 'punitive', label: 'Punitive (−1)' },
   { value: 'ultra', label: 'Ultra punitive (−2 en bonus)' },

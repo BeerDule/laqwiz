@@ -6,6 +6,7 @@ import {
   THEME_MIN_LENGTH, THEME_MAX_LENGTH,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
   DIFFICULTY_CHOICES, AUDIENCE_CHOICES, TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
+  SUDDEN_DEATH_CHOICES,
   MODE_NAME_MAX_LENGTH,
 } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
@@ -371,6 +372,8 @@ function readRules() {
     penaltyWrongAnswer: root.querySelector('#penalty-wrong-answer').checked,
     punisherSeverity: pick('punisherSeverity', 'punitive'),
     manchesTarget: parseInt(pick('manchesTarget', 3), 10),
+    suddenDeathEnabled: root.querySelector('#sudden-death').checked,
+    suddenDeathStrikes: parseInt(pick('suddenDeathStrikes', 3), 10),
   };
 }
 
@@ -387,6 +390,7 @@ function writeRules(r) {
   root.querySelector('#timer-enabled').checked = r.timerEnabled;
   root.querySelector('#penalty-no-answer').checked = r.penaltyNoAnswer;
   root.querySelector('#penalty-wrong-answer').checked = r.penaltyWrongAnswer;
+  root.querySelector('#sudden-death').checked = r.suddenDeathEnabled;
   check('difficulty', r.difficulty);
   check('audience', r.audience);
   check('timePerQuestion', r.timePerQuestion);
@@ -394,6 +398,8 @@ function writeRules(r) {
   check('manchesTarget', r.manchesTarget);
   root.querySelector('#timer-duration-group').hidden = !r.timerEnabled;
   root.querySelector('#punisher-severity-group').hidden = !r.penaltyWrongAnswer;
+  check('suddenDeathStrikes', r.suddenDeathStrikes);
+  root.querySelector('#sudden-death-group').hidden = !r.suddenDeathEnabled;
 }
 
 /** Le mode sélectionné, ou null s'il a été supprimé entre-temps. */
@@ -750,6 +756,11 @@ function wireEvents(signal) {
     root.querySelector('#punisher-severity-group').hidden = !punisherToggle.checked;
   }, { signal });
 
+  const suddenDeathToggle = root.querySelector('#sudden-death');
+  suddenDeathToggle.addEventListener('change', () => {
+    root.querySelector('#sudden-death-group').hidden = !suddenDeathToggle.checked;
+  }, { signal });
+
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -911,6 +922,19 @@ export function renderSetup(rootEl) {
                 </label>
               `).join('')}
             </div>
+          </div>
+          <label class="toggle-row"><input id="sudden-death" type="checkbox" /> <span class="toggle-track"></span> Mort subite : exclusion de la manche après N fautes</label>
+          <div class="rule-group" id="sudden-death-group" hidden>
+            <span class="rule-group__label" id="sudden-death-label">Fautes avant exclusion</span>
+            <div class="choice-group" role="radiogroup" aria-labelledby="sudden-death-label">
+              ${SUDDEN_DEATH_CHOICES.map(c => `
+                <label class="choice-chip">
+                  <input type="radio" name="suddenDeathStrikes" value="${c.value}" />
+                  <span>${escapeHtml(c.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+            <p class="rule-group__hint">Une mauvaise réponse <strong>ou</strong> une absence de réponse compte. Le joueur exclu ne gagne ni ne perd plus rien jusqu\u2019à la fin de la manche, puis revient à la suivante.</p>
           </div>
         </fieldset>
         <p id="setup-error" class="form-error" role="alert" hidden></p>

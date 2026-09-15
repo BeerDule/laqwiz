@@ -114,10 +114,18 @@ function questionHtml(s) {
   const bonus = s.isBonusRound;
 
   const optionsHtml = q.options.map((o, i) => {
+    // Un joueur exclu par la mort subite ne peut plus répondre : son score
+    // n'est plus affecté, lui laisser un bouton actif serait trompeur.
     const playerBtns = s.players.map(p => playerChip(p, {
       as: 'button',
-      className: 'option-card__player-btn',
-      attrs: { 'data-player': p.id, 'data-key': o.key },
+      className: `option-card__player-btn${p.eliminated ? ' option-card__player-btn--out' : ''}`,
+      attrs: {
+        'data-player': p.id, 'data-key': o.key,
+        ...(p.eliminated ? { disabled: 'disabled' } : {}),
+      },
+      // `suffix` plutôt qu'un second `data-tooltip` : playerChip émet déjà le
+      // sien en premier, et un attribut dupliqué est ignoré silencieusement.
+      suffix: p.eliminated ? '☠' : '',
     })).join('');
 
     return `
@@ -196,7 +204,10 @@ function revealHtml(s) {
     const ans = s.roundAnswers[p.id];
     let result;
     let cls = 'answer-card';
-    if (!ans) {
+    if (p.eliminated) {
+      cls += ' answer-card--out';
+      result = '<span class="answer-result answer-result--none">☠ Exclu de la manche · +0</span>';
+    } else if (!ans) {
       const lost = s.roundPenalties[p.id] || 0;
       if (lost > 0) {
         cls += ' answer-card--wrong';
@@ -313,6 +324,9 @@ function updateRevealButton() {
 function selectAnswer(playerId, key) {
   if (timeUp) return;
   const s = getState();
+  // Garde en plus du `disabled` : le clavier et un clic programmatique
+  // contournent un attribut posé au rendu.
+  if (s.players.find(x => x.id === playerId)?.eliminated) return;
   const current = s.roundAnswers[playerId];
   if (current === key) {
     dispatch({ type: 'CLEAR_PLAYER_ANSWER', playerId });

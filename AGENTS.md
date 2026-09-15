@@ -102,7 +102,34 @@ Wikipédia survivent, pour qu'on puisse durcir les règles sans reperdre l'artic
 | `penaltyNoAnswer` | −1 si le joueur n'a pas répondu |
 | `penaltyWrongAnswer` | mode punisher : −1 si mauvaise réponse |
 | `punisherSeverity` | `punitive` (−1) ou `ultra` (−2 sur une question bonus) |
+| `suddenDeathEnabled` + `suddenDeathStrikes` | mort subite : exclusion de la **manche** après 1 / 2 / 3 / 5 fautes |
 | `modeId` | mode d'origine des règles ci-dessus — sert au badge « modifié », rien d'autre |
+
+### Mort subite
+
+Au seuil de fautes, le joueur est **exclu de la manche** — pas de la partie. Il revient à la
+manche suivante, `freshScores()` remettant score, `strikes` et `eliminated` à zéro.
+
+**Une absence de réponse compte comme une faute**, au même titre qu'une mauvaise : rester muet
+ne doit pas être une stratégie de survie. C'est le seul endroit du code où les deux cas sont
+traités à l'identique — ailleurs `penaltyNoAnswer` et `penaltyWrongAnswer` les distinguent.
+
+Un exclu est sauté **en entier** dans `REVEAL_ANSWER` : ni gain, ni pénalité, ni comptage dans
+`stats.questionsAnswered`. Son score est gelé. La saisie du MJ est verrouillée sur sa ligne,
+avec une garde dans `selectAnswer()` en plus du `disabled` — le clavier contourne un attribut
+posé au rendu.
+
+**Le point qui casse tout si on l'oublie** : `hasMancheWinner()` exige normalement que
+quelqu'un atteigne `targetScore`. Une manche où tout le monde est éliminé ne se terminerait
+donc **jamais** — plus personne ne peut marquer. D'où la sortie anticipée :
+
+- **un seul joueur debout → il remporte la manche sur-le-champ**, quel que soit son score,
+  même si un exclu en a davantage ;
+- **plateau vide** (tous tombés sur la même question) → le meilleur score tranche, l'ordre du
+  roster départage les ex æquo.
+
+`strikes` et `eliminated` partent dans l'instantané de reprise, sinon reprendre une partie
+interrompue ressusciterait les éliminés.
 
 Toutes les pénalités passent par `applyPenalty()` : **plancher à 0**, la perte réellement
 appliquée est enregistrée dans `roundPenalties` (l'écran de révélation l'affiche) et débitée

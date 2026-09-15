@@ -2183,7 +2183,7 @@ export function clearAll() { ['quizz-canape:players', 'quizz-canape:settings', '
 ```json
 {
   "name": "quizz-canape",
-  "version": "0.1.0-beta",
+  "version": "0.1.0-beta",          // incrémenté à chaque commit sur dev
   "private": true,
   "type": "module",
   "engines": { "node": "24.x" },
@@ -2197,6 +2197,9 @@ export function clearAll() { ['quizz-canape:players', 'quizz-canape:settings', '
   }
 }
 ```
+
+> Le champ `version` ci-dessus est un **exemple figé** : le hook `pre-commit`
+> l'incrémente à chaque commit sur `dev`, il aura donc dérivé. `package.json` fait foi.
 
 ### 16.1 bis. Versionnage
 

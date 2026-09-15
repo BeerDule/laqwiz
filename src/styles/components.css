@@ -1342,3 +1342,13 @@ kbd.option-card__hint {
 /* Pris par un autre joueur : encore visible pour comprendre pourquoi, mais
    clairement hors d'atteinte. */
 .emoji-picker__item:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.rule-group__hint {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+/* --- Mort subite --- */
+.option-card__player-btn--out { opacity: 0.35; cursor: not-allowed; }
+.answer-card--out { opacity: 0.55; }

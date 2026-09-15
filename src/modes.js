@@ -11,7 +11,7 @@
 
 import {
   BUILTIN_MODES, MODE_RULE_KEYS, MODE_NAME_MAX_LENGTH,
-  TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
+  TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES, SUDDEN_DEATH_CHOICES,
   DIFFICULTY_CHOICES, AUDIENCE_CHOICES,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
 } from './constants.js';
@@ -43,6 +43,10 @@ export function sanitizeModeSettings(raw, fallback) {
   if (inChoices(TIMER_CHOICES, src.timePerQuestion)) out.timePerQuestion = src.timePerQuestion;
   if (inChoices(PUNISHER_CHOICES, src.punisherSeverity)) out.punisherSeverity = src.punisherSeverity;
   if (inChoices(MANCHE_CHOICES, src.manchesTarget)) out.manchesTarget = src.manchesTarget;
+  if (typeof src.suddenDeathEnabled === 'boolean') out.suddenDeathEnabled = src.suddenDeathEnabled;
+  if (inChoices(SUDDEN_DEATH_CHOICES, src.suddenDeathStrikes)) {
+    out.suddenDeathStrikes = src.suddenDeathStrikes;
+  }
 
   return out;
 }

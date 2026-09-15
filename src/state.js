@@ -32,6 +32,8 @@ const INITIAL_STATE = Object.freeze({
     penaltyWrongAnswer: DEFAULTS.penaltyWrongAnswer,
     punisherSeverity: DEFAULTS.punisherSeverity,
     manchesTarget: DEFAULTS.manchesTarget,
+    suddenDeathEnabled: DEFAULTS.suddenDeathEnabled,
+    suddenDeathStrikes: DEFAULTS.suddenDeathStrikes,
     // Mode de jeu appliqué. Les règles ci-dessus restent la vérité : `modeId` dit
     // seulement de quel preset elles sont parties, pour afficher « (modifié) »
     // quand elles en ont divergé.
@@ -210,7 +212,10 @@ function persistResume(s) {
     savedAt: Date.now(),
     phase: s.phase,
     partie: s.partie,
-    players: s.players.map(({ id, name, emoji, color, score }) => ({ id, name, emoji, color, score })),
+    // strikes/eliminated inclus : sans eux, reprendre une partie interrompue
+    // ressusciterait les joueurs éliminés de la manche en cours.
+    players: s.players.map(({ id, name, emoji, color, score, strikes, eliminated }) =>
+      ({ id, name, emoji, color, score, strikes: strikes || 0, eliminated: !!eliminated })),
     questions: s.questions,
     currentIndex: s.currentIndex,
     roundAnswers: s.roundAnswers,
@@ -258,10 +263,44 @@ function applyPenalty(s, p, cost) {
 }
 
 /**
+ * Remet les joueurs à zéro pour une nouvelle manche : score, fautes et
+ * élimination.
+ *
+ * Six endroits ouvrent un nouveau contexte de score. En rater un laisserait
+ * un joueur éliminé à vie, alors que la mort subite est bornée à la manche.
+ */
+function freshScores(players) {
+  return players.map(p => ({ ...p, score: 0, strikes: 0, eliminated: false }));
+}
+
+/** Joueurs encore en lice dans la manche courante. */
+export function activePlayers(s) {
+  return s.players.filter(p => !p.eliminated);
+}
+
+/**
+ * Mort subite : enregistre une faute et élimine au seuil.
+ *
+ * Une absence de réponse compte comme une faute, au même titre qu'une
+ * mauvaise : rester muet ne doit pas être une stratégie de survie.
+ */
+function registerStrike(s, p) {
+  if (!s.settings.suddenDeathEnabled || p.eliminated) return;
+  p.strikes = (p.strikes || 0) + 1;
+  if (p.strikes >= s.settings.suddenDeathStrikes) p.eliminated = true;
+}
+
+/**
  * Fin de MANCHE : le score cible est atteint (SPEC §10.3).
  * Attention, ce n'est plus la fin de la partie — celle-ci se joue au best-of.
  */
 export function hasMancheWinner(s) {
+  // Mort subite : le dernier debout remporte la manche sur-le-champ, quel
+  // que soit son score. Sans cette sortie, une manche où tout le monde est
+  // éliminé ne se terminerait jamais — plus personne ne peut marquer, donc
+  // le score cible reste hors de portée indéfiniment.
+  if (s.settings.suddenDeathEnabled && activePlayers(s).length <= 1) return true;
+
   const target = s.settings.targetScore;
   const ranked = [...s.players].sort((a, b) => b.score - a.score);
   const leader = ranked[0];
@@ -275,6 +314,18 @@ export function hasMancheWinner(s) {
  * Gagnant de la manche courante (SPEC §10.4).
  */
 export function computeMancheWinner(s) {
+  if (s.settings.suddenDeathEnabled) {
+    const debout = activePlayers(s);
+    // Un seul survivant : il gagne, la cible ne compte plus.
+    if (debout.length === 1) return debout[0];
+    // Tout le monde est tombé, éventuellement sur la même question : le
+    // meilleur score tranche, l'ordre du roster départage les ex æquo.
+    if (debout.length === 0) {
+      return [...s.players].sort((a, b) => (b.score - a.score)
+        || (s.players.indexOf(a) - s.players.indexOf(b)))[0] || null;
+    }
+  }
+
   const ranked = [...s.players].sort((a, b) => {
     const scoreDelta = b.score - a.score;
     if (scoreDelta !== 0) return scoreDelta;
@@ -306,7 +357,7 @@ export function computePartieWinner(s) {
 function reducer(s, action) {
   switch (action.type) {
     case 'SET_PLAYERS':
-      s.players = action.players.map(p => ({ ...p, score: 0 }));
+      s.players = freshScores(action.players);
       break;
 
     case 'UPDATE_PLAYER': {
@@ -344,7 +395,7 @@ function reducer(s, action) {
       // Rechargé à chaque partie : un re-téléchargement coûte quelques centaines
       // de millisecondes et évite toute confusion si l'article a été changé.
       s.source = null;
-      s.players = s.players.map(p => ({ ...p, score: 0 }));
+      s.players = freshScores(s.players);
       s.questions = [];
       s.prefetchQueue = [];
       s.prefetchInflight = false;
@@ -397,21 +448,32 @@ function reducer(s, action) {
       const correctKey = q.answer;
       const bonusMult = s.isBonusRound ? 2 : 1;
       let correctCount = 0;
+      let comptes = 0;
       for (const p of s.players) {
+        // Éliminé en mort subite : son score n'est plus affecté du tout. Ni
+        // gain, ni pénalité, ni comptage dans les statistiques. Il revient à
+        // la manche suivante.
+        if (p.eliminated) continue;
+        comptes++;
+
         const ans = s.roundAnswers[p.id];
         if (ans === correctKey) {
           p.score += bonusMult;
           correctCount++;
           s.stats.perPlayer[p.id] = s.stats.perPlayer[p.id] || initPerPlayer(p);
           s.stats.perPlayer[p.id].totalScore += bonusMult;
-        } else if (!ans && s.settings.penaltyNoAnswer) {
-          applyPenalty(s, p, 1);
-        } else if (ans && s.settings.penaltyWrongAnswer) {
-          // « Ultra punitive » : le ×2 des questions bonus s'applique aussi à la perte.
-          applyPenalty(s, p, s.settings.punisherSeverity === 'ultra' ? bonusMult : 1);
+        } else {
+          if (!ans && s.settings.penaltyNoAnswer) {
+            applyPenalty(s, p, 1);
+          } else if (ans && s.settings.penaltyWrongAnswer) {
+            // « Ultra punitive » : le ×2 des bonus s'applique aussi à la perte.
+            applyPenalty(s, p, s.settings.punisherSeverity === 'ultra' ? bonusMult : 1);
+          }
+          // Mauvaise réponse OU absence de réponse : une faute dans les deux cas.
+          registerStrike(s, p);
         }
       }
-      s.stats.questionsAnswered += s.players.length;
+      s.stats.questionsAnswered += comptes;
       s.stats.correctAnswers += correctCount;
       persistResume(s);
       break;
@@ -450,7 +512,7 @@ function reducer(s, action) {
     }
 
     case 'START_MANCHE':
-      s.players = s.players.map(p => ({ ...p, score: 0 })); // RAZ systématique
+      s.players = freshScores(s.players); // RAZ systématique
       s.partie.mancheIndex += 1;
       s.questions = [];
       s.currentIndex = -1;
@@ -470,7 +532,7 @@ function reducer(s, action) {
       if (quitte) {
         s.ui.resumables = [quitte, ...s.ui.resumables.filter(r => r.partieId !== quitte.partieId)];
       }
-      s.players = s.players.map(p => ({ ...p, score: 0 }));
+      s.players = freshScores(s.players);
       s.partie = null;
       s.questions = [];
       s.prefetchQueue = [];
@@ -581,7 +643,7 @@ function reducer(s, action) {
       // Session neuve : elle n'a aucune partie interrompue. Sans cette ligne,
       // le panneau continuait d'afficher celles de la session précédente.
       s.ui.resumables = [];
-      s.players = s.players.map(p => ({ ...p, score: 0 }));
+      s.players = freshScores(s.players);
       s.phase = 'SETUP';
       persistSession(s);
       break;
@@ -603,7 +665,7 @@ function reducer(s, action) {
       s.session = { ...action.session, status: 'active' };
       s.history = Array.isArray(action.session.history) ? action.session.history : [];
       if (Array.isArray(action.session.players) && action.session.players.length) {
-        s.players = action.session.players.map(p => ({ ...p, score: 0 }));
+        s.players = freshScores(action.session.players);
       }
       s.partie = null;
       // L'instantané appartient à UNE session : on le vide en changeant de

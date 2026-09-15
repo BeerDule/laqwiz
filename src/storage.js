@@ -1,7 +1,7 @@
 // storage.js — wrappers localStorage typés avec parse défensif.
 import {
   STORAGE_KEYS, PLAYER_EMOJIS, DIFFICULTY_CHOICES, AUDIENCE_CHOICES,
-  TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
+  TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES, SUDDEN_DEATH_CHOICES,
 } from './constants.js';
 
 export function readJson(key, fallback) {
@@ -82,6 +82,10 @@ export function loadSettings() {
   if (MANCHE_CHOICES.some(c => c.value === raw.manchesTarget)) {
     out.manchesTarget = raw.manchesTarget;
   }
+  out.suddenDeathEnabled = !!raw.suddenDeathEnabled;
+  if (SUDDEN_DEATH_CHOICES.some(c => c.value === raw.suddenDeathStrikes)) {
+    out.suddenDeathStrikes = raw.suddenDeathStrikes;
+  }
 
   // Mode de jeu. Simple identifiant : on ne peut pas vérifier ici qu'il existe
   // encore, le catalogue vit en IndexedDB et se lit de façon asynchrone. Le
@@ -118,6 +122,8 @@ export function saveSettings(settings) {
     penaltyWrongAnswer: settings.penaltyWrongAnswer,
     punisherSeverity: settings.punisherSeverity,
     manchesTarget: settings.manchesTarget,
+    suddenDeathEnabled: settings.suddenDeathEnabled,
+    suddenDeathStrikes: settings.suddenDeathStrikes,
     modeId: settings.modeId,
     sourceMode: settings.sourceMode,
     sourceTitle: settings.sourceTitle,
