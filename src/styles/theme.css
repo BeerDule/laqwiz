@@ -88,6 +88,11 @@
   --radius-md: 4px;
   --radius-lg: 6px;
   --radius-xl: 8px;
+  /* Rayon des « pilules » (pastilles, chrono, rails). Un 999px en dur dans
+     components.css donnait des formes arrondies sur Windows 98, dont toute
+     l'intention tient justement dans l'angle droit : ce thème met les quatre
+     rayons ci-dessus à 0 et se retrouvait quand même avec des pilules. */
+  --radius-pill: 999px;
   --shadow-card: none;
   --transition-fast: 60ms ease;
   --transition-base: 120ms ease;
@@ -345,6 +350,7 @@ h1, h2 { text-shadow: var(--text-glow); }
   --radius-md: 0px;
   --radius-lg: 0px;
   --radius-xl: 0px;
+  --radius-pill: 0px;
 }
 [data-color-theme="win98"] ::selection { background: #000080; color: #fff; }
 /* Le bleu marine de l'accent se noie dans le gris bosselé : le noir est à la
@@ -362,6 +368,18 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="win98"] .option-card__player-btn,
 [data-color-theme="win98"] .player-card__emoji {
   background: #ffffff;
+}
+
+/* La pastille de lettre est un champ blanc encastré, comme les autres contrôles
+   classiques ci-dessus. Son encre doit donc être le bleu marine de l'accent.
+   La règle de base de components.css y pose `color: var(--accent-contrast)`,
+   ce qui est juste partout où cette pastille est un aplat d'accent — mais ici
+   le fond est forcé en blanc, et --accent-contrast vaut #ffffff : les quatre
+   lettres A/B/C/D étaient blanches sur blanc, donc invisibles.
+   On corrige l'usage, PAS le jeton : --accent-contrast signifie « ce qui se
+   pose SUR l'accent », et il vaut blanc à raison sur le bouton marine. */
+[data-color-theme="win98"] .option-card__key {
+  color: var(--color-accent-primary);
 }
 
 /* Jungle — earth / green / brown */
