@@ -1,25 +1,12 @@
-/* src/styles/arcade.css — coquille « jeu vidéo » des écrans de menu.
+/* src/styles/arcade.css — structure des écrans de menu (accueil, sessions, réglages).
  *
- * Habillage papier/parchemin découpé du kit `iimport/` vers public/paper-ui/.
- * Ces écrans (accueil, sélecteur de sessions, réglages) gardent cette identité
- * quel que soit le thème sélectionné : c'est le menu du jeu, pas une surface de
- * contenu. Sans ça, le texte deviendrait illisible en Matrix ou Win98, où les
- * valeurs partent dans l'autre sens.
+ * Ce fichier ne porte QUE de la mise en page et des jetons du design system :
+ * aucune couleur en dur, aucun sprite. Les menus suivent donc intégralement le
+ * thème sélectionné, comme le reste de l'application.
  *
- * La façon dont ça tient : theme.css attache la palette Paper Quest à `.arcade`
- * en plus du thème lui-même. Les variables CSS s'héritant de l'ancêtre le plus
- * proche, `.arcade` l'emporte sur `<html>` pour tout son sous-arbre — donc TOUT
- * composant réutilisé dans un menu, y compris ceux ajoutés plus tard, prend les
- * bonnes couleurs sans qu'on ait à le corriger ici.
- *
- * Ce fichier ne porte donc que le structurel : cadres 9-slice, plaques peintes,
- * mises en page. Les seules couleurs en dur restantes sont celles calées sur les
- * sprites (encre des plaques, crème des libellés) — elles n'ont pas d'équivalent
- * dans la palette.
- *
- * Les sprites sont dessinés à main levée : les bords ne sont pas droits et les
- * découpes 9-slice ci-dessous sont jugées à l'œil, pas mesurées (les détecteurs
- * géométriques rendent n'importe quoi sur ces formes).
+ * Un thème qui veut habiller ses menus le fait dans son propre bloc de theme.css
+ * — voir Paper Quest et Bubble Island, qui y posent leurs cadres 9-slice sur
+ * `.arcade-btn`, `.arcade-card` et `.arcade-plaque`.
  */
 
 /* Irish Grover (Google Fonts, licence OFL) — hébergée localement plutôt que
@@ -39,13 +26,6 @@
 }
 
 .arcade {
-  /* Alias vers la palette, définie une seule fois dans theme.css et partagée
-     avec le thème Paper Quest. Pas de valeur en dur ici : une couleur changée
-     là-bas doit suivre partout. */
-  --arcade-ink: var(--color-text);
-  --arcade-ink-soft: var(--color-muted);
-  --arcade-frame: url('/paper-ui/frame.png');
-
   position: relative;
   min-height: 100dvh;
   padding: var(--space-5);
@@ -53,7 +33,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  color: var(--arcade-ink);
+  color: var(--color-text);
   font-size: 15px;
   background-color: var(--bg-void);
   background-image: var(--texture), var(--gradient-bg);
@@ -63,16 +43,17 @@
 /* ===== Titres ===== */
 .arcade__title { text-align: center; margin-block: var(--space-8) var(--space-4); }
 .arcade__title h1 {
-  font-family: 'Irish Grover', var(--font-display, var(--font-sans));
-  font-weight: 400; /* la fonte n'existe qu'en 400 : éviter un gras synthétique */
+  /* Le titre suit la fonte d'affichage du thème. Paper Quest y remet Irish
+     Grover dans son propre bloc — la mettre ici la rendrait prioritaire partout
+     et annulerait les fontes des autres thèmes. */
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 400;
   font-size: clamp(2.2rem, 8vw, 4rem);
-  color: #fff7e2;
-  letter-spacing: 0; /* le resserrement convenait à la sans, pas à ce display */
-  -webkit-text-stroke: 3px var(--color-border);
-  paint-order: stroke fill;
-  text-shadow: 0 5px 0 rgba(86, 14, 18, .35);
+  letter-spacing: 0;
+  color: var(--color-text);
+  text-shadow: var(--text-glow);
 }
-.arcade__title p { color: var(--arcade-ink-soft); font-weight: 600; }
+.arcade__title p { color: var(--color-muted); font-weight: 600; }
 
 .arcade__bar {
   display: flex;
@@ -82,70 +63,65 @@
 }
 .arcade__bar h1 {
   font-size: clamp(1.3rem, 4vw, 2rem);
-  color: #fff7e2;
-  -webkit-text-stroke: 3px var(--color-border);
-  paint-order: stroke fill;
+  color: var(--color-text);
+  text-shadow: var(--text-glow);
   margin-right: auto;
 }
 .arcade__topbar { display: flex; justify-content: flex-end; }
 
-/* ===== Boutons plaques =====
- * Découpe horizontale seulement : les bandes du sprite sont horizontales, donc
- * le milieu s'étire proprement en largeur et suit la hauteur du bouton. */
+/* ===== Boutons de menu =====
+ * Même grammaire que `.button` de components.css, en plus grand : un thème qui
+ * stylise l'un stylise l'autre de la même façon. */
 .arcade-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 48px;
   padding: 6px 24px;
-  border: 0;
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/paper-ui/bar-b.png');
-  border-image-slice: 0 40 fill;
-  border-image-width: 0 18px;
-  border-image-repeat: stretch;
-  background: none;
-  color: #3a1408;
-  /* `inherit` reprendrait la police du corps : une classe l'emporte sur le
-     sélecteur `button` de theme.css, qui n'atteindrait donc jamais ces boutons. */
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
   font-family: var(--font-button);
-  /* 19px gras = seuil « grand texte » WCAG : le critère applicable devient 3:1,
-     que les plaques peintes satisfont. En dessous, aucune encre ne passe. */
+  /* 19px gras : au-dessus du seuil « grand texte » WCAG (18,66px gras), où le
+     critère de contraste applicable tombe à 3:1. Plusieurs thèmes posent des
+     surfaces de luminance moyenne sur lesquelles aucune encre n'atteint 4,5:1. */
   font-size: 19px;
   font-weight: 700;
   letter-spacing: .01em;
-  text-shadow: 0 1px 0 rgba(255, 247, 226, .45);
   cursor: pointer;
-  transition: transform var(--transition-fast), filter var(--transition-fast);
+  transition: transform var(--transition-fast), filter var(--transition-fast),
+    background-color var(--transition-fast);
 }
-/* Le kit ne fournit pas d'états : le survol et l'appui sont simulés */
-.arcade-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.07); }
-.arcade-btn:active:not(:disabled) { transform: translateY(1px); filter: brightness(.94); }
-.arcade-btn:disabled {
-  border-image-source: url('/paper-ui/bar-e.png');
-  color: rgba(58, 20, 8, .55);
-  cursor: default;
-}
-.arcade-btn:focus-visible { outline: 3px solid var(--color-border); outline-offset: 3px; }
+.arcade-btn:hover:not(:disabled) { background-color: var(--bg-surface-soft); }
+.arcade-btn:active:not(:disabled) { transform: translateY(1px); }
+.arcade-btn:disabled { opacity: .45; cursor: default; }
 
 .arcade-btn--primary {
-  border-image-source: url('/paper-ui/bar-a.png');
+  background-color: var(--color-accent-primary);
+  background-image: var(--gradient-accent);
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-pop);
+  color: var(--accent-contrast);
   font-size: 21px;
   min-height: 58px;
   padding-inline: 34px;
 }
+.arcade-btn--primary:hover:not(:disabled) {
+  background-color: var(--color-accent-primary);
+  filter: brightness(1.08);
+}
 .arcade-btn--small { min-height: 40px; font-size: 19px; padding-inline: 18px; }
-.arcade-btn--danger { border-image-source: url('/paper-ui/bar-c.png'); color: #fff7e2; text-shadow: 0 1px 0 rgba(83, 13, 17, .6); }
+.arcade-btn--danger { color: var(--color-error); }
 
-/* Bouton icône : sprite entier, pas de 9-slice */
 .arcade-btn--icon {
   min-height: 48px;
-  width: 54px;
+  width: 48px;
   padding: 0;
-  font-size: 0;
-  border-image: none;
-  background: center / contain no-repeat url('/paper-ui/ico-left.png');
+  font-size: 24px;
+  line-height: 1;
 }
 
 /* ===== Menu principal ===== */
@@ -159,21 +135,15 @@
 }
 .arcade__menu .arcade-btn { width: 100%; }
 
-/* ===== Panneaux parchemin =====
- * `round` plutôt que `stretch` : les coutures du sprite se répètent au lieu de
- * s'étirer en traînées. */
+/* ===== Surfaces ===== */
 .arcade-plaque,
-.arcade-card,
-.arcade--setup .panel {
-  border-style: solid;
-  border-width: 0;
-  border-image-source: var(--arcade-frame);
-  border-image-slice: 110 fill;
-  border-image-width: 26px;
-  border-image-repeat: round;
-  background: none;
-  box-shadow: none;
-  color: var(--arcade-ink);
+.arcade-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text);
 }
 
 .arcade-plaque {
@@ -188,7 +158,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .08em;
-  color: var(--arcade-ink-soft);
+  color: var(--color-muted);
 }
 .arcade-plaque__name { display: block; font-size: 18px; margin-top: 2px; }
 .arcade-plaque__roster { display: flex; gap: 4px; justify-content: center; margin-top: var(--space-3); }
@@ -206,7 +176,7 @@
   grid-column: 1 / -1;
   text-align: center;
   padding: var(--space-10);
-  color: var(--arcade-ink-soft);
+  color: var(--color-muted);
   font-weight: 600;
 }
 
@@ -214,22 +184,13 @@
   display: grid;
   gap: var(--space-3);
   align-content: start;
-  padding: var(--space-8) var(--space-6);
+  padding: var(--space-6);
 }
-.arcade-card--active { filter: drop-shadow(0 0 0 #e69912) drop-shadow(0 4px 10px rgba(86, 14, 18, .3)); }
-.arcade-card--active .arcade-card__name::after {
-  content: '';
-  display: inline-block;
-  width: 18px;
-  height: 20px;
-  margin-left: 6px;
-  vertical-align: -3px;
-  background: center / contain no-repeat url('/paper-ui/star-gold.png');
-}
+.arcade-card--active { border-color: var(--color-accent-primary); box-shadow: var(--shadow-pop); }
 .arcade-card__head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .arcade-card__name { font-size: 17px; line-height: 1.2; }
-.arcade-card__date { font-size: 12px; color: var(--arcade-ink-soft); }
-.arcade-card__muted { font-size: 12px; color: var(--arcade-ink-soft); }
+.arcade-card__date { font-size: 12px; color: var(--color-muted); }
+.arcade-card__muted { font-size: 12px; color: var(--color-muted); }
 .arcade-card__roster { display: flex; gap: 4px; flex-wrap: wrap; }
 .arcade-card__stat { font-size: 13px; font-weight: 600; }
 .arcade-card__trophies { display: flex; gap: var(--space-4); flex-wrap: wrap; min-height: 28px; }
@@ -237,9 +198,9 @@
 
 .arcade-tag {
   padding: 2px 10px;
-  border-radius: 4px;
-  background: #c5343d;
-  color: #fff7e2;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-primary);
+  color: var(--accent-contrast);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -253,26 +214,20 @@
   width: 32px;
   height: 32px;
   font-size: 17px;
-  border-radius: 6px;
-  background: #fdf6e3;
-  border: 2px solid var(--color-border);
-  box-shadow: 0 2px 0 rgba(86, 14, 18, .25);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--bg-surface-raised);
 }
 
-/* Trophée doré du kit devant le décompte de parties gagnées */
+/* Décompte de parties gagnées. Le pictogramme est fourni par les thèmes qui en
+   ont un (voir Paper Quest / Bubble Island) ; sinon un emoji tient lieu. */
 .arcade-trophy { display: inline-flex; align-items: center; gap: 4px; }
-.arcade-trophy::before {
-  content: '';
-  width: 22px;
-  height: 26px;
-  background: center / contain no-repeat url('/paper-ui/trophy.png');
-}
+.arcade-trophy::before { content: '🏆'; font-size: 16px; line-height: 1; }
 .arcade-trophy__count { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ===== Écran de réglages =====
- * On ne touche ni aux ids ni au câblage : seuls le cadre, les boutons et les
- * champs sont repris pour que le formulaire se lise comme un menu d'options. */
-
+ * On ne touche ni aux ids ni au câblage : seule la mise en page change, les
+ * composants (.panel, .button, champs) restent ceux du thème actif. */
 .arcade--setup { gap: var(--space-4); }
 .arcade--setup form { display: grid; gap: var(--space-6); align-content: start; }
 
@@ -283,90 +238,4 @@
   text-align: left;
   font-weight: 700;
 }
-
-.arcade--setup .panel { padding: var(--space-8) var(--space-6); }
-.arcade--setup .panel legend,
-.arcade--setup .panel summary,
-.arcade--setup h3,
-.arcade--setup .rule-group__label,
-.arcade--setup .field-label {
-  color: var(--arcade-ink-soft);
-  font-weight: 700;
-}
-.arcade--setup .panel legend { font-size: 13px; }
-
-/* Boutons du formulaire : parchemin cerné.
-   Les plaques peintes sont réservées aux grands boutons — à cette taille aucune
-   encre n'y atteint 4,5:1 (voir le commentaire du thème `paper`). */
-.arcade--setup .button {
-  border: 2px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--bg-surface);
-  box-shadow: 0 2px 0 rgba(86, 14, 18, .25);
-  color: var(--arcade-ink);
-  text-shadow: none;
-  font-weight: 700;
-  min-height: 38px;
-  padding-inline: 18px;
-}
-.arcade--setup .button:hover:not(:disabled) { background: var(--bg-surface-soft); filter: none; }
-.arcade--setup .button:active:not(:disabled) {
-  background: var(--bg-surface-soft);
-  transform: translateY(2px);
-  box-shadow: none;
-}
-.arcade--setup .button:disabled { opacity: .5; box-shadow: none; }
-.arcade--setup .button--danger { color: var(--color-error); }
-
-/* Seul le bouton de lancement est assez grand pour porter une plaque peinte :
-   à 21px gras, le seuil WCAG applicable est 3:1, atteint par l'orange. */
-.arcade--setup #btn-start {
-  border: 0;
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/paper-ui/bar-a.png');
-  border-image-slice: 0 40 fill;
-  border-image-width: 0 18px;
-  border-image-repeat: stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: #3a1408;
-  text-shadow: 0 1px 0 rgba(255, 247, 226, .45);
-  min-height: 58px;
-  font-size: 21px;
-}
-
-/* Champs : papier clair cerné, quel que soit le thème */
-.arcade--setup input[type='text'],
-.arcade--setup input[type='search'],
-.arcade--setup input[type='password'],
-.arcade--setup input[type='number'],
-.arcade--setup select,
-.arcade--setup textarea {
-  background: var(--bg-surface);
-  border: 2px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--arcade-ink);
-  min-height: 38px;
-  padding: 4px 10px;
-}
-.arcade--setup .player-card {
-  border-radius: 8px;
-  border: 2px solid var(--color-border);
-  background: rgba(253, 246, 227, .7);
-}
-.arcade--setup .choice-chip span {
-  border-radius: 6px;
-  border: 2px solid var(--color-border);
-  background: var(--bg-surface);
-  color: var(--arcade-ink);
-  font-weight: 700;
-}
-.arcade--setup .choice-chip input:checked + span {
-  background: #e69912;
-  border-color: var(--color-border);
-  color: #fff7e2;
-}
-.arcade--setup .toggle-row { color: var(--arcade-ink); font-weight: 600; }
-.arcade--setup .form-error { color: var(--color-error); font-weight: 700; }
+.arcade--setup #btn-start { min-height: 54px; font-size: 19px; }
