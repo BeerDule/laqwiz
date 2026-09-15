@@ -1263,3 +1263,11 @@ kbd.option-card__hint {
   line-height: 1;
 }
 .player-chip__suffix { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Lien de configuration partageable */
+.llm-share-warning { color: var(--color-warning); }
+.share-url {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}

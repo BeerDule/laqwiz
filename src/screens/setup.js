@@ -7,7 +7,8 @@ import {
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
   DIFFICULTY_CHOICES, AUDIENCE_CHOICES, TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
 } from '../constants.js';
-import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitcher.js';
+import { buildShareUrl } from '../shareConfig.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
 import { listResumes } from '../db.js';
 
@@ -30,6 +31,11 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
+}
+
+// Même mécanisme que dans game.js : main.js écoute `qc:toast` et affiche.
+function dispatchToast(message, kind = 'info') {
+  document.dispatchEvent(new CustomEvent('qc:toast', { detail: { message, kind } }));
 }
 
 function maxNumericId(list) {
@@ -532,6 +538,34 @@ function wireEvents(signal) {
     }
   }, { signal });
 
+  root.querySelector('#btn-share-config').addEventListener('click', async () => {
+    // On lit les CHAMPS, pas les réglages enregistrés : le MJ vient peut-être de
+    // saisir sa clé sans avoir encore lancé de partie.
+    const current = {
+      baseUrl: root.querySelector('#llm-base-url').value.trim(),
+      apiKey: root.querySelector('#llm-api-key').value.trim(),
+      model: root.querySelector('#llm-model').value.trim(),
+      temperature: parseFloat(root.querySelector('#llm-temp').value),
+    };
+    if (!current.apiKey && !current.baseUrl && !current.model) {
+      showError('Renseignez au moins un champ avant de générer un lien.');
+      return;
+    }
+    const url = buildShareUrl(current, getColorTheme(), window.location.href);
+    const field = root.querySelector('#share-url');
+    field.hidden = false;
+    field.value = url;
+    try {
+      await navigator.clipboard.writeText(url);
+      dispatchToast('Lien copié. Il contient votre clé API.', 'info');
+    } catch {
+      // Presse-papiers refusé (contexte non sécurisé, permission) : le champ
+      // reste affiché pour une copie manuelle.
+      field.select();
+      dispatchToast('Copie automatique refusée — sélectionnez le lien ci-dessous.', 'error');
+    }
+  }, { signal });
+
   wireWikiSearch(signal);
 
   // `change` et non `input` : chaque renommage écrit la session dans IndexedDB.
@@ -747,6 +781,13 @@ export function renderSetup(rootEl) {
           <label class="field-label" for="llm-temp">Température : <output id="llm-temp-output">0.9</output></label>
           <input id="llm-temp" type="range" min="0" max="2" step="0.1" value="0.9" />
           <button id="btn-test-connection" type="button" class="button button--small llm-test-btn">Tester la connexion</button>
+          <button id="btn-share-config" type="button" class="button button--small">Copier un lien de configuration</button>
+          <p class="llm-note llm-share-warning">
+            Ce lien contient votre <strong>clé API en clair</strong>. À envoyer à
+            vos appareils, pas à publier.
+          </p>
+          <input id="share-url" class="share-url" type="text" readonly hidden
+            aria-label="Lien de configuration" />
           <span id="test-result" class="llm-test-result" aria-live="polite"></span>
         </details>
         <p id="setup-error" class="form-error" role="alert" hidden></p>

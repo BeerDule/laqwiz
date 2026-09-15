@@ -12,7 +12,8 @@ import { renderGame, unmountGame } from './screens/game.js';
 import { renderVictory, unmountVictory } from './screens/victory.js';
 import { renderSessions, unmountSessions } from './screens/sessions.js';
 import { renderHome, unmountHome } from './screens/home.js';
-import { initColorTheme } from './themeSwitcher.js';
+import { initColorTheme, setColorTheme } from './themeSwitcher.js';
+import { decodeShareConfig } from './shareConfig.js';
 
 // Appliquer le thème de couleurs sauvegardé avant le premier rendu
 initColorTheme();
@@ -41,6 +42,32 @@ const persistedStats = loadStats();
 if (persistedPlayers) dispatch({ type: 'SET_PLAYERS', players: persistedPlayers });
 if (persistedSettings) dispatch({ type: 'SET_SETTINGS', patch: persistedSettings });
 if (persistedStats) getState().stats = persistedStats;
+
+// --- Import d'une configuration partagée (?config=…) ---
+// Placé APRÈS l'hydratation localStorage, et c'est voulu : un lien reçu doit
+// écraser ce que l'appareil avait déjà, sinon partager sa config à une TV qui a
+// déjà servi ne changerait rien.
+//
+// L'URL est nettoyée immédiatement après : elle contient la clé API en clair, et
+// on ne veut la laisser ni dans la barre d'adresse, ni dans l'historique, ni
+// dans un signet, ni dans un en-tête `Referer` si le joueur clique un lien.
+(function importSharedConfig() {
+  const raw = new URLSearchParams(window.location.search).get('config');
+  if (!raw) return;
+  const shared = decodeShareConfig(raw);
+  try {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('config');
+    window.history.replaceState({}, '', clean.pathname + clean.search + clean.hash);
+  } catch { /* pas d'historique manipulable : on continue quand même */ }
+  if (!shared) {
+    showToast('Lien de configuration illisible ou périmé.', 'error');
+    return;
+  }
+  if (Object.keys(shared.llm).length) dispatch({ type: 'SET_SETTINGS', patch: shared.llm });
+  if (shared.theme) setColorTheme(shared.theme);
+  showToast('Configuration importée depuis le lien.', 'info');
+})();
 
 // --- Reprise de la session active (IndexedDB, asynchrone) ---
 // Volontairement hors du chemin de démarrage : la lecture ne doit pas retarder
