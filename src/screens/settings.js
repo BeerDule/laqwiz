@@ -7,7 +7,7 @@ import { getState, dispatch } from '../state.js';
 import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitcher.js';
 import { buildShareUrl } from '../shareConfig.js';
 import { wipeLocalStorage } from '../storage.js';
-import { deleteDatabase, listModes, putMode } from '../db.js';
+import { clearArchive } from '../db.js';
 
 let teardown = null;
 let root = null;
@@ -67,15 +67,16 @@ const SHELL = `
       </fieldset>
 
       <fieldset class="panel danger-zone">
-        <legend>Zone dangereuse</legend>
+        <legend>Reset d'usine</legend>
         <p class="llm-note">
-          Efface sessions, parties terminées, parties en cours, statistiques,
-          joueurs, thème et configuration LLM. Rien n'est récupérable.
+          Remet l'appareil dans son état de sortie de boîte : sessions, parties
+          terminées, parties en cours, statistiques, joueurs, thème et configuration
+          LLM sont effacés. Rien n'est récupérable.
           <br />Vos <strong>modes de jeu sont conservés</strong>, y compris ceux que
           vous avez créés — supprimez-les un par un depuis les réglages de partie.
         </p>
         <button id="btn-cleanup" type="button" class="button button--danger">
-          Tout effacer
+          Reset d'usine
         </button>
       </fieldset>
     </form>
@@ -208,39 +209,32 @@ export function renderSettings(rootEl) {
     // qu'on ne peut pas reconstituer. La seconde demande de taper un mot, pour
     // qu'un double-clic accidentel ne suffise pas.
     if (!window.confirm(
-      'Effacer les données de cet appareil ?\n\n'
+      'Réinitialiser cet appareil ?\n\n'
       + 'Sessions, parties terminées, parties en cours, statistiques, joueurs, '
-      + 'thème et configuration LLM. Vos modes de jeu sont conservés.\n\n'
+      + 'thème et configuration LLM seront effacés. Vos modes de jeu sont conservés.\n\n'
       + 'Cette action est définitive.'
     )) return;
-    const saisie = window.prompt('Pour confirmer, tapez : EFFACER');
-    if (saisie !== 'EFFACER') {
-      dispatchToast('Effacement annulé.', 'info');
+    if (window.prompt('Pour confirmer, tapez : EFFACER') !== 'EFFACER') {
+      dispatchToast('Réinitialisation annulée.', 'info');
       return;
     }
 
-    // Le catalogue de modes survit à l'effacement. Ce sont des réglages que le
-    // MJ a composés, pas des données de partie : les perdre coûterait de tout
-    // recomposer, alors que l'effacement vise l'historique et les identifiants.
-    // On le relit avant la suppression, on le réécrit après — `putMode` rouvre
-    // la base, ce qui recrée les stores au passage.
-    const modesConserves = await listModes();
-
-    const supprimees = wipeLocalStorage();
-    const res = await deleteDatabase();
-    if (!res.ok && res.reason === 'blocked') {
-      // Un autre onglet garde la base ouverte : IndexedDB refuse de la
-      // supprimer. Le dire, plutôt que de laisser croire à une réussite.
+    // L'archive d'abord. Si elle résiste, on s'arrête AVANT de toucher à
+    // localStorage : mieux vaut un appareil intact qu'un appareil à moitié
+    // réinitialisé, dont les réglages pointeraient vers des parties encore là.
+    if (!await clearArchive()) {
       dispatchToast(
-        'localStorage effacé, mais la base est ouverte dans un autre onglet. '
-        + 'Fermez-le puis réessayez.', 'error');
+        'Impossible de vider la base. Fermez les autres onglets du jeu puis réessayez.',
+        'error');
       return;
     }
-    await Promise.all(modesConserves.map(putMode));
 
-    dispatchToast(`Effacé (${supprimees} clés), ${modesConserves.length} modes conservés. Rechargement…`, 'info');
-    // Rechargement : l'état en mémoire décrit des données qui n'existent plus.
-    setTimeout(() => window.location.reload(), 600);
+    // Puis localStorage, et on recharge SANS rien faire entre les deux.
+    // L'abonné de main.js réécrit joueurs, réglages et clé API à chaque
+    // dispatch : la moindre navigation avant le rechargement ressuscitait ce
+    // qu'on vient d'effacer, et laissait un appareil à l'état incohérent.
+    wipeLocalStorage();
+    window.location.reload();
   }, { signal });
 
   teardown = () => {

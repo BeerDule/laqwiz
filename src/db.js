@@ -152,27 +152,31 @@ export function deleteResume(partieId) {
 }
 
 /**
- * Supprime la base entière (sessions, parties, instantanés).
+ * Remise à l'état d'usine de l'archive : vide les stores au lieu de détruire la
+ * base.
  *
- * La connexion ouverte doit être fermée d'abord, sinon la suppression reste en
- * attente indéfiniment. Et si un AUTRE onglet garde la base ouverte, le
- * navigateur émet `blocked` et ne supprime rien : on le signale au lieu de
- * laisser croire à une réussite.
+ * Détruire puis rouvrir pour réécrire, dans une page qui va se recharger, ouvrait
+ * deux trous : `deleteDatabase` reste en attente indéfiniment si un autre onglet
+ * tient la base, et la réouverture qui suit se met en file derrière cette
+ * suppression en suspens — plus rien ne répond. Un `clear()` est une
+ * transaction ordinaire : pas de sémantique de blocage, pas de réouverture.
  *
- * @returns {Promise<{ok: boolean, reason?: string}>}
+ * Les trois stores sont vidés dans UNE transaction : soit tout part, soit rien.
+ * Un vidage partiel laisserait des parties orphelines sans leur session.
+ *
+ * @returns {Promise<boolean>} faux si l'archive n'a pas pu être vidée
  */
-export function deleteDatabase() {
-  const closeFirst = dbPromise
-    ? dbPromise.then(db => db.close(), () => {})
-    : Promise.resolve();
-  return closeFirst.then(() => new Promise((resolve) => {
-    dbPromise = null; // sinon les appels suivants réutiliseraient une base morte
-    if (typeof indexedDB === 'undefined') return resolve({ ok: true });
-    const req = indexedDB.deleteDatabase(DB_NAME);
-    req.onsuccess = () => resolve({ ok: true });
-    req.onerror = () => resolve({ ok: false, reason: 'error' });
-    req.onblocked = () => resolve({ ok: false, reason: 'blocked' });
-  }));
+export function clearArchive({ keepModes = true } = {}) {
+  const stores = keepModes
+    ? [STORE_SESSIONS, STORE_PARTIES, STORE_RESUME]
+    : [STORE_SESSIONS, STORE_PARTIES, STORE_RESUME, STORE_MODES];
+  return safe(openDb().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(stores, 'readwrite');
+    for (const name of stores) tx.objectStore(name).clear();
+    tx.oncomplete = () => resolve(true);
+    tx.onabort = () => reject(tx.error);
+    tx.onerror = () => reject(tx.error);
+  })), false);
 }
 
 // --- Modes de jeu ---
