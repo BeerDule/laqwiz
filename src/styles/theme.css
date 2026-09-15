@@ -88,7 +88,7 @@
   --radius-md: 4px;
   --radius-lg: 6px;
   --radius-xl: 8px;
-  --shadow-card: none;
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, .45);
   --transition-fast: 60ms ease;
   --transition-base: 120ms ease;
 
@@ -110,7 +110,7 @@
   --accent-contrast: #ffffff;
   --on-success: #113328;
   --on-pink: #2d1b2b;
-  --shadow-pop: none;
+  --shadow-pop: 0 6px 20px rgba(0, 0, 0, .55);
   --glow-accent: none;
   --text-glow: none;
   --texture: none;
@@ -224,6 +224,7 @@ h1, h2 { text-shadow: var(--text-glow); }
   --accent-contrast: #00160a;
   --on-success: #00160a;
   --on-pink: #00160a;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, .55);
   --shadow-pop: 0 0 14px rgba(0, 255, 65, .4);
   --glow-accent: 0 0 10px rgba(0, 255, 65, .55);
   --text-glow: 0 0 8px rgba(0, 255, 65, .35);
@@ -258,6 +259,7 @@ h1, h2 { text-shadow: var(--text-glow); }
   --accent-contrast: #3a0a2a;
   --on-success: #0c2a12;
   --on-pink: #3a0a2a;
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, .35);
   --shadow-pop: 0 6px 18px rgba(255, 105, 180, .35);
   --glow-accent: 0 0 12px rgba(255, 111, 181, .45);
   --text-glow: 0 0 10px rgba(255, 143, 200, .3);
@@ -316,7 +318,6 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="win98"] input[type='password'],
 [data-color-theme="win98"] select,
 [data-color-theme="win98"] .option-card__key,
-[data-color-theme="win98"] .option-card__player-btn,
 [data-color-theme="win98"] .player-card__emoji {
   background: #ffffff;
 }
@@ -348,6 +349,7 @@ h1, h2 { text-shadow: var(--text-glow); }
   --accent-contrast: #132005;
   --on-success: #0c2a12;
   --on-pink: #3a1206;
+  --shadow-card: 0 3px 14px rgba(0, 0, 0, .45);
   --shadow-pop: 0 6px 16px rgba(139, 195, 74, .3);
   --glow-accent: 0 0 10px rgba(139, 195, 74, .4);
   --text-glow: 0 0 8px rgba(170, 200, 90, .2);
@@ -382,6 +384,7 @@ h1, h2 { text-shadow: var(--text-glow); }
   --accent-contrast: #3a1c00;
   --on-success: #04350d;
   --on-pink: #3a0230;
+  --shadow-card: 0 3px 14px rgba(0, 0, 0, .30);
   --shadow-pop: 0 6px 16px rgba(255, 143, 0, .4);
   --glow-accent: 0 0 12px rgba(255, 179, 0, .5);
   --text-glow: none;
@@ -668,8 +671,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 
 /* Round bubble for the icon buttons that carry no .button class */
 [data-color-theme="bubble-island"] .player-card__emoji,
-[data-color-theme="bubble-island"] .player-card__remove,
-[data-color-theme="bubble-island"] .option-card__player-btn {
+[data-color-theme="bubble-island"] .player-card__remove {
   border-style: solid;
   border-width: 0;
   border-image-source: url('/bubble-island/btn-round-normal.png');
@@ -681,20 +683,16 @@ h1, h2 { text-shadow: var(--text-glow); }
   font-weight: 700;
 }
 [data-color-theme="bubble-island"] .player-card__emoji:hover,
-[data-color-theme="bubble-island"] .player-card__remove:hover,
-[data-color-theme="bubble-island"] .option-card__player-btn:hover {
+[data-color-theme="bubble-island"] .player-card__remove:hover {
   border-image-source: url('/bubble-island/btn-round-hover.png');
   background: none;
 }
-[data-color-theme="bubble-island"] .option-card__player-btn.is-active,
 [data-color-theme="bubble-island"] .player-card__emoji:active,
-[data-color-theme="bubble-island"] .player-card__remove:active,
-[data-color-theme="bubble-island"] .option-card__player-btn:active {
+[data-color-theme="bubble-island"] .player-card__remove:active {
   border-image-source: url('/bubble-island/btn-round-click.png');
   background: none;
 }
-[data-color-theme="bubble-island"] .player-card__remove:disabled,
-[data-color-theme="bubble-island"] .option-card__player-btn:disabled {
+[data-color-theme="bubble-island"] .player-card__remove:disabled {
   border-image-source: url('/bubble-island/btn-round-lock.png');
   opacity: 1;
 }

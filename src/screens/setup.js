@@ -182,6 +182,7 @@ function renderPlayersList() {
     const card = document.createElement('div');
     card.className = 'player-card';
     card.dataset.id = p.id;
+    card.style.setProperty('--pc', p.color || 'var(--color-accent-primary)');
     const displayName = p.name.trim() || `Joueur ${i + 1}`;
     card.innerHTML = `
       <span class="player-card__number">${i + 1}</span>
@@ -853,12 +854,12 @@ export function renderSetup(rootEl) {
            réglages restaurés par le navigateur que personne n'a choisis. -->
       <form id="setup-form" novalidate autocomplete="off">
         <fieldset class="panel players-panel">
-          <legend>Joueurs <span id="player-count-label">2/6</span></legend>
+          <legend>👥 Joueurs <span id="player-count-label">2/6</span></legend>
           <div id="players-list" class="players-list"></div>
           <button type="button" id="btn-add-player" class="button add-player-btn">+ Ajouter un joueur</button>
         </fieldset>
         <fieldset class="panel theme-panel">
-          <legend>Thème</legend>
+          <legend>🎯 Thème</legend>
           <div class="theme-select-group">
             <select id="theme-select" aria-label="Choisir un thème prédéfini">
               <option value="">— Choisir un thème —</option>
@@ -880,13 +881,13 @@ export function renderSetup(rootEl) {
           </div>
         </fieldset>
         <fieldset class="panel modes-panel">
-          <legend>Mode de jeu</legend>
+          <legend>🎮 Mode de jeu</legend>
           <div id="modes-list" class="modes-grid" role="radiogroup" aria-label="Mode de jeu"></div>
           <p id="mode-status" class="mode-status" aria-live="polite"></p>
           <div id="mode-actions" class="mode-actions"></div>
         </fieldset>
         <fieldset class="panel settings-panel">
-          <legend>Règles</legend>
+          <legend>🎲 Règles</legend>
           <div class="rule-group">
             <span class="rule-group__label" id="difficulty-label">Difficulté</span>
             <div class="choice-group" role="radiogroup" aria-labelledby="difficulty-label">
@@ -972,7 +973,7 @@ export function renderSetup(rootEl) {
           </details>
         </fieldset>
         <p id="setup-error" class="form-error" role="alert" hidden></p>
-        <button id="btn-start" class="button button--primary button--large" type="submit" disabled>Générer la partie</button>
+        <button id="btn-start" class="button button--primary button--large" type="submit" disabled>▶ Générer la partie</button>
       </form>
     </section>
   `;

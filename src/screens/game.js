@@ -2,13 +2,13 @@
 import { getState, dispatch, subscribe, hasMancheWinner, manchesNeeded, retryGeneration } from '../state.js';
 import { DIFFICULTY_LABELS } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
-import { playerChip } from '../components/playerChip.js';
 
 let teardown = null;
 let root = null;
 let lastPhase = null;
 let lastIndex = -1;
 let activePlayerId = null;
+let picker = null; // menu radial de sélection des joueurs (ouvert sur une carte)
 let lastErrorTs = null;
 let lastOnline = null;
 let timerId = null;
@@ -51,7 +51,8 @@ function expireTimer() {
   stopTimer();
   timeUp = true;
   timeLeft = 0;
-  root.querySelectorAll('.option-card__player-btn').forEach(b => { b.disabled = true; });
+  closePlayerPicker();
+  activePlayerId = null;
   paintTimer();
   updateRevealButton();
   dispatchToast('Temps écoulé — saisie verrouillée.', 'error');
@@ -108,36 +109,39 @@ function loadingHtml() {
   `;
 }
 
+function boardHtml(s) {
+  const q = s.questions[s.currentIndex];
+
+  // Cartes de réponse : chacune contient, en bas, les avatars des joueurs
+  // qui l'ont choisie. Un clic sur la carte ouvre le menu radial des joueurs.
+  const optionsHtml = q.options.map((o, i) => {
+    const pickers = s.players.filter(p => s.roundAnswers[p.id] === o.key);
+    const team = pickers.map(p => `
+      <span class="team-avatar" style="--pc:${p.color || 'var(--color-accent-primary)'}" title="${escapeHtml((p.name || '').trim() || 'Joueur')}">
+        <span aria-hidden="true">${p.emoji}</span>
+      </span>
+    `).join('');
+    return `
+      <div class="option-card" data-key="${o.key}">
+        <div class="option-card__row">
+          <span class="option-card__key">${o.key}</span>
+          <span class="option-card__text">${escapeHtml(o.text)}</span>
+          <kbd class="option-card__hint">${i + 1}</kbd>
+        </div>
+        <div class="option-card__team">${team || '<span class="option-card__team-empty">Aucun joueur</span>'}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="options-grid" id="options-grid">${optionsHtml}</div>
+  `;
+}
+
 function questionHtml(s) {
   const q = s.questions[s.currentIndex];
   const difficulty = DIFFICULTY_LABELS[q.difficulty] || q.difficulty;
   const bonus = s.isBonusRound;
-
-  const optionsHtml = q.options.map((o, i) => {
-    // Un joueur exclu par la mort subite ne peut plus répondre : son score
-    // n'est plus affecté, lui laisser un bouton actif serait trompeur.
-    const playerBtns = s.players.map(p => playerChip(p, {
-      as: 'button',
-      className: `option-card__player-btn${p.eliminated ? ' option-card__player-btn--out' : ''}`,
-      attrs: {
-        'data-player': p.id, 'data-key': o.key,
-        ...(p.eliminated ? { disabled: 'disabled' } : {}),
-      },
-      // `suffix` plutôt qu'un second `data-tooltip` : playerChip émet déjà le
-      // sien en premier, et un attribut dupliqué est ignoré silencieusement.
-      suffix: p.eliminated ? '☠' : '',
-    })).join('');
-
-    return `
-    <div class="option-card" data-key="${o.key}">
-      <div class="option-card__row">
-        <span class="option-card__key">${o.key}</span>
-        <span class="option-card__text">${escapeHtml(o.text)}</span>
-        <kbd class="option-card__hint">${i + 1}</kbd>
-      </div>
-      <div class="option-card__players">${playerBtns}</div>
-    </div>
-  `}).join('');
 
   return `
     <article id="question-card" class="question-card" data-bonus="${bonus ? 'true' : 'false'}" aria-live="polite">
@@ -147,7 +151,7 @@ function questionHtml(s) {
         ${s.settings.timerEnabled ? '<span id="question-timer" class="timer" role="timer" aria-live="off"></span>' : ''}
       </div>
       <h2 id="question-heading">${escapeHtml(q.question)}</h2>
-      <div id="options-grid" class="options-grid">${optionsHtml}</div>
+      <div id="answer-board" class="answer-board">${boardHtml(s)}</div>
       <button id="btn-reveal" class="button button--primary button--large" disabled>Révéler la réponse</button>
     </article>
   `;
@@ -321,6 +325,103 @@ function updateRevealButton() {
   btn.disabled = !answered && !timeUp;
 }
 
+/**
+ * Ouvre un menu radial de joueurs autour du point cliqué (x, y), pour
+ * attribuer la réponse `key`. Un clic sur un avatar bascule l'affectation ;
+ * on peut en sélectionner plusieurs pour la même réponse.
+ */
+function openPlayerPicker(key, x, y) {
+  closePlayerPicker();
+  const s = getState();
+  const players = s.players;
+  const n = players.length;
+  const radius = Math.max(88, Math.min(132, n * 26));
+  const plate = radius + 36;
+
+  // On rabat le centre dans la fenêtre pour que le cercle reste visible.
+  const pad = plate + 8;
+  const cx = Math.min(Math.max(x, pad), window.innerWidth - pad);
+  const cy = Math.min(Math.max(y, pad), window.innerHeight - pad);
+
+  const menu = document.createElement('div');
+  menu.className = 'player-picker';
+  menu.style.left = `${cx}px`;
+  menu.style.top = `${cy}px`;
+  menu.innerHTML = `
+    <span class="player-picker__plate" style="width:${plate * 2}px; height:${plate * 2}px; left:${-plate}px; top:${-plate}px" aria-hidden="true"></span>
+    <span class="player-picker__answer" aria-hidden="true">${key}</span>
+    ${players.map((p, i) => {
+      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const px = Math.cos(angle) * radius;
+      const py = Math.sin(angle) * radius;
+      const active = s.roundAnswers[p.id] === key;
+      const name = (p.name || '').trim() || 'Joueur';
+      return `
+        <button type="button" class="player-picker__item${active ? ' is-active' : ''}${p.eliminated ? ' is-out' : ''}"
+          data-player="${p.id}" style="left:${(px - 24).toFixed(1)}px; top:${(py - 24).toFixed(1)}px; --pc:${p.color || 'var(--color-accent-primary)'}; animation-delay:${30 + i * 24}ms"
+          ${p.eliminated ? 'disabled' : ''} aria-pressed="${active}" aria-label="${escapeHtml(name)} : réponse ${key}">
+          <span aria-hidden="true">${p.emoji}</span>
+        </button>
+      `;
+    }).join('')}
+  `;
+
+  document.body.appendChild(menu);
+
+  // Ferme sur clic extérieur, sans voile plein écran.
+  const outside = (e) => {
+    if (e.target.closest('.player-picker')) return;
+    closePlayerPicker();
+  };
+  document.addEventListener('click', outside, true);
+  picker = { menu, key, outside };
+
+  menu.addEventListener('focusin', (e) => {
+    const item = e.target.closest('.player-picker__item');
+    if (item) activePlayerId = item.dataset.player;
+  });
+
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.player-picker__item');
+    if (!item) return;
+    selectAnswer(item.dataset.player, key);
+    const now = getState().roundAnswers[item.dataset.player] === key;
+    item.classList.toggle('is-active', now);
+    item.setAttribute('aria-pressed', String(now));
+  });
+}
+
+function closePlayerPicker() {
+  if (!picker) return;
+  if (picker.outside) document.removeEventListener('click', picker.outside, true);
+  picker.menu?.remove();
+  picker = null;
+}
+
+/**
+ * Met à jour, sans re-rendre la question ni le chrono : les avatars posés dans
+ * chaque carte de réponse.
+ */
+function syncBoard() {
+  const s = getState();
+  const board = root.querySelector('#answer-board');
+  if (!board) return;
+
+  const q = s.questions[s.currentIndex];
+  q.options.forEach((o) => {
+    const teamEl = board.querySelector(`.option-card[data-key="${o.key}"] .option-card__team`);
+    if (!teamEl) return;
+    const pickers = s.players.filter(p => s.roundAnswers[p.id] === o.key);
+    teamEl.innerHTML = pickers.map(p => `
+      <span class="team-avatar" style="--pc:${p.color || 'var(--color-accent-primary)'}" title="${escapeHtml((p.name || '').trim() || 'Joueur')}">
+        <span aria-hidden="true">${p.emoji}</span>
+      </span>
+    `).join('') || '<span class="option-card__team-empty">Aucun joueur</span>';
+  });
+
+  updateRevealButton();
+}
+
 function selectAnswer(playerId, key) {
   if (timeUp) return;
   const s = getState();
@@ -328,16 +429,9 @@ function selectAnswer(playerId, key) {
   // contournent un attribut posé au rendu.
   if (s.players.find(x => x.id === playerId)?.eliminated) return;
   const current = s.roundAnswers[playerId];
-  if (current === key) {
-    dispatch({ type: 'CLEAR_PLAYER_ANSWER', playerId });
-    root.querySelectorAll(`.option-card__player-btn[data-player="${playerId}"]`).forEach(b => b.classList.remove('is-active'));
-  } else {
-    dispatch({ type: 'PLAYER_ANSWER', playerId, optionKey: key });
-    root.querySelectorAll(`.option-card__player-btn[data-player="${playerId}"]`).forEach(b => {
-      b.classList.toggle('is-active', b.dataset.key === key);
-    });
-  }
-  updateRevealButton();
+  if (current === key) dispatch({ type: 'CLEAR_PLAYER_ANSWER', playerId });
+  else dispatch({ type: 'PLAYER_ANSWER', playerId, optionKey: key });
+  syncBoard();
 }
 
 function confirmQuit() {
@@ -348,6 +442,7 @@ function confirmQuit() {
 
 function onKeydown(e) {
   if (e.key === 'Escape') {
+    if (picker) { closePlayerPicker(); return; }
     confirmQuit();
     return;
   }
@@ -380,18 +475,14 @@ function handleError(s) {
 }
 
 function wireQuestionBody(body) {
-  const optionsGrid = body.querySelector('#options-grid');
+  const board = body.querySelector('#answer-board');
   const revealBtn = body.querySelector('#btn-reveal');
 
-  optionsGrid.addEventListener('focusin', (e) => {
-    const btn = e.target.closest('.option-card__player-btn');
-    if (btn) activePlayerId = btn.dataset.player;
-  }, { signal });
-
-  optionsGrid.addEventListener('click', (e) => {
-    const playerBtn = e.target.closest('.option-card__player-btn');
-    if (!playerBtn) return;
-    selectAnswer(playerBtn.dataset.player, playerBtn.dataset.key);
+  board.addEventListener('click', (e) => {
+    const card = e.target.closest('.option-card');
+    if (!card || timeUp) return;
+    // Ouvre le menu radial des joueurs autour du point cliqué.
+    openPlayerPicker(card.dataset.key, e.clientX, e.clientY);
   }, { signal });
 
   revealBtn.addEventListener('click', () => {
@@ -428,18 +519,12 @@ function renderBody() {
   const s = getState();
   const body = root.querySelector('#game-body');
   stopTimer();
+  closePlayerPicker();
   if (s.phase === 'LOADING') {
     body.innerHTML = loadingHtml();
   } else if (s.phase === 'QUESTION') {
     body.innerHTML = questionHtml(s);
     wireQuestionBody(body);
-    for (const p of s.players) {
-      const key = s.roundAnswers[p.id];
-      if (key) {
-        const playerBtn = body.querySelector(`.option-card__player-btn[data-player="${p.id}"][data-key="${key}"]`);
-        if (playerBtn) playerBtn.classList.add('is-active');
-      }
-    }
     startTimer();
     updateRevealButton();
   } else if (s.phase === 'REVEAL') {
@@ -502,6 +587,7 @@ export function renderGame(rootEl) {
 
   teardown = () => {
     stopTimer();
+    closePlayerPicker();
     unsub();
     cleanup.abort();
     signal = null;

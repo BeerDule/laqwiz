@@ -98,10 +98,24 @@ textarea:focus-visible {
 .panel legend {
   padding: 0 var(--space-2);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-muted);
   text-transform: uppercase;
-  letter-spacing: .1em;
+  letter-spacing: .08em;
+}
+
+/* Score cible : la valeur en badge, plus lisible qu'un chiffre brut */
+#target-score-output {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2ch;
+  padding: 1px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-primary);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===== Formulaires ===== */
@@ -312,10 +326,16 @@ input[type='range']::-moz-range-thumb {
   gap: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--color-border);
+  border-left: 4px solid var(--pc, var(--color-accent-primary));
   border-radius: var(--radius-md);
   background: var(--bg-surface);
   background-image: var(--gradient-surface);
   box-shadow: var(--shadow-card), var(--shadow-1);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.player-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card), var(--shadow-2);
 }
 .player-card__number {
   display: inline-flex;
@@ -377,7 +397,9 @@ input[type='range']::-moz-range-thumb {
   width: 100%;
   margin-top: var(--space-3);
   border-style: dashed;
+  border-color: var(--color-accent-primary);
   background: transparent;
+  color: var(--color-accent-primary);
   box-shadow: none;
 }
 .add-player-btn:hover:not(:disabled) { background: var(--bg-surface-soft); }
@@ -546,40 +568,142 @@ input[type='range']::-moz-range-thumb {
   font-weight: 600;
   font-family: var(--font-mono);
 }
-.option-card__players {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+/* ===== Roster de joueurs + avatars posés dans les cartes ===== */
+.answer-board {
+  display: grid;
+  gap: var(--space-4);
 }
-.option-card__player-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
+/* Menu radial des joueurs (ouvert au clic sur une carte de réponse) */
+.player-picker {
+  position: fixed;
+  z-index: 90;
+  width: 0;
+  height: 0;
+}
+.player-picker__plate {
+  position: absolute;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg-surface-raised) 92%, transparent);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--bg-void);
-  color: var(--color-text);
-  font-size: 13px;
-  font-weight: 600;
+  box-shadow: var(--shadow-2);
+  animation: plate-reveal 240ms var(--ease-spring) backwards;
+}
+.player-picker__answer {
+  position: absolute;
+  left: -26px;
+  top: -26px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  color: var(--accent-contrast);
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 700;
+  font-size: 24px;
+  box-shadow: var(--shadow-pop), var(--shadow-3);
+  z-index: 2;
+  animation: picker-answer-in 200ms var(--ease-spring) backwards;
+}
+.player-picker__item {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid var(--pc, var(--color-accent-primary));
+  background: var(--bg-surface-raised);
+  font-size: 22px;
   cursor: pointer;
+  box-shadow: var(--shadow-2);
+  animation: picker-item-in 240ms var(--ease-spring) backwards;
   transition:
     transform var(--dur-fast) var(--ease-spring),
     background-color var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out);
 }
-.option-card__player-btn:hover:not(:disabled) {
+.player-picker__item:hover:not(:disabled) {
+  transform: scale(1.18);
   border-color: var(--color-accent-primary);
-  background: var(--bg-surface-soft);
-  transform: scale(1.05);
 }
-.option-card__player-btn.is-active {
+.player-picker__item.is-active {
   background: var(--color-accent-primary);
   border-color: var(--color-accent-primary);
-  color: var(--accent-contrast);
-  box-shadow: var(--shadow-pop), var(--glow-accent);
+  box-shadow: var(--shadow-pop), var(--shadow-2);
 }
-.option-card__player-btn--out { opacity: 0.35; cursor: not-allowed; }
+.player-picker__item.is-out,
+.player-picker__item:disabled { opacity: 0.35; cursor: not-allowed; }
+
+@keyframes plate-reveal {
+  from { transform: scale(.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes picker-answer-in {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes picker-item-in {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Zone d'avatars, en bas de chaque carte de réponse */
+.option-card__team {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 42px;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border);
+}
+.option-card__team-empty {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.team-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  font-size: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--pc, var(--color-accent-primary));
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-1);
+  animation: pop-in var(--dur-base) var(--ease-spring) backwards;
+}
+
+/* Les cartes sont cliquables : un clic ouvre le menu radial des joueurs */
+.answer-board .option-card { cursor: pointer; }
+.answer-board .option-card:hover {
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-card), 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) 30%, transparent);
+}
+
+/* Cartes de réponse « cool » : grande lettre en relief, carte plus généreuse */
+.answer-board .option-card {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+.answer-board .option-card__key {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  border: none;
+  background: var(--color-accent-primary);
+  color: var(--accent-contrast);
+  box-shadow: var(--shadow-1);
+}
+.answer-board .option-card__text {
+  font-size: 16px;
+  font-weight: 600;
+}
 
 /* États de révélation */
 .option-card--correct {
@@ -667,8 +791,18 @@ input[type='range']::-moz-range-thumb {
 
 /* ===== Réponses des joueurs (révélation) ===== */
 .answer-entry {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
+  min-height: 0;
+}
+.answer-entry > h3,
+.answer-entry > .gap-msg,
+.answer-entry > .button { flex-shrink: 0; }
+.answer-entry > .player-answer-grid {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
 }
 .answer-card {
   padding: var(--space-3) var(--space-4);
@@ -979,7 +1113,7 @@ input[type='range']::-moz-range-thumb {
   border-color: var(--color-accent-primary);
   box-shadow: var(--shadow-pop), 0 0 0 2px var(--color-accent-primary) inset;
 }
-.mode-card__emoji { font-size: 1.5rem; line-height: 1.2; }
+.mode-card__emoji { font-size: 1.9rem; line-height: 1.2; }
 .mode-card__name { font-size: 0.82rem; text-align: center; font-weight: 600; }
 .mode-card--new { border-style: dashed; opacity: 0.75; }
 .mode-status { font-size: 13px; color: var(--color-muted); }
@@ -1142,10 +1276,60 @@ input[type='range']::-moz-range-thumb {
   .option-card { padding: var(--space-4); }
   .option-card__key { width: 40px; height: 40px; font-size: 17px; }
   .option-card__text { font-size: 16px; }
-  .option-card__player-btn { padding: 8px 14px; font-size: 14px; }
   .question-card { padding: var(--space-4); }
   .answer-result { padding: 4px 12px; font-size: 13px; }
   .podium__row { padding: 12px 14px; }
+}
+
+/* ===== Micro-interactions & climax (baguette magique) ===== */
+@keyframes pop-in {
+  0% { transform: scale(.6); opacity: 0; }
+  70% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-1.2deg); }
+  75% { transform: rotate(1.2deg); }
+}
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+@keyframes bar-shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+/* Victoire : le titre surgit */
+.winner-title {
+  animation: pop-in var(--dur-slow) var(--ease-spring) backwards;
+}
+
+/* Révélation : la lettre de la bonne réponse jaillit */
+.option-card--correct .option-card__key {
+  animation: pop-in var(--dur-base) var(--ease-spring) backwards;
+}
+/* L'option drôle frétille pour se faire remarquer */
+.option-card--funny {
+  animation: wiggle 500ms ease-in-out 2;
+}
+/* Les deltas de points apparaissent en douceur */
+.answer-result--correct,
+.answer-result--wrong {
+  animation: pop-in var(--dur-base) var(--ease-spring) backwards;
+}
+
+/* Badge bonus : il pulse pour attirer l'œil */
+.badge--bonus {
+  animation: badge-pulse 1.6s ease-in-out infinite;
+}
+
+/* Barre de progression : reflet qui coule */
+.progress-bar span {
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent);
+  background-size: 200% 100%;
+  animation: bar-shimmer 2.4s linear infinite;
 }
 
 
