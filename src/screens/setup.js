@@ -318,8 +318,8 @@ function renderSettings() {
   const { settings: s, session } = getState();
   const banner = root.querySelector('#session-banner');
   if (banner) {
-    // Vide quand il n'y a pas de session : la plaque se masque via :empty.
-    banner.textContent = session ? `Session : ${session.name}` : '';
+    banner.hidden = !session;
+    if (session) root.querySelector('#session-name').value = session.name;
   }
   root.querySelector('#target-score').value = s.targetScore;
   root.querySelector('#target-score-output').textContent = s.targetScore;
@@ -454,6 +454,18 @@ function wireEvents(signal) {
 
   wireWikiSearch(signal);
 
+  // `change` et non `input` : chaque renommage écrit la session dans IndexedDB.
+  // Un dispatch par frappe ferait une transaction par caractère.
+  const sessionName = root.querySelector('#session-name');
+  sessionName.addEventListener('change', () => {
+    const s = getState();
+    if (!s.session) return;
+    const name = sessionName.value.trim().slice(0, 60);
+    if (!name) { sessionName.value = s.session.name; return; } // pas de nom vide
+    if (name === s.session.name) return;
+    dispatch({ type: 'RENAME_SESSION', id: s.session.id, name });
+  }, { signal });
+
   const timerToggle = root.querySelector('#timer-enabled');
   timerToggle.addEventListener('change', () => {
     root.querySelector('#timer-duration-group').hidden = !timerToggle.checked;
@@ -529,7 +541,15 @@ export function renderSetup(rootEl) {
         <button id="btn-sessions" class="arcade-btn arcade-btn--small" type="button">Sessions</button>
         ${renderThemeSelect()}
       </header>
-      <p id="session-banner" class="arcade-plaque arcade-plaque--slim"></p>
+      <!-- Hors du form : Entrée dans ce champ ne doit pas lancer la partie.
+           L'attribut autocomplete est posé ici, celui du formulaire ne couvrant
+           que ses propres descendants. (Pas de backtick dans ce commentaire : il
+           vit dans un template literal.) -->
+      <div id="session-banner" class="arcade-plaque arcade-plaque--slim session-banner" hidden>
+        <label class="field-label" for="session-name">Nom de la session</label>
+        <input id="session-name" type="text" maxlength="60" autocomplete="off"
+          spellcheck="false" placeholder="Session sans nom" />
+      </div>
       <!-- autocomplete="off" sur le formulaire, pas seulement sur les champs :
            Firefox restaure l'état des cases, radios et curseurs au rechargement,
            et la soumission LIT le DOM. Sans ça, une partie peut démarrer avec des

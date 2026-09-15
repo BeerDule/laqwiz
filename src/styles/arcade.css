@@ -272,7 +272,6 @@
   text-align: left;
   font-weight: 700;
 }
-.arcade-plaque--slim:empty { display: none; }
 
 .arcade--setup .panel { padding: var(--space-8) var(--space-6); }
 .arcade--setup .panel legend,
