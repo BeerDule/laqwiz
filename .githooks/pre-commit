@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .githooks/pre-commit — incrémente la version patch sur `dev`.
+# .githooks/pre-commit — avance la version sur `dev`.
 #
 # Actif seulement via `git config core.hooksPath .githooks` (voir AGENTS.md) :
 # .git/hooks n'est pas versionné, ce répertoire-ci l'est.
@@ -31,5 +31,5 @@ if git diff --cached --unified=0 -- package.json | grep -qE '^\+[[:space:]]*"ver
   exit 0
 fi
 
-node "$(git rev-parse --show-toplevel)/.githooks/bump-patch.mjs"
+node "$(git rev-parse --show-toplevel)/.githooks/bump-version.mjs"
 git add "$(git rev-parse --show-toplevel)/package.json"

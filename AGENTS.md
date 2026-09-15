@@ -260,11 +260,28 @@ pour passer en `0.2.0-beta` ou `1.0.0`. Le SHA est résolu au build par
 **Figée à la compilation** (`define`), comme `LLM_CONFIG_REQUIRED` : la version
 affichée est celle du commit qui a produit le bundle, pas celle du dépôt courant.
 
-### Incrément automatique du patch (hook `pre-commit`)
+### Incrément automatique (hook `pre-commit`)
 
-`.githooks/pre-commit` incrémente le patch de `package.json` à chaque commit **sur `dev`**
-et l'ajoute au commit. `master` est la branche de déploiement : sa version arrive par
-report depuis `dev`, elle ne doit pas dériver toute seule.
+`.githooks/pre-commit` avance la version de `package.json` à chaque commit **sur `dev`** et
+l'ajoute au commit. `master` est la branche de déploiement : sa version arrive par report
+depuis `dev`, elle ne doit pas dériver toute seule.
+
+**Ce qui avance dépend de la version en place** — c'est le point à ne pas rater :
+
+| Version | Devient | Pourquoi |
+|---|---|---|
+| `0.2.0-rc.1` | `0.2.0-rc.2` | pré-version **numérotée** : le compteur avance |
+| `0.1.3-beta` | `0.1.4-beta` | pas de compteur : le patch avance, identifiant conservé |
+| `1.0.0` | `1.0.1` | version stable : le patch avance |
+
+Sur une ligne de release candidate, le patch désigne la version qu'on **prépare** (`0.2.0`).
+Le faire dériver à chaque commit figerait `rc.1` pour toujours et ferait mentir le numéro de
+destination. La règle : si le dernier segment de la pré-version est un entier, il
+s'incrémente ; sinon c'est le patch.
+
+Sortir d'une RC, repasser en bêta ou publier une stable se fait à la main dans
+`package.json` — le hook laisse justement passer un commit où `version` est déjà mise en
+scène.
 
 **Activation obligatoire après un clone** — `.git/hooks` n'est pas versionné :
 
@@ -274,9 +291,13 @@ git config core.hooksPath .githooks
 
 `npm version patch` n'est **pas** utilisé : sur une préversion comme `0.1.0-beta`, npm
 retire l'identifiant au lieu de l'incrémenter, ce qui publierait `0.1.0` — une version
-stable annoncée par accident. `.githooks/bump-patch.mjs` fait un remplacement ciblé par
+stable annoncée par accident. `.githooks/bump-version.mjs` fait un remplacement ciblé par
 expression régulière, sans aller-retour `JSON.parse`/`stringify` qui reformaterait le
 fichier entier et polluerait chaque commit d'un diff sans rapport.
+
+Les compteurs de pré-version se comparent **numériquement**, pas lexicalement : `rc.9`
+précède bien `rc.10`. Ne pas les remplacer par des chaînes rembourrées (`rc.09`), un
+identifiant numérique ne peut pas commencer par zéro.
 
 Le hook s'abstient dans cinq cas :
 

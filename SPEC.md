@@ -139,7 +139,7 @@ quizz-canape/
 ├── .env.example                  # Modèle versionné
 ├── .githooks/
 │   ├── pre-commit                # incrémente le patch sur `dev` (voir AGENTS.md)
-│   └── bump-patch.mjs
+│   └── bump-version.mjs
 ├── AGENTS.md                     # guide de travail — fait autorité sur ce fichier
 ├── SPEC.md                       # Ce document
 ├── package.json
@@ -2207,8 +2207,9 @@ export function clearAll() { ['quizz-canape:players', 'quizz-canape:settings', '
 fonction `/api` n'accepte pas de numéro de runtime (`edge` | `experimental-edge` | `nodejs`
 uniquement).
 
-Le champ `version` est **incrémenté automatiquement** à chaque commit sur `dev` par
-`.githooks/pre-commit`. Activation après clone : `git config core.hooksPath .githooks`.
+Le champ `version` est **avancé automatiquement** à chaque commit sur `dev` par
+`.githooks/pre-commit` : compteur de pré-version sur une ligne numérotée (`rc.1` → `rc.2`),
+patch sinon. Activation après clone : `git config core.hooksPath .githooks`.
 Détail des garde-fous dans `AGENTS.md`.
 
 La version affichée dans l'application vaut `<version>+<sha court>`, résolue au build par
