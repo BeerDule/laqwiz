@@ -22,6 +22,39 @@ initColorTheme();
 
 const app = document.getElementById('app');
 
+// --- Navigation persistante (coquille d'app) ---
+// Visible uniquement sur les écrans « app » (Accueil / Sessions / Réglages).
+// Pendant le réglage, le jeu et la victoire, l'écran est pleine page : la barre
+// se retire pour laisser place à l'immersion.
+const appNav = document.getElementById('app-nav');
+const NAV_PHASES = new Set(['HOME', 'SESSIONS', 'SETTINGS']);
+function syncAppNav(phase) {
+  if (!appNav) return;
+  const visible = NAV_PHASES.has(phase);
+  appNav.hidden = !visible;
+  document.body.classList.toggle('with-app-nav', visible);
+  appNav.querySelectorAll('[data-nav]').forEach((btn) => {
+    const active = (btn.dataset.nav === 'home' && phase === 'HOME')
+      || (btn.dataset.nav === 'sessions' && phase === 'SESSIONS')
+      || (btn.dataset.nav === 'settings' && phase === 'SETTINGS');
+    btn.classList.toggle('is-active', active);
+    if (active) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
+}
+appNav?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-nav]');
+  if (!btn) return;
+  const action = {
+    home: 'GOTO_HOME',
+    sessions: 'GOTO_SESSIONS',
+    settings: 'GOTO_SETTINGS',
+    play: 'NEW_GAME',
+  }[btn.dataset.nav];
+  if (action) dispatch({ type: action });
+});
+syncAppNav(getState().phase);
+
 // --- Toast (non bloquant, dans #toast-region) ---
 function showToast(message, kind = 'info') {
   const region = document.getElementById('toast-region');
@@ -158,6 +191,7 @@ subscribe((state) => {
   if (state.phase !== currentPhase) {
     mountScreen(state.phase);
   }
+  syncAppNav(state.phase);
 });
 
 // --- Écouteurs globaux ---

@@ -10,6 +10,25 @@
   </head>
   <body>
     <main id="app" aria-live="polite"></main>
+    <nav id="app-nav" class="app-nav" hidden aria-label="Navigation principale">
+      <span class="app-nav__brand" aria-hidden="true">Canap' QuiZZ</span>
+      <button type="button" class="app-nav__item" data-nav="home">
+        <span class="app-nav__icon" aria-hidden="true">🏠</span>
+        <span class="app-nav__label">Accueil</span>
+      </button>
+      <button type="button" class="app-nav__item" data-nav="sessions">
+        <span class="app-nav__icon" aria-hidden="true">📂</span>
+        <span class="app-nav__label">Sessions</span>
+      </button>
+      <button type="button" class="app-nav__item app-nav__item--play" data-nav="play">
+        <span class="app-nav__icon" aria-hidden="true">▶</span>
+        <span class="app-nav__label">Jouer</span>
+      </button>
+      <button type="button" class="app-nav__item" data-nav="settings">
+        <span class="app-nav__icon" aria-hidden="true">⚙️</span>
+        <span class="app-nav__label">Réglages</span>
+      </button>
+    </nav>
     <div id="toast-region" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

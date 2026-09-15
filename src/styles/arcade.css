@@ -1,19 +1,14 @@
-/* src/styles/arcade.css — structure des écrans de menu (accueil, sessions, réglages).
+/* src/styles/arcade.css — coquille « app » des écrans de menu (accueil, sessions, réglages).
  *
- * Ce fichier ne porte QUE de la mise en page et des jetons du design system :
+ * Ce fichier ne porte QUE de la structure et des jetons du design system :
  * aucune couleur en dur, aucun sprite. Les menus suivent donc intégralement le
- * thème sélectionné, comme le reste de l'application.
- *
- * Un thème qui veut habiller ses menus le fait dans son propre bloc de theme.css
- * — voir Paper Quest et Bubble Island, qui y posent leurs cadres 9-slice sur
- * `.arcade-btn`, `.arcade-card` et `.arcade-plaque`.
+ * thème sélectionné, comme le reste de l'application. Un thème qui veut habiller
+ * ses menus le fait dans son propre bloc de theme.css (Paper Quest, Bubble Island).
  */
 
-/* Irish Grover (Google Fonts, licence OFL) — hébergée localement plutôt que
- * servie depuis le CDN Google : le jeu se joue en famille, parfois hors ligne,
- * et un titre qui retombe en Arial dès que la connexion saute serait visible.
- * Ça évite aussi d'exposer l'IP des joueurs à un tiers pour une police.
- * Sous-ensemble `latin` : couvre U+0000-00FF, donc le « é » de Canapé. */
+/* Irish Grover (Google Fonts, licence OFL) — hébergée localement : le jeu se joue
+ * en famille, parfois hors ligne, et ça évite d'exposer l'IP des joueurs à un
+ * tiers pour une police. Sous-ensemble `latin` : couvre U+0000-00FF, donc « é ». */
 @font-face {
   font-family: 'Irish Grover';
   font-style: normal;
@@ -25,11 +20,12 @@
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* ===== Cadre ===== */
 .arcade {
   position: relative;
   min-height: 100dvh;
   padding: var(--space-5);
-  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -40,134 +36,136 @@
   background-attachment: fixed;
 }
 
-/* ===== Titres ===== */
-.arcade__title { text-align: center; margin-block: var(--space-8) var(--space-4); }
-.arcade__title h1 {
-  /* Le titre suit la fonte d'affichage du thème. Paper Quest y remet Irish
-     Grover dans son propre bloc — la mettre ici la rendrait prioritaire partout
-     et annulerait les fontes des autres thèmes. */
-  font-family: var(--font-display, var(--font-sans));
-  font-weight: 400;
-  font-size: clamp(2.2rem, 8vw, 4rem);
-  letter-spacing: 0;
-  color: var(--color-text);
-  text-shadow: var(--text-glow);
-}
-.arcade__title p { color: var(--color-muted); font-weight: 600; }
-
-.arcade__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-.arcade__bar h1 {
-  font-size: clamp(1.3rem, 4vw, 2rem);
-  color: var(--color-text);
-  text-shadow: var(--text-glow);
-  margin-right: auto;
-}
+/* ===== Titre (écran-titre) ===== */
 .arcade__topbar { display: flex; justify-content: flex-end; }
 
-/* ===== Boutons de menu =====
- * Même grammaire que `.button` de components.css, en plus grand : un thème qui
- * stylise l'un stylise l'autre de la même façon. */
-.arcade-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  padding: 6px 24px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--bg-surface-raised);
-  background-image: var(--gradient-surface);
-  box-shadow: var(--shadow-card);
-  color: var(--color-text);
-  font-family: var(--font-button);
-  /* 19px gras : au-dessus du seuil « grand texte » WCAG (18,66px gras), où le
-     critère de contraste applicable tombe à 3:1. Plusieurs thèmes posent des
-     surfaces de luminance moyenne sur lesquelles aucune encre n'atteint 4,5:1. */
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: .01em;
-  cursor: pointer;
-  transition: transform var(--transition-fast), filter var(--transition-fast),
-    background-color var(--transition-fast);
+.arcade__title {
+  text-align: center;
+  margin-block: var(--space-6) var(--space-3);
 }
-.arcade-btn:hover:not(:disabled) { background-color: var(--bg-surface-soft); }
-.arcade-btn:active:not(:disabled) { transform: translateY(1px); }
-.arcade-btn:disabled { opacity: .45; cursor: default; }
-
-.arcade-btn--primary {
-  background-color: var(--color-accent-primary);
-  background-image: var(--gradient-accent);
-  border-color: var(--color-accent-primary);
-  box-shadow: var(--shadow-pop);
-  color: var(--accent-contrast);
-  font-size: 21px;
-  min-height: 58px;
-  padding-inline: 34px;
-}
-.arcade-btn--primary:hover:not(:disabled) {
-  background-color: var(--color-accent-primary);
-  filter: brightness(1.08);
-}
-.arcade-btn--small { min-height: 40px; font-size: 19px; padding-inline: 18px; }
-.arcade-btn--danger { color: var(--color-error); }
-
-.arcade-btn--icon {
-  min-height: 48px;
-  width: 48px;
-  padding: 0;
-  font-size: 24px;
+.arcade__title h1 {
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 400;
+  font-size: clamp(2.4rem, 8vw, 4.2rem);
+  letter-spacing: 0;
   line-height: 1;
+  color: var(--color-text);
+  text-shadow: var(--text-glow);
+}
+.arcade__title p {
+  margin-top: var(--space-2);
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
 }
 
 /* ===== Menu principal ===== */
 .arcade__menu {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   justify-content: center;
   align-content: start;
-  width: min(340px, 100%);
+  width: min(360px, 100%);
   margin-inline: auto;
 }
 .arcade__menu .arcade-btn { width: 100%; }
+.arcade-resume-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
 
-/* ===== Surfaces ===== */
-.arcade-plaque,
-.arcade-card {
+/* ===== Boutons de menu ===== */
+.arcade-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 22px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-card), var(--shadow-1);
+  color: var(--color-text);
+  font-family: var(--font-button);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    filter var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.arcade-btn:hover:not(:disabled) {
+  background-color: var(--bg-surface-soft);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card), var(--shadow-2);
+}
+.arcade-btn:active:not(:disabled) { transform: translateY(1px); }
+.arcade-btn:disabled { opacity: .45; cursor: default; }
+
+.arcade-btn--primary {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-accent-primary);
+  background-image: var(--gradient-accent);
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-pop), var(--shadow-2);
+  color: var(--accent-contrast);
+  font-size: 19px;
+  min-height: 56px;
+  padding-inline: 30px;
+}
+.arcade-btn--primary:hover:not(:disabled) { filter: brightness(1.08); }
+.arcade-btn--primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform var(--dur-slow) var(--ease-out);
+  pointer-events: none;
+}
+.arcade-btn--primary:hover::after { transform: translateX(120%); }
+
+.arcade-btn--small { min-height: 40px; font-size: 15px; padding-inline: 16px; }
+.arcade-btn--danger { color: var(--color-error); }
+.arcade-btn--icon { min-height: 44px; width: 44px; padding: 0; font-size: 24px; line-height: 1; }
+
+/* ===== Plaque de session ===== */
+.arcade-plaque {
+  width: min(420px, 100%);
+  margin-inline: auto;
+  padding: var(--space-5) var(--space-6);
+  text-align: center;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background-color: var(--bg-surface);
   background-image: var(--gradient-surface);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-card), var(--shadow-1);
   color: var(--color-text);
-}
-
-.arcade-plaque {
-  width: min(420px, 100%);
-  margin-inline: auto;
-  padding: var(--space-6) var(--space-8);
-  text-align: center;
 }
 .arcade-plaque__label {
   display: block;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: .1em;
   color: var(--color-muted);
 }
-.arcade-plaque__name { display: block; font-size: 18px; margin-top: 2px; }
-.arcade-plaque__roster { display: flex; gap: 4px; justify-content: center; margin-top: var(--space-3); }
+.arcade-plaque__name { display: block; font-size: 19px; margin-top: 2px; font-weight: 700; }
+.arcade-plaque__roster { display: flex; gap: 6px; justify-content: center; margin-top: var(--space-3); }
 
-/* ===== Grille de sessions ===== */
+/* ===== Grille de sessions (level select) ===== */
 .arcade-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
   align-content: start;
   overflow-y: auto;
   padding-bottom: var(--space-5);
@@ -184,21 +182,39 @@
   display: grid;
   gap: var(--space-3);
   align-content: start;
-  padding: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-card), var(--shadow-1);
+  color: var(--color-text);
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
-.arcade-card--active { border-color: var(--color-accent-primary); box-shadow: var(--shadow-pop); }
+.arcade-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card), var(--shadow-2);
+}
+.arcade-card--active {
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-pop), var(--shadow-2);
+}
 .arcade-card__head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.arcade-card__name { font-size: 17px; line-height: 1.2; }
+.arcade-card__name { font-size: 18px; line-height: 1.2; margin: 0; }
 .arcade-card__date { font-size: 12px; color: var(--color-muted); }
 .arcade-card__muted { font-size: 12px; color: var(--color-muted); }
 .arcade-card__roster { display: flex; gap: 4px; flex-wrap: wrap; }
 .arcade-card__stat { font-size: 13px; font-weight: 600; }
 .arcade-card__trophies { display: flex; gap: var(--space-4); flex-wrap: wrap; min-height: 28px; }
 .arcade-card__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+.arcade-card__resume { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; flex-wrap: wrap; margin: 0; }
 
+/* ===== Badge & avatars ===== */
 .arcade-tag {
   padding: 2px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   background: var(--color-accent-primary);
   color: var(--accent-contrast);
   font-size: 11px;
@@ -206,39 +222,59 @@
   text-transform: uppercase;
   letter-spacing: .06em;
 }
+.arcade-tag--resume { background: var(--color-warning); color: var(--accent-contrast); }
 
 .arcade-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  font-size: 17px;
-  border-radius: var(--radius-sm);
+  width: 34px;
+  height: 34px;
+  font-size: 18px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
   background: var(--bg-surface-raised);
 }
 
 /* Décompte de parties gagnées. Le pictogramme est fourni par les thèmes qui en
-   ont un (voir Paper Quest / Bubble Island) ; sinon un emoji tient lieu. */
+   ont un (Paper Quest / Bubble Island) ; sinon un emoji tient lieu. */
 .arcade-trophy { display: inline-flex; align-items: center; gap: 4px; }
 .arcade-trophy::before { content: '🏆'; font-size: 16px; line-height: 1; }
 .arcade-trophy__count { font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* ===== Écran de réglages =====
- * On ne touche ni aux ids ni au câblage : seule la mise en page change, les
- * composants (.panel, .button, champs) restent ceux du thème actif. */
+/* ===== Réglages (arcade--setup) ===== */
 .arcade--setup { gap: var(--space-4); }
-.arcade--setup form { display: grid; gap: var(--space-6); align-content: start; }
-
+.arcade--setup form { display: grid; gap: var(--space-5); align-content: start; }
 .arcade-plaque--slim {
   width: 100%;
   margin: 0;
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-4) var(--space-5);
   text-align: left;
   font-weight: 700;
 }
 .arcade--setup #btn-start { min-height: 54px; font-size: 19px; }
+
+/* ===== Pied de menu ===== */
+.arcade__footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.arcade__credits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px var(--space-3);
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+.arcade__credit { display: inline-flex; align-items: center; gap: 4px; }
+.arcade__credit strong { color: var(--color-text); font-weight: 600; }
 
 /* Version de l'application, discrète en pied de menu */
 .arcade__version {
@@ -250,3 +286,4 @@
   color: var(--color-muted);
   opacity: .75;
 }
+

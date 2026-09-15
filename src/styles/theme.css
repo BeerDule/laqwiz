@@ -118,6 +118,21 @@
   /* Nerko One reste le défaut du jeton ci-dessus ; les thèmes qui suivent
      le redirigent vers leur propre fonte. Paper Quest ne le redéfinit pas et
      conserve donc Nerko One. */
+
+  /* Élévation, focus, motion, rayons — refonte « vraie app » (jetons ajoutés,
+     jamais redéfinis par les thèmes : aucun conflit de cascade). */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .10), 0 2px 8px rgba(0, 0, 0, .08);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, .14), 0 12px 32px rgba(0, 0, 0, .10);
+  --shadow-3: 0 18px 48px rgba(0, 0, 0, .20);
+  --focus-ring: 3px solid var(--color-accent-primary);
+  --focus-ring-offset: 2px;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: 130ms;
+  --dur-base: 220ms;
+  --dur-slow: 420ms;
+  --radius-pill: 999px;
+  --app-max: 1100px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }

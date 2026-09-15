@@ -6,8 +6,32 @@ let rafId = 0;
 let particles = [];
 let resizeHandler = null;
 
+/**
+ * Palette des confettis, alignée sur le thème de couleurs actif plutôt que
+ * figée sur la palette VS Code. Le thème est porté par `data-color-theme` sur
+ * `<html>` : on lit ses accents via les variables CSS, avec un repli par thème.
+ */
+function themePalette() {
+  const cs = getComputedStyle(document.documentElement);
+  const pick = (name, fallback) => {
+    const v = cs.getPropertyValue(name).trim();
+    return v || fallback;
+  };
+  // Or et blanc pour le scintillement, les accents du thème pour l'identité.
+  return [
+    pick('--color-accent-primary', '#007acc'),
+    pick('--color-accent-cyan', '#0098ff'),
+    pick('--color-accent-pink', '#c586c0'),
+    pick('--color-accent-lime', '#6a9955'),
+    pick('--color-warning', '#cca700'),
+    pick('--color-success', '#4ec9b0'),
+    '#ffd54a',
+    '#ffffff',
+  ];
+}
+
 function randomColor() {
-  const palette = ['#007acc', '#0098ff', '#c586c0', '#6a9955', '#cca700', '#4ec9b0'];
+  const palette = themePalette();
   return palette[Math.floor(Math.random() * palette.length)];
 }
 
@@ -42,11 +66,13 @@ export function launchConfetti({ durationMs = 2500, intensity = 120 } = {}) {
 
   particles = [];
   for (let i = 0; i < count; i++) {
+    const round = Math.random() < 0.35;
     particles.push({
       x: Math.random() * window.innerWidth,
       y: -20 - Math.random() * window.innerHeight * 0.3,
       w: 6 + Math.random() * 8,
-      h: 8 + Math.random() * 10,
+      h: round ? 0 : 8 + Math.random() * 10,
+      shape: round ? 'circle' : 'ribbon',
       color: randomColor(),
       vx: (Math.random() - 0.5) * 2.2,
       vy: 2 + Math.random() * 3.5,
@@ -75,7 +101,13 @@ export function launchConfetti({ durationMs = 2500, intensity = 120 } = {}) {
       ctx.rotate(p.rot);
       ctx.globalAlpha = p.opacity * alpha;
       ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      if (p.shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      }
       ctx.restore();
     }
 
