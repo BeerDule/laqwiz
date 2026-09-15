@@ -1271,3 +1271,7 @@ kbd.option-card__hint {
   font-family: var(--font-mono);
   font-size: 11px;
 }
+
+/* Zone dangereuse — actions irréversibles */
+.danger-zone { border-color: var(--color-error) !important; }
+.danger-zone legend { color: var(--color-error); }

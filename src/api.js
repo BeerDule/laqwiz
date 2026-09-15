@@ -104,6 +104,7 @@ const RATE_LIMIT_DELAYS = [2000, 4000, 8000];
  */
 export async function fetchQuestionBatch({ theme, batchSize, exclude = [], source = null }) {
   const settings = getState().settings;
+  const llm = getState().llm;
   const difficulty = settings.difficulty || 'balanced';
   const audience = settings.audience || 'general';
   const systemPrompt = buildSystemPrompt({
@@ -115,8 +116,8 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
   });
 
   const body = {
-    model: settings.model,
-    temperature: settings.temperature,
+    model: llm.model,
+    temperature: llm.temperature,
     response_format: { type: 'json_object' },
     max_tokens: 4096,
     messages: [
@@ -128,8 +129,8 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
   async function requestOnce() {
     try {
       const headers = { 'Content-Type': 'application/json' };
-      if (settings.baseUrl) headers['X-LLM-Base-URL'] = settings.baseUrl;
-      if (settings.apiKey) headers['X-LLM-Api-Key'] = settings.apiKey;
+      if (llm.baseUrl) headers['X-LLM-Base-URL'] = llm.baseUrl;
+      if (llm.apiKey) headers['X-LLM-Api-Key'] = llm.apiKey;
       return await fetchWithTimeout('/api/chat/completions', {
         method: 'POST',
         headers,

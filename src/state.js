@@ -36,6 +36,14 @@ const INITIAL_STATE = Object.freeze({
     sourceTitle: DEFAULTS.sourceTitle,
     sourceLang: DEFAULTS.sourceLang,
     sourceUrl: DEFAULTS.sourceUrl,
+  },
+
+  // === Configuration LLM ===
+  // Délibérément HORS de `settings` : celui-ci est recopié en entier dans chaque
+  // partie archivée et chaque instantané de reprise. La clé API s'y retrouvait
+  // dupliquée à chaque sauvegarde, dans des enregistrements conservés
+  // indéfiniment. Elle est aussi globale à l'appareil, pas propre à une partie.
+  llm: {
     model: DEFAULTS.model,
     baseUrl: DEFAULTS.baseUrl,
     apiKey: DEFAULTS.apiKey,
@@ -304,6 +312,10 @@ function reducer(s, action) {
       s.players = s.players.filter(p => p.id !== action.id);
       break;
 
+    case 'SET_LLM':
+      s.llm = { ...s.llm, ...action.patch };
+      break;
+
     case 'SET_SETTINGS':
       s.settings = { ...s.settings, ...action.patch };
       break;
@@ -523,6 +535,10 @@ function reducer(s, action) {
       s.phase = 'HOME';
       break;
 
+    case 'GOTO_SETTINGS':
+      s.phase = 'SETTINGS';
+      break;
+
     case 'GOTO_SESSIONS':
       s.phase = 'SESSIONS';
       break;
@@ -667,7 +683,7 @@ async function triggerInitialBatch() {
     const s = getState();
     const result = await fetchQuestionBatch({
       theme: s.settings.theme,
-      batchSize: s.settings.batchSize || BATCH_SIZE,
+      batchSize: s.llm.batchSize || BATCH_SIZE,
       exclude: [],
       source: takeSourceWindow(),
     });
@@ -693,7 +709,7 @@ function maybePrefetchNext() {
   const sourceWindow = takeSourceWindow();
   fetchQuestionBatch({
     theme: s.settings.theme,
-    batchSize: s.settings.batchSize || BATCH_SIZE,
+    batchSize: s.llm.batchSize || BATCH_SIZE,
     exclude: s.history,
     source: sourceWindow,
   }).then(({ questions }) => {
@@ -719,7 +735,7 @@ export async function retryGeneration() {
   try {
     const result = await fetchQuestionBatch({
       theme: s.settings.theme,
-      batchSize: s.settings.batchSize || BATCH_SIZE,
+      batchSize: s.llm.batchSize || BATCH_SIZE,
       exclude: s.history,
     });
     dispatch({ type: 'BATCH_RECEIVED', questions: result.questions });

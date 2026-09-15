@@ -67,16 +67,6 @@ export function loadSettings() {
   if (AUDIENCE_CHOICES.some(c => c.value === raw.audience)) {
     out.audience = raw.audience;
   }
-  // Config LLM personnelle (BYOK) : lue depuis localStorage.
-  if (typeof raw.model === 'string' && raw.model.trim()) {
-    out.model = raw.model.slice(0, 120);
-  }
-  if (typeof raw.baseUrl === 'string' && raw.baseUrl.trim()) {
-    out.baseUrl = raw.baseUrl.slice(0, 300);
-  }
-  if (typeof raw.apiKey === 'string' && raw.apiKey.trim()) {
-    out.apiKey = raw.apiKey.slice(0, 300);
-  }
 
   // Règles de partie. Chaque valeur est revalidée contre la liste de choix :
   // un localStorage bricolé à la main ne doit pas injecter n'importe quoi.
@@ -104,12 +94,6 @@ export function loadSettings() {
   }
   if (typeof raw.sourceUrl === 'string') out.sourceUrl = raw.sourceUrl.slice(0, 500);
 
-  if (Number.isFinite(raw.temperature)) {
-    out.temperature = Math.min(2, Math.max(0, raw.temperature));
-  }
-  if (Number.isFinite(raw.batchSize)) {
-    out.batchSize = Math.min(20, Math.max(1, Math.round(raw.batchSize)));
-  }
   return out;
 }
 
@@ -131,11 +115,29 @@ export function saveSettings(settings) {
     sourceTitle: settings.sourceTitle,
     sourceLang: settings.sourceLang,
     sourceUrl: settings.sourceUrl,
-    temperature: settings.temperature,
-    batchSize: settings.batchSize,
-    model: settings.model,
-    baseUrl: settings.baseUrl,
-    apiKey: settings.apiKey,
+  });
+}
+
+// --- Configuration LLM ---
+// Clé distincte de celle des réglages de jeu : elle est globale à l'appareil et
+// n'a rien à faire dans un instantané de partie.
+
+export function loadLlmConfig() {
+  const raw = readJson(STORAGE_KEYS.llm, null);
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  if (typeof raw.model === 'string' && raw.model.trim()) out.model = raw.model.slice(0, 120);
+  if (typeof raw.baseUrl === 'string' && raw.baseUrl.trim()) out.baseUrl = raw.baseUrl.slice(0, 300);
+  if (typeof raw.apiKey === 'string' && raw.apiKey.trim()) out.apiKey = raw.apiKey.slice(0, 300);
+  if (Number.isFinite(raw.temperature)) out.temperature = Math.min(2, Math.max(0, raw.temperature));
+  if (Number.isFinite(raw.batchSize)) out.batchSize = Math.min(20, Math.max(1, Math.round(raw.batchSize)));
+  return out;
+}
+
+export function saveLlmConfig(llm) {
+  writeJson(STORAGE_KEYS.llm, {
+    model: llm.model, baseUrl: llm.baseUrl, apiKey: llm.apiKey,
+    temperature: llm.temperature, batchSize: llm.batchSize,
   });
 }
 
@@ -181,4 +183,24 @@ export function clearAll() {
   Object.values(STORAGE_KEYS).forEach(k => {
     try { localStorage.removeItem(k); } catch { /* ignore */ }
   });
+}
+
+/**
+ * Efface TOUTES les clés de l'application dans localStorage.
+ *
+ * Balayage par préfixe et non liste figée : `clearAll()` s'appuie sur
+ * STORAGE_KEYS, qui ne contient pas la clé du thème — celle-ci vit dans
+ * themeSwitcher.js et survivait donc à une « remise à zéro ». Le préfixe évite
+ * aussi de toucher une éventuelle autre application servie sur la même origine,
+ * ce qu'un `localStorage.clear()` ferait.
+ *
+ * @returns {number} nombre de clés supprimées
+ */
+export function wipeLocalStorage() {
+  const PREFIX = 'quizz-canape:';
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(PREFIX));
+    for (const k of keys) localStorage.removeItem(k);
+    return keys.length;
+  } catch { return 0; }
 }

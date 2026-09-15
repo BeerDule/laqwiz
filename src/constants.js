@@ -43,6 +43,7 @@ export const STORAGE_KEYS = {
   settings: 'quizz-canape:settings',
   stats: 'quizz-canape:stats',
   activeSession: 'quizz-canape:active-session',
+  llm: 'quizz-canape:llm',
 };
 
 export const DEFAULTS = {

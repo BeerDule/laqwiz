@@ -5,13 +5,14 @@ import './styles/components.css';
 import './styles/arcade.css';
 
 import { getState, dispatch, subscribe } from './state.js';
-import { loadPlayers, loadSettings, loadStats, savePlayers, saveSettings, loadActiveSessionId } from './storage.js';
+import { loadPlayers, loadSettings, loadStats, savePlayers, saveSettings, loadActiveSessionId, loadLlmConfig, saveLlmConfig } from './storage.js';
 import { getSession, listResumes } from './db.js';
 import { renderSetup, unmountSetup } from './screens/setup.js';
 import { renderGame, unmountGame } from './screens/game.js';
 import { renderVictory, unmountVictory } from './screens/victory.js';
 import { renderSessions, unmountSessions } from './screens/sessions.js';
 import { renderHome, unmountHome } from './screens/home.js';
+import { renderSettings, unmountSettings } from './screens/settings.js';
 import { initColorTheme, setColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 
@@ -38,9 +39,11 @@ document.addEventListener('qc:toast', (e) => {
 const persistedPlayers = loadPlayers();
 const persistedSettings = loadSettings();
 const persistedStats = loadStats();
+const persistedLlm = loadLlmConfig();
 
 if (persistedPlayers) dispatch({ type: 'SET_PLAYERS', players: persistedPlayers });
 if (persistedSettings) dispatch({ type: 'SET_SETTINGS', patch: persistedSettings });
+if (persistedLlm) dispatch({ type: 'SET_LLM', patch: persistedLlm });
 if (persistedStats) getState().stats = persistedStats;
 
 // --- Import d'une configuration partagée (?config=…) ---
@@ -64,7 +67,7 @@ if (persistedStats) getState().stats = persistedStats;
     showToast('Lien de configuration illisible ou périmé.', 'error');
     return;
   }
-  if (Object.keys(shared.llm).length) dispatch({ type: 'SET_SETTINGS', patch: shared.llm });
+  if (Object.keys(shared.llm).length) dispatch({ type: 'SET_LLM', patch: shared.llm });
   if (shared.theme) setColorTheme(shared.theme);
   showToast('Configuration importée depuis le lien.', 'info');
 })();
@@ -99,10 +102,10 @@ async function applyHealthConfig() {
     if (!res.ok) return;
     const data = await res.json();
     const patch = {};
-    if (typeof data?.model === 'string' && data.model && !getState().settings.model) patch.model = data.model;
+    if (typeof data?.model === 'string' && data.model && !getState().llm.model) patch.model = data.model;
     if (typeof data?.temperature === 'number') patch.temperature = data.temperature;
     if (typeof data?.batchSize === 'number') patch.batchSize = data.batchSize;
-    if (Object.keys(patch).length) dispatch({ type: 'SET_SETTINGS', patch });
+    if (Object.keys(patch).length) dispatch({ type: 'SET_LLM', patch });
   } catch { /* configuration non critique */ }
 }
 applyHealthConfig();
@@ -117,6 +120,7 @@ const UNMOUNTERS = {
   MANCHE_END: unmountGame,
   VICTORY: unmountVictory,
   SESSIONS: unmountSessions,
+  SETTINGS: unmountSettings,
 };
 const MOUNTERS = {
   HOME: renderHome,
@@ -127,6 +131,7 @@ const MOUNTERS = {
   MANCHE_END: renderGame,
   VICTORY: renderVictory,
   SESSIONS: renderSessions,
+  SETTINGS: renderSettings,
 };
 let currentPhase = null;
 
@@ -141,6 +146,7 @@ function mountScreen(phase) {
 subscribe((state) => {
   savePlayers(state.players);
   saveSettings(state.settings);
+  saveLlmConfig(state.llm);
 
   if (state.phase !== currentPhase) {
     mountScreen(state.phase);

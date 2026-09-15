@@ -7,8 +7,7 @@ import {
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
   DIFFICULTY_CHOICES, AUDIENCE_CHOICES, TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
 } from '../constants.js';
-import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitcher.js';
-import { buildShareUrl } from '../shareConfig.js';
+import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
 import { listResumes } from '../db.js';
 
@@ -135,74 +134,15 @@ function validateForm() {
   if (!getState().ui.isOnline) {
     return { ok: false, msg: 'Connexion requise pour générer les questions.' };
   }
+  // La configuration LLM n'est plus saisie ici : elle est globale à l'appareil
+  // (menu principal > Paramètres). On vérifie seulement qu'elle existe.
   if (REQUIRE_LLM_CONFIG) {
-    const baseUrl = root.querySelector('#llm-base-url').value.trim();
-    const apiKey = root.querySelector('#llm-api-key').value.trim();
-    const model = root.querySelector('#llm-model').value.trim();
+    const { baseUrl, apiKey, model } = getState().llm;
     if (!baseUrl || !apiKey || !model) {
-      return {
-        ok: false,
-        msg: 'Renseignez votre configuration LLM (URL, clé API et modèle) pour lancer une partie.',
-      };
+      return { ok: false, msg: 'Configurez votre modèle LLM depuis Paramètres, au menu principal.' };
     }
   }
   return { ok: true };
-}
-
-async function testConnection(btn, resultEl) {
-  const baseUrl = root.querySelector('#llm-base-url').value.trim();
-  const apiKey = root.querySelector('#llm-api-key').value.trim();
-  const model = root.querySelector('#llm-model').value.trim();
-
-  if (!baseUrl || !apiKey) {
-    resultEl.textContent = 'Renseignez l\'URL et la clé API.';
-    resultEl.className = 'llm-test-result llm-test-result--error';
-    return;
-  }
-
-  btn.disabled = true;
-  resultEl.textContent = 'Test en cours…';
-  resultEl.className = 'llm-test-result';
-
-  const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), 10_000);
-
-  try {
-    const headers = {
-      'Content-Type': 'application/json',
-      'X-LLM-Base-URL': baseUrl,
-      'X-LLM-Api-Key': apiKey,
-    };
-    const resp = await fetch('/api/chat/completions', {
-      method: 'POST',
-      headers,
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: model || 'auto',
-        messages: [{ role: 'user', content: 'test' }],
-        max_tokens: 1,
-      }),
-    });
-    clearTimeout(tid);
-    if (!resp.ok) {
-      if (resp.status === 401 || resp.status === 403) {
-        throw new Error('Clé API invalide (401/403).');
-      }
-      throw new Error(`Erreur ${resp.status} du provider.`);
-    }
-    resultEl.textContent = 'Connecté ✓';
-    resultEl.className = 'llm-test-result llm-test-result--ok';
-  } catch (err) {
-    clearTimeout(tid);
-    if (err.name === 'AbortError') {
-      resultEl.textContent = 'Délai dépassé (10 s). Vérifiez l\'URL.';
-    } else {
-      resultEl.textContent = `Échec : ${err.message}`;
-    }
-    resultEl.className = 'llm-test-result llm-test-result--error';
-  } finally {
-    btn.disabled = false;
-  }
 }
 
 function renderPlayersList() {
@@ -427,11 +367,6 @@ function renderSettings() {
     `input[name="audience"][value="${s.audience || 'general'}"]`
   );
   if (audienceInput) audienceInput.checked = true;
-  root.querySelector('#llm-base-url').value = s.baseUrl || '';
-  root.querySelector('#llm-api-key').value = s.apiKey || '';
-  root.querySelector('#llm-model').value = s.model || '';
-  root.querySelector('#llm-temp').value = s.temperature ?? 0.9;
-  root.querySelector('#llm-temp-output').textContent = (s.temperature ?? 0.9).toFixed(1);
 }
 
 function removePlayer(id) {
@@ -538,34 +473,6 @@ function wireEvents(signal) {
     }
   }, { signal });
 
-  root.querySelector('#btn-share-config').addEventListener('click', async () => {
-    // On lit les CHAMPS, pas les réglages enregistrés : le MJ vient peut-être de
-    // saisir sa clé sans avoir encore lancé de partie.
-    const current = {
-      baseUrl: root.querySelector('#llm-base-url').value.trim(),
-      apiKey: root.querySelector('#llm-api-key').value.trim(),
-      model: root.querySelector('#llm-model').value.trim(),
-      temperature: parseFloat(root.querySelector('#llm-temp').value),
-    };
-    if (!current.apiKey && !current.baseUrl && !current.model) {
-      showError('Renseignez au moins un champ avant de générer un lien.');
-      return;
-    }
-    const url = buildShareUrl(current, getColorTheme(), window.location.href);
-    const field = root.querySelector('#share-url');
-    field.hidden = false;
-    field.value = url;
-    try {
-      await navigator.clipboard.writeText(url);
-      dispatchToast('Lien copié. Il contient votre clé API.', 'info');
-    } catch {
-      // Presse-papiers refusé (contexte non sécurisé, permission) : le champ
-      // reste affiché pour une copie manuelle.
-      field.select();
-      dispatchToast('Copie automatique refusée — sélectionnez le lien ci-dessous.', 'error');
-    }
-  }, { signal });
-
   wireWikiSearch(signal);
 
   // `change` et non `input` : chaque renommage écrit la session dans IndexedDB.
@@ -590,14 +497,6 @@ function wireEvents(signal) {
     root.querySelector('#punisher-severity-group').hidden = !punisherToggle.checked;
   }, { signal });
 
-  const tempSlider = root.querySelector('#llm-temp');
-  tempSlider.addEventListener('input', () => {
-    root.querySelector('#llm-temp-output').textContent = parseFloat(tempSlider.value).toFixed(1);
-  }, { signal });
-
-  const testBtn = root.querySelector('#btn-test-connection');
-  const testResult = root.querySelector('#test-result');
-  testBtn.addEventListener('click', () => testConnection(testBtn, testResult), { signal });
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -632,10 +531,8 @@ function wireEvents(signal) {
         sourceLang: activeWikiPick()?.lang || 'fr',
         sourceUrl: activeWikiPick()?.url || '',
         punisherSeverity: root.querySelector('input[name="punisherSeverity"]:checked')?.value || 'punitive',
-        baseUrl: root.querySelector('#llm-base-url').value.trim(),
-        apiKey: root.querySelector('#llm-api-key').value.trim(),
-        model: root.querySelector('#llm-model').value.trim(),
-        temperature: parseFloat(root.querySelector('#llm-temp').value),
+        // La configuration LLM ne transite plus par ce formulaire : elle est
+        // globale à l'appareil et vit dans sa propre tranche d'état.
       },
     });
     dispatch({ type: 'START_GAME', resetHistory: true });
@@ -767,29 +664,6 @@ export function renderSetup(rootEl) {
             </div>
           </div>
         </fieldset>
-        <details class="panel llm-panel" id="llm-config" ${REQUIRE_LLM_CONFIG ? 'open' : ''}>
-          <summary>Modèle LLM <span class="llm-hint">${REQUIRE_LLM_CONFIG ? '— obligatoire' : '— optionnel, utilisez vos propres identifiants'}</span></summary>
-          <p class="llm-note">${REQUIRE_LLM_CONFIG
-            ? 'En production, renseignez votre provider : URL, clé API et modèle sont requis. La clé API est stockée dans ce navigateur (localStorage).'
-            : 'Laissez vide pour utiliser la configuration du serveur. La clé API est stockée dans ce navigateur (localStorage).'}</p>
-          <label class="field-label" for="llm-base-url">URL du provider</label>
-          <input id="llm-base-url" type="text" autocomplete="off" spellcheck="false" placeholder="https://api.openai.com/v1" />
-          <label class="field-label" for="llm-api-key">Clé API</label>
-          <input id="llm-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" />
-          <label class="field-label" for="llm-model">Modèle</label>
-          <input id="llm-model" type="text" autocomplete="off" spellcheck="false" placeholder="gpt-4o-mini" />
-          <label class="field-label" for="llm-temp">Température : <output id="llm-temp-output">0.9</output></label>
-          <input id="llm-temp" type="range" min="0" max="2" step="0.1" value="0.9" />
-          <button id="btn-test-connection" type="button" class="button button--small llm-test-btn">Tester la connexion</button>
-          <button id="btn-share-config" type="button" class="button button--small">Copier un lien de configuration</button>
-          <p class="llm-note llm-share-warning">
-            Ce lien contient votre <strong>clé API en clair</strong>. À envoyer à
-            vos appareils, pas à publier.
-          </p>
-          <input id="share-url" class="share-url" type="text" readonly hidden
-            aria-label="Lien de configuration" />
-          <span id="test-result" class="llm-test-result" aria-live="polite"></span>
-        </details>
         <p id="setup-error" class="form-error" role="alert" hidden></p>
         <button id="btn-start" class="button button--primary button--large" type="submit" disabled>Générer la partie</button>
       </form>

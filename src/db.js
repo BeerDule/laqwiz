@@ -144,3 +144,27 @@ export function deleteResume(partieId) {
   if (!partieId) return Promise.resolve(null);
   return safe(run(STORE_RESUME, 'readwrite', st => st.delete(partieId)), null);
 }
+
+/**
+ * Supprime la base entière (sessions, parties, instantanés).
+ *
+ * La connexion ouverte doit être fermée d'abord, sinon la suppression reste en
+ * attente indéfiniment. Et si un AUTRE onglet garde la base ouverte, le
+ * navigateur émet `blocked` et ne supprime rien : on le signale au lieu de
+ * laisser croire à une réussite.
+ *
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+export function deleteDatabase() {
+  const closeFirst = dbPromise
+    ? dbPromise.then(db => db.close(), () => {})
+    : Promise.resolve();
+  return closeFirst.then(() => new Promise((resolve) => {
+    dbPromise = null; // sinon les appels suivants réutiliseraient une base morte
+    if (typeof indexedDB === 'undefined') return resolve({ ok: true });
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve({ ok: true });
+    req.onerror = () => resolve({ ok: false, reason: 'error' });
+    req.onblocked = () => resolve({ ok: false, reason: 'blocked' });
+  }));
+}
