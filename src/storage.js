@@ -83,6 +83,13 @@ export function loadSettings() {
     out.manchesTarget = raw.manchesTarget;
   }
 
+  // Mode de jeu. Simple identifiant : on ne peut pas vérifier ici qu'il existe
+  // encore, le catalogue vit en IndexedDB et se lit de façon asynchrone. Le
+  // sélecteur retombe sur « personnalisé » s'il ne le retrouve pas.
+  if (typeof raw.modeId === 'string' && /^[\w-]{1,60}$/.test(raw.modeId)) {
+    out.modeId = raw.modeId;
+  }
+
   // Source Wikipédia : seuls les identifiants sont persistés, jamais le texte
   // de l'article — saveSettings est appelé à chaque dispatch.
   if (raw.sourceMode === 'wikipedia' || raw.sourceMode === 'theme') {
@@ -111,6 +118,7 @@ export function saveSettings(settings) {
     penaltyWrongAnswer: settings.penaltyWrongAnswer,
     punisherSeverity: settings.punisherSeverity,
     manchesTarget: settings.manchesTarget,
+    modeId: settings.modeId,
     sourceMode: settings.sourceMode,
     sourceTitle: settings.sourceTitle,
     sourceLang: settings.sourceLang,

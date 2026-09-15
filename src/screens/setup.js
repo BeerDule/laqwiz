@@ -6,10 +6,14 @@ import {
   THEME_MIN_LENGTH, THEME_MAX_LENGTH,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
   DIFFICULTY_CHOICES, AUDIENCE_CHOICES, TIMER_CHOICES, PUNISHER_CHOICES, MANCHE_CHOICES,
+  MODE_NAME_MAX_LENGTH,
 } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
 import { listResumes } from '../db.js';
+import {
+  loadModes, createMode, updateMode, removeMode, resetBuiltinMode, diffFromMode,
+} from '../modes.js';
 
 // Le mode BYOK — chaque joueur renseigne sa propre configuration LLM — est
 // obligatoire en production par défaut, optionnel en développement.
@@ -22,6 +26,8 @@ let root = null;
 
 // État local du formulaire (persisté uniquement à la soumission).
 let players = [];
+// Mode sélectionné. `null` = réglages sans mode d'origine (« Personnalisé »).
+let selectedModeId = null;
 let idCounter = 0;
 let selectedPreset = null;
 let customTheme = '';
@@ -319,6 +325,124 @@ function renderResumeBanner() {
   }).join('');
 }
 
+/**
+ * Les onze règles telles que le formulaire les affiche À CET INSTANT.
+ *
+ * Le formulaire est la vérité tant qu'on n'a pas soumis : c'est lui qu'on
+ * compare au mode sélectionné pour le badge « (modifié) », et lui qu'on
+ * enregistre quand le MJ crée un mode à partir de ses réglages.
+ */
+function readRules() {
+  const pick = (name, fallback) =>
+    root.querySelector(`input[name="${name}"]:checked`)?.value ?? fallback;
+  return {
+    targetScore: parseInt(root.querySelector('#target-score').value, 10),
+    twoPointLead: root.querySelector('#two-point-lead').checked,
+    bonusEnabled: root.querySelector('#bonus-enabled').checked,
+    difficulty: pick('difficulty', 'balanced'),
+    audience: pick('audience', 'general'),
+    timerEnabled: root.querySelector('#timer-enabled').checked,
+    timePerQuestion: parseInt(pick('timePerQuestion', 60), 10),
+    penaltyNoAnswer: root.querySelector('#penalty-no-answer').checked,
+    penaltyWrongAnswer: root.querySelector('#penalty-wrong-answer').checked,
+    punisherSeverity: pick('punisherSeverity', 'punitive'),
+    manchesTarget: parseInt(pick('manchesTarget', 3), 10),
+  };
+}
+
+/** Écrit des règles dans le formulaire, groupes dépendants compris. */
+function writeRules(r) {
+  const check = (name, value) => {
+    const el = root.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (el) el.checked = true;
+  };
+  root.querySelector('#target-score').value = r.targetScore;
+  root.querySelector('#target-score-output').textContent = r.targetScore;
+  root.querySelector('#two-point-lead').checked = r.twoPointLead;
+  root.querySelector('#bonus-enabled').checked = r.bonusEnabled;
+  root.querySelector('#timer-enabled').checked = r.timerEnabled;
+  root.querySelector('#penalty-no-answer').checked = r.penaltyNoAnswer;
+  root.querySelector('#penalty-wrong-answer').checked = r.penaltyWrongAnswer;
+  check('difficulty', r.difficulty);
+  check('audience', r.audience);
+  check('timePerQuestion', r.timePerQuestion);
+  check('punisherSeverity', r.punisherSeverity);
+  check('manchesTarget', r.manchesTarget);
+  root.querySelector('#timer-duration-group').hidden = !r.timerEnabled;
+  root.querySelector('#punisher-severity-group').hidden = !r.penaltyWrongAnswer;
+}
+
+/** Le mode sélectionné, ou null s'il a été supprimé entre-temps. */
+function currentMode() {
+  return (getState().ui.modes || []).find(m => m.id === selectedModeId) || null;
+}
+
+function renderModes() {
+  const modes = getState().ui.modes || [];
+  const list = root.querySelector('#modes-list');
+  if (!list) return;
+
+  // Le catalogue arrive de façon asynchrone : tant qu'il est vide, ne rien
+  // afficher vaut mieux qu'une rangée vide qui sauterait une seconde plus tard.
+  if (!modes.length) {
+    list.innerHTML = '';
+    root.querySelector('#mode-status').textContent = '';
+    root.querySelector('#mode-actions').innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = modes.map(m => `
+    <button type="button" class="mode-card${m.id === selectedModeId ? ' mode-card--on' : ''}"
+      data-mode="${escapeHtml(m.id)}" role="radio"
+      aria-checked="${m.id === selectedModeId}"
+      ${m.tagline ? `data-tooltip="${escapeHtml(m.tagline)}"` : ''}>
+      <span class="mode-card__emoji" aria-hidden="true">${escapeHtml(m.emoji)}</span>
+      <span class="mode-card__name">${escapeHtml(m.name)}</span>
+    </button>`).join('')
+    + `<button type="button" class="mode-card mode-card--new" data-mode-new="1">
+        <span class="mode-card__emoji" aria-hidden="true">+</span>
+        <span class="mode-card__name">Créer</span>
+      </button>`;
+
+  renderModeStatus();
+}
+
+/** Badge « (modifié) » et boutons de gestion du mode sélectionné. */
+function renderModeStatus() {
+  const mode = currentMode();
+  const statut = root.querySelector('#mode-status');
+  const actions = root.querySelector('#mode-actions');
+  if (!statut || !actions) return;
+
+  if (!mode) {
+    statut.textContent = selectedModeId
+      ? 'Ce mode a été supprimé. Les règles ci-dessous restent en place.'
+      : 'Réglages personnalisés.';
+    actions.innerHTML = '<button type="button" class="button button--small" data-mode-act="saveas">Enregistrer comme mode</button>';
+    return;
+  }
+
+  const ecarts = diffFromMode(readRules(), mode);
+  statut.textContent = ecarts.length
+    ? `${mode.emoji} ${mode.name} — modifié (${ecarts.length} règle${ecarts.length > 1 ? 's' : ''})`
+    : `${mode.emoji} ${mode.name}${mode.tagline ? ` — ${mode.tagline}` : ''}`;
+
+  const boutons = [];
+  if (ecarts.length) {
+    boutons.push('<button type="button" class="button button--small" data-mode-act="saveas">Enregistrer comme nouveau mode</button>');
+    boutons.push(`<button type="button" class="button button--small" data-mode-act="update">Mettre à jour « ${escapeHtml(mode.name)} »</button>`);
+    boutons.push('<button type="button" class="button button--small" data-mode-act="revert">Annuler mes retouches</button>');
+  }
+  boutons.push('<button type="button" class="button button--small" data-mode-act="rename">Renommer</button>');
+  if (mode.builtin && mode.dirty) {
+    boutons.push('<button type="button" class="button button--small" data-mode-act="reset">Réinitialiser</button>');
+  }
+  if (!mode.builtin) {
+    boutons.push('<button type="button" class="button button--small button--danger" data-mode-act="delete">Supprimer</button>');
+  }
+  actions.innerHTML = boutons.join('');
+}
+
 function renderSettings() {
   const { settings: s, session } = getState();
   loadResumesFor(getState().session?.id ?? null);
@@ -329,13 +453,7 @@ function renderSettings() {
     banner.hidden = !session;
     if (session) root.querySelector('#session-name').value = session.name;
   }
-  root.querySelector('#target-score').value = s.targetScore;
-  root.querySelector('#target-score-output').textContent = s.targetScore;
-  root.querySelector('#two-point-lead').checked = s.twoPointLead;
-  root.querySelector('#bonus-enabled').checked = s.bonusEnabled;
-  root.querySelector('#timer-enabled').checked = s.timerEnabled;
-  root.querySelector('#penalty-no-answer').checked = s.penaltyNoAnswer;
-  root.querySelector('#penalty-wrong-answer').checked = s.penaltyWrongAnswer;
+  writeRules(s);
 
   const wikiOn = s.sourceMode === 'wikipedia' && !!s.sourceTitle;
   root.querySelector('#wiki-enabled').checked = wikiOn;
@@ -345,28 +463,8 @@ function renderSettings() {
     : null;
   if (wikiOn) root.querySelector('#wiki-search').value = s.sourceTitle;
   showWikiChoice();
-  const mancheInput = root.querySelector(
-    `input[name="manchesTarget"][value="${s.manchesTarget || 3}"]`
-  );
-  if (mancheInput) mancheInput.checked = true;
-  root.querySelector('#punisher-severity-group').hidden = !s.penaltyWrongAnswer;
-  const punisherInput = root.querySelector(
-    `input[name="punisherSeverity"][value="${s.punisherSeverity || 'punitive'}"]`
-  );
-  if (punisherInput) punisherInput.checked = true;
-  root.querySelector('#timer-duration-group').hidden = !s.timerEnabled;
-  const timerInput = root.querySelector(
-    `input[name="timePerQuestion"][value="${s.timePerQuestion || 60}"]`
-  );
-  if (timerInput) timerInput.checked = true;
-  const difficultyInput = root.querySelector(
-    `input[name="difficulty"][value="${s.difficulty || 'balanced'}"]`
-  );
-  if (difficultyInput) difficultyInput.checked = true;
-  const audienceInput = root.querySelector(
-    `input[name="audience"][value="${s.audience || 'general'}"]`
-  );
-  if (audienceInput) audienceInput.checked = true;
+  selectedModeId = s.modeId || null;
+  renderModes();
 }
 
 function removePlayer(id) {
@@ -383,6 +481,107 @@ function addPlayer() {
   updateStartButton();
   const last = root.querySelector('#players-list .player-card:last-child .player-card__name');
   if (last) last.focus();
+}
+
+/** Demande nom puis emoji. Renvoie null si le MJ annule ou laisse vide. */
+function askModeIdentity(nomActuel = '', emojiActuel = '') {
+  const nom = window.prompt(`Nom du mode (${MODE_NAME_MAX_LENGTH} caractères max)`, nomActuel);
+  if (nom === null || !nom.trim()) return null;
+  const emoji = window.prompt('Emoji du mode (laissez vide pour 🎲)', emojiActuel);
+  if (emoji === null) return null;
+  return { name: nom, emoji: emoji.trim() || emojiActuel || '🎲' };
+}
+
+/** Recharge le catalogue depuis la base et le pousse dans l'état. */
+function refreshModes() {
+  return loadModes().then(modes => {
+    dispatch({ type: 'SET_MODES', modes });
+    return modes;
+  });
+}
+
+function wireModes(signal) {
+  // Délégation : cartes et boutons sont réécrits à chaque rendu.
+  root.querySelector('#modes-list').addEventListener('click', (e) => {
+    const neuf = e.target.closest('[data-mode-new]');
+    if (neuf) {
+      const ident = askModeIdentity();
+      if (!ident) return;
+      createMode(ident.name, ident.emoji, readRules())
+        .then(mode => refreshModes().then(() => {
+          selectedModeId = mode.id;
+          renderModes();
+          dispatchToast(`Mode « ${mode.name} » créé.`);
+        }));
+      return;
+    }
+    const carte = e.target.closest('[data-mode]');
+    if (!carte) return;
+    const mode = (getState().ui.modes || []).find(m => m.id === carte.dataset.mode);
+    if (!mode) return;
+    selectedModeId = mode.id;
+    // Seules les règles sont recopiées : le thème et l'article Wikipédia
+    // choisis juste avant ne doivent pas sauter parce qu'on durcit les règles.
+    writeRules(mode.settings);
+    renderModes();
+    updateStartButton();
+  }, { signal });
+
+  root.querySelector('#mode-actions').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-mode-act]');
+    if (!btn) return;
+    const acte = btn.dataset.modeAct;
+    const mode = currentMode();
+
+    if (acte === 'saveas') {
+      const ident = askModeIdentity();
+      if (!ident) return;
+      createMode(ident.name, ident.emoji, readRules())
+        .then(cree => refreshModes().then(() => {
+          selectedModeId = cree.id;
+          renderModes();
+          dispatchToast(`Mode « ${cree.name} » créé.`);
+        }));
+      return;
+    }
+    if (!mode) return;
+
+    if (acte === 'update') {
+      updateMode(mode, { settings: readRules() })
+        .then(() => refreshModes().then(() => {
+          renderModes();
+          dispatchToast(`« ${mode.name} » mis à jour.`);
+        }));
+    } else if (acte === 'revert') {
+      writeRules(mode.settings);
+      renderModeStatus();
+      updateStartButton();
+    } else if (acte === 'rename') {
+      const ident = askModeIdentity(mode.name, mode.emoji);
+      if (!ident) return;
+      updateMode(mode, ident).then(() => refreshModes().then(renderModes));
+    } else if (acte === 'reset') {
+      resetBuiltinMode(mode.id).then(frais => refreshModes().then(() => {
+        writeRules(frais.settings);
+        renderModes();
+        updateStartButton();
+        dispatchToast(`« ${frais.name} » réinitialisé.`);
+      }));
+    } else if (acte === 'delete') {
+      if (!window.confirm(`Supprimer le mode « ${mode.name} » ? Les règles actuelles restent en place.`)) return;
+      removeMode(mode).then(() => refreshModes().then(() => {
+        // Les règles du formulaire ne bougent pas : on supprime une étiquette,
+        // pas la partie que le MJ est en train de préparer.
+        selectedModeId = null;
+        renderModes();
+        dispatchToast(`Mode « ${mode.name} » supprimé.`);
+      }));
+    }
+  }, { signal });
+
+  // Toute retouche d'une règle rafraîchit le badge « modifié ».
+  root.querySelector('.settings-panel').addEventListener('input', renderModeStatus, { signal });
+  root.querySelector('.settings-panel').addEventListener('change', renderModeStatus, { signal });
 }
 
 function wireEvents(signal) {
@@ -473,6 +672,8 @@ function wireEvents(signal) {
     }
   }, { signal });
 
+  wireModes(signal);
+
   wireWikiSearch(signal);
 
   // `change` et non `input` : chaque renommage écrit la session dans IndexedDB.
@@ -510,27 +711,17 @@ function wireEvents(signal) {
       return;
     }
     showError(null);
-    const targetScore = parseInt(slider.value, 10);
     dispatch({ type: 'SET_PLAYERS', players });
     dispatch({
       type: 'SET_SETTINGS',
       patch: {
+        ...readRules(),
         theme: currentTheme(),
-        targetScore,
-        twoPointLead: root.querySelector('#two-point-lead').checked,
-        bonusEnabled: root.querySelector('#bonus-enabled').checked,
-        difficulty: root.querySelector('input[name="difficulty"]:checked')?.value || 'balanced',
-        audience: root.querySelector('input[name="audience"]:checked')?.value || 'general',
-        timerEnabled: root.querySelector('#timer-enabled').checked,
-        timePerQuestion: parseInt(root.querySelector('input[name="timePerQuestion"]:checked')?.value, 10) || 60,
-        penaltyNoAnswer: root.querySelector('#penalty-no-answer').checked,
-        penaltyWrongAnswer: root.querySelector('#penalty-wrong-answer').checked,
-        manchesTarget: parseInt(root.querySelector('input[name="manchesTarget"]:checked')?.value, 10) || 3,
+        modeId: selectedModeId,
         sourceMode: activeWikiPick() ? 'wikipedia' : 'theme',
         sourceTitle: activeWikiPick()?.title || '',
         sourceLang: activeWikiPick()?.lang || 'fr',
         sourceUrl: activeWikiPick()?.url || '',
-        punisherSeverity: root.querySelector('input[name="punisherSeverity"]:checked')?.value || 'punitive',
         // La configuration LLM ne transite plus par ce formulaire : elle est
         // globale à l'appareil et vit dans sa propre tranche d'état.
       },
@@ -598,6 +789,12 @@ export function renderSetup(rootEl) {
             </div>
             <p id="wiki-chosen" class="wiki-chosen" hidden></p>
           </div>
+        </fieldset>
+        <fieldset class="panel modes-panel">
+          <legend>Mode de jeu</legend>
+          <div id="modes-list" class="modes-grid" role="radiogroup" aria-label="Mode de jeu"></div>
+          <p id="mode-status" class="mode-status" aria-live="polite"></p>
+          <div id="mode-actions" class="mode-actions"></div>
         </fieldset>
         <fieldset class="panel settings-panel">
           <legend>Règles</legend>
@@ -681,11 +878,21 @@ export function renderSetup(rootEl) {
   // La session et les instantanés arrivent de façon asynchrone (IndexedDB) :
   // sans ces deux suivis, le panneau restait figé sur son état de montage.
   let lastResumeKey = '';
+  let lastModeKey = '';
   const unsub = subscribe(() => {
     if (!root) return;
     const s = getState();
     showError(s.ui.lastError ? s.ui.lastError.message : null);
     updateStartButton();
+
+    // Le catalogue est semé en IndexedDB au démarrage : au montage de cet
+    // écran il est souvent encore vide. Sans ce suivi, les cartes n'apparaissent
+    // qu'au prochain passage sur les réglages.
+    const modeKey = (s.ui.modes || []).map(m => `${m.id}:${m.name}:${m.emoji}`).join(',');
+    if (modeKey !== lastModeKey) {
+      lastModeKey = modeKey;
+      renderModes();
+    }
 
     const sessionId = s.session?.id ?? null;
     if (sessionId !== lastLoadedSessionId) loadResumesFor(sessionId);

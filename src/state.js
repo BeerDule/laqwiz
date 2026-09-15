@@ -3,7 +3,7 @@ import { normalizeQuestionText } from './validation.js';
 import { fetchQuestionBatch, toUiError } from './api.js';
 import { saveStats, clearAll, saveActiveSessionId } from './storage.js';
 import { putSession, putPartie, putResume, deleteResume } from './db.js';
-import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS } from './constants.js';
+import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS, MODE_RULE_KEYS } from './constants.js';
 import { fetchArticle, sectionWindow } from './wikipedia.js';
 
 const isOnline = () => (typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -32,6 +32,10 @@ const INITIAL_STATE = Object.freeze({
     penaltyWrongAnswer: DEFAULTS.penaltyWrongAnswer,
     punisherSeverity: DEFAULTS.punisherSeverity,
     manchesTarget: DEFAULTS.manchesTarget,
+    // Mode de jeu appliqué. Les règles ci-dessus restent la vérité : `modeId` dit
+    // seulement de quel preset elles sont parties, pour afficher « (modifié) »
+    // quand elles en ont divergé.
+    modeId: DEFAULTS.modeId,
     sourceMode: DEFAULTS.sourceMode,
     sourceTitle: DEFAULTS.sourceTitle,
     sourceLang: DEFAULTS.sourceLang,
@@ -97,6 +101,9 @@ const INITIAL_STATE = Object.freeze({
     // Parties interrompues de la session courante, la plus récente d'abord.
     // Transient : la source de vérité reste le store IndexedDB.
     resumables: [],
+    // Modes de jeu disponibles. Transient de la même façon : le store
+    // IndexedDB fait foi, ceci n'en est que la copie affichable.
+    modes: [],
   },
 });
 
@@ -498,6 +505,24 @@ function reducer(s, action) {
       break;
     }
 
+    case 'SET_MODES':
+      s.ui.modes = Array.isArray(action.modes) ? action.modes : [];
+      break;
+
+    /**
+     * Applique un mode aux réglages de partie.
+     *
+     * Ne recopie que les règles : le thème et la source Wikipédia survivent,
+     * pour qu'on puisse durcir les règles sans reperdre l'article choisi.
+     */
+    case 'APPLY_MODE': {
+      const mode = (s.ui.modes || []).find(m => m.id === action.modeId);
+      if (!mode) break;
+      for (const k of MODE_RULE_KEYS) s.settings[k] = mode.settings[k];
+      s.settings.modeId = mode.id;
+      break;
+    }
+
     case 'SET_RESUMABLES':
       s.ui.resumables = Array.isArray(action.snapshots) ? action.snapshots : [];
       break;
@@ -603,6 +628,9 @@ function reducer(s, action) {
       // soirée qu'on remet à zéro. Sans cette ligne, l'abonné de main.js
       // réécrirait une config vide par-dessus celle que clearAll() épargne.
       fresh.llm = { ...s.llm };
+      // Les modes vivent en base et ne sont pas propres à la soirée ; les vider
+      // ici afficherait un sélecteur vide jusqu'au prochain rechargement.
+      fresh.ui.modes = s.ui.modes;
       for (const k of Object.keys(s)) delete s[k];
       Object.assign(s, fresh);
       clearAll();

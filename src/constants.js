@@ -38,6 +38,113 @@ export const BATCH_SIZE = 5;
 export const SOURCE_BUDGET_CHARS = 3500;
 export const BONUS_CHANCE = 0.15; // ~15 % de chance qu'une question soit bonus
 
+/**
+ * Champs de réglage qu'un mode de jeu pilote.
+ *
+ * Volontairement restreint aux RÈGLES. Le thème, la source Wikipédia et la
+ * configuration LLM n'en font pas partie : on veut pouvoir passer de
+ * « Canap' éritif » à « Canap' ocalypse » sans perdre l'article qu'on venait de
+ * choisir. C'est aussi cette liste qui sert à détecter qu'un mode a été
+ * retouché — voir `diffFromMode` dans modes.js.
+ */
+export const MODE_RULE_KEYS = [
+  'targetScore', 'twoPointLead', 'bonusEnabled', 'difficulty', 'audience',
+  'timerEnabled', 'timePerQuestion', 'penaltyNoAnswer', 'penaltyWrongAnswer',
+  'punisherSeverity', 'manchesTarget',
+];
+
+/**
+ * Modes fournis avec le jeu. Semés en base à la première ouverture, puis
+ * modifiables comme les modes perso.
+ *
+ * `version` permet de pousser une correction sur un mode fourni : au démarrage,
+ * un enregistrement d'une version antérieure est remplacé — SAUF si le MJ l'a
+ * retouché lui-même (`dirty`), auquel cas son réglage gagne. Toute correction
+ * d'un mode ci-dessous doit donc s'accompagner d'un incrément de sa `version`,
+ * sans quoi elle n'atteindra aucun appareil déjà ouvert.
+ */
+export const BUILTIN_MODES = [
+  {
+    id: 'eritif',
+    name: "Canap' éritif",
+    emoji: '🍸',
+    tagline: 'Le mode tranquille pour les apéros discussions',
+    version: 1,
+    order: 10,
+    settings: {
+      targetScore: 10, twoPointLead: false, bonusEnabled: false,
+      difficulty: 'easy', audience: 'general',
+      timerEnabled: false, timePerQuestion: 60,
+      penaltyNoAnswer: false, penaltyWrongAnswer: false,
+      punisherSeverity: 'punitive', manchesTarget: 1,
+    },
+  },
+  {
+    id: 'aulit',
+    name: "Canap' au lit",
+    emoji: '🌙',
+    tagline: 'Le mode famille, chrono d\'une minute et zéro sanction',
+    version: 1,
+    order: 20,
+    settings: {
+      targetScore: 10, twoPointLead: false, bonusEnabled: false,
+      difficulty: 'easy', audience: 'kids',
+      timerEnabled: true, timePerQuestion: 60,
+      penaltyNoAnswer: false, penaltyWrongAnswer: false,
+      punisherSeverity: 'punitive', manchesTarget: 1,
+    },
+  },
+  {
+    id: 'epice',
+    name: "Canap' épicé",
+    emoji: '🌶️',
+    tagline: 'Une minute au chrono, la mauvaise réponse se paie',
+    version: 1,
+    order: 30,
+    settings: {
+      targetScore: 15, twoPointLead: false, bonusEnabled: false,
+      difficulty: 'balanced', audience: 'general',
+      timerEnabled: true, timePerQuestion: 60,
+      penaltyNoAnswer: false, penaltyWrongAnswer: true,
+      punisherSeverity: 'punitive', manchesTarget: 1,
+    },
+  },
+  {
+    id: 'ero',
+    name: "Canap' éro",
+    emoji: '🔞',
+    tagline: 'Le mode adulte pour les apéros bien arrosés',
+    version: 1,
+    order: 40,
+    settings: {
+      targetScore: 15, twoPointLead: false, bonusEnabled: false,
+      difficulty: 'balanced', audience: 'nsfw',
+      timerEnabled: true, timePerQuestion: 60,
+      penaltyNoAnswer: false, penaltyWrongAnswer: true,
+      punisherSeverity: 'punitive', manchesTarget: 1,
+    },
+  },
+  {
+    id: 'ocalypse',
+    name: "Canap' ocalypse",
+    emoji: '🔥',
+    tagline: 'Le mode hardcore : 30 secondes, aucune pitié',
+    version: 1,
+    order: 50,
+    settings: {
+      targetScore: 20, twoPointLead: true, bonusEnabled: true,
+      difficulty: 'hard', audience: 'general',
+      timerEnabled: true, timePerQuestion: 30,
+      penaltyNoAnswer: true, penaltyWrongAnswer: true,
+      punisherSeverity: 'ultra', manchesTarget: 3,
+    },
+  },
+];
+
+/** Mode appliqué à une installation neuve. */
+export const DEFAULT_MODE_ID = 'epice';
+export const MODE_NAME_MAX_LENGTH = 24;
+
 export const STORAGE_KEYS = {
   players: 'quizz-canape:players',
   settings: 'quizz-canape:settings',
@@ -48,17 +155,10 @@ export const STORAGE_KEYS = {
 
 export const DEFAULTS = {
   theme: 'Culture générale',
-  targetScore: 15,
-  twoPointLead: false,
-  bonusEnabled: false,
-  difficulty: 'balanced', // 'balanced' | 'easy' | 'medium' | 'hard'
-  audience: 'general',    // 'kids' | 'general' | 'nsfw'
-  timerEnabled: false,
-  timePerQuestion: 60,    // secondes, voir TIMER_CHOICES
-  penaltyNoAnswer: false,   // -1 point si le joueur n'a pas répondu
-  penaltyWrongAnswer: false, // mode punisher : -1 point si mauvaise réponse
-  punisherSeverity: 'punitive', // 'punitive' | 'ultra', voir PUNISHER_CHOICES
-  manchesTarget: 3,             // best-of, voir MANCHE_CHOICES
+  // Les règles viennent du mode par défaut : sans cela, DEFAULTS et
+  // BUILTIN_MODES divergeraient silencieusement à la première retouche.
+  ...BUILTIN_MODES.find(m => m.id === DEFAULT_MODE_ID).settings,
+  modeId: DEFAULT_MODE_ID,
   sourceMode: 'theme',          // 'theme' | 'wikipedia'
   sourceTitle: '',              // titre exact de l'article
   sourceLang: 'fr',             // sous-domaine Wikipédia

@@ -15,6 +15,7 @@ import { renderHome, unmountHome } from './screens/home.js';
 import { renderSettings, unmountSettings } from './screens/settings.js';
 import { initColorTheme, setColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
+import { loadModes } from './modes.js';
 
 // Appliquer le thème de couleurs sauvegardé avant le premier rendu
 initColorTheme();
@@ -71,6 +72,12 @@ if (persistedStats) getState().stats = persistedStats;
   if (shared.theme) setColorTheme(shared.theme);
   showToast('Configuration importée depuis le lien.', 'info');
 })();
+
+// --- Catalogue des modes de jeu (IndexedDB, asynchrone) ---
+// Sème les modes fournis à la première ouverture. Hors du chemin de démarrage :
+// les réglages s'affichent avec leurs valeurs persistées, les cartes de mode
+// apparaissent quand la lecture répond.
+loadModes().then(modes => dispatch({ type: 'SET_MODES', modes }));
 
 // --- Reprise de la session active (IndexedDB, asynchrone) ---
 // Volontairement hors du chemin de démarrage : la lecture ne doit pas retarder

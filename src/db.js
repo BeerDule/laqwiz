@@ -6,12 +6,15 @@
 // vit ici — sa lecture asynchrone ne bloque pas le démarrage.
 
 const DB_NAME = 'quizz-canape';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE_SESSIONS = 'sessions';
 const STORE_PARTIES = 'parties';
 // Instantanés des parties EN COURS. Clé = identifiant de PARTIE, index sur la
 // session : une même session peut donc avoir plusieurs parties interrompues.
 const STORE_RESUME = 'resume';
+// Modes de jeu : les cinq fournis y sont semés au démarrage, à côté de ceux
+// que le MJ crée lui-même.
+const STORE_MODES = 'modes';
 
 let dbPromise = null;
 
@@ -39,6 +42,9 @@ function openDb() {
       if (!db.objectStoreNames.contains(STORE_RESUME)) {
         const resume = db.createObjectStore(STORE_RESUME, { keyPath: 'partieId' });
         resume.createIndex('sessionId', 'sessionId', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_MODES)) {
+        db.createObjectStore(STORE_MODES, { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains(STORE_PARTIES)) {
         const parties = db.createObjectStore(STORE_PARTIES, { keyPath: 'id' });
@@ -167,4 +173,20 @@ export function deleteDatabase() {
     req.onerror = () => resolve({ ok: false, reason: 'error' });
     req.onblocked = () => resolve({ ok: false, reason: 'blocked' });
   }));
+}
+
+// --- Modes de jeu ---
+
+export function listModes() {
+  return safe(run(STORE_MODES, 'readonly', st => st.getAll()), [])
+    .then(rows => (rows || []).sort((a, b) => (a.order || 0) - (b.order || 0)));
+}
+
+export function putMode(mode) {
+  return safe(run(STORE_MODES, 'readwrite', st => st.put(mode)), null);
+}
+
+export function deleteMode(id) {
+  if (!id) return Promise.resolve(null);
+  return safe(run(STORE_MODES, 'readwrite', st => st.delete(id)), null);
 }

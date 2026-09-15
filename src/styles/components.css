@@ -1275,3 +1275,39 @@ kbd.option-card__hint {
 /* Zone dangereuse — actions irréversibles */
 .danger-zone { border-color: var(--color-error) !important; }
 .danger-zone legend { color: var(--color-error); }
+
+/* --- Modes de jeu --- */
+.modes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 5.5rem;
+  padding: var(--space-2);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-button);
+  cursor: pointer;
+}
+.mode-card:hover { border-color: var(--color-accent); }
+.mode-card--on {
+  border-color: var(--color-accent);
+  background: var(--color-surface-alt);
+}
+.mode-card__emoji { font-size: 1.5rem; line-height: 1.2; }
+.mode-card__name { font-size: 0.85rem; text-align: center; }
+.mode-card--new { border-style: dashed; opacity: 0.75; }
+.mode-status {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+.mode-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
