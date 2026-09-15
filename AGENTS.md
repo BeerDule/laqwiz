@@ -12,7 +12,9 @@ Deux modes de configuration LLM coexistent :
   ne renseigne rien).
 
 ## Stack
-- **Runtime** : Node ≥ 20 LTS (`fetch` natif, `AbortController`, ESM)
+- **Runtime** : Node 24 LTS (`fetch` natif, `AbortController`, ESM). Épinglé dans
+  `engines.node` — c'est ce champ qui décide aussi de la version déployée sur
+  Vercel, l'export `config` d'une fonction `/api` n'acceptant pas de numéro.
 - **Bundler** : Vite 5.4 (`vite.config.js`)
 - **Frontend** : Vanilla JS ES2022, CSS custom properties (pas de `@layer` — la cascade
   repose sur l'ordre des imports dans `main.js` : theme → layout → components → arcade)

@@ -84,13 +84,14 @@ tout ce qui porte le préfixe `VITE_` finit dans le bundle client.
 
 Le projet fournit un `flake.nix` (flakes requis) :
 
-- `nix develop` — environnement de dev (Node.js 22 + npm)
+- `nix develop` — environnement de dev (Node.js 24 + npm)
 - `nix build .#` — compile `dist/` de façon reproductible, sans nécessiter `.env`
 - `nix flake check` — vérifie que le build passe
 
-> `nodejs_20` étant marqué *insecure* dans nixpkgs, le flake utilise **Node.js 22**
-> (LTS), qui satisfait `engines: node >= 20`. Le `package-lock.json` est versionné
-> pour figer `vite`.
+> Le projet est épinglé sur **Node.js 24** (LTS) : `engines.node` dans
+> `package.json`, et `nodejs_24` dans le flake. Le même champ détermine la version
+> utilisée par Vercel, dev et production restent donc alignés. Le
+> `package-lock.json` est versionné pour figer `vite`.
 
 ## Architecture
 

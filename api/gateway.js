@@ -4,9 +4,10 @@
 // transmet au provider LLM configuré côté serveur (.env) ou côté client
 // (en-têtes X-LLM-* pour le mode BYOK).
 
-// Node 20 est déprécié chez Vercel au 1er octobre 2026. 22.x est aussi la
-// version utilisée par le flake Nix du projet.
-export const config = { runtime: 'nodejs22.x' };
+// Pas d'export `config` : le runtime Node.js est le défaut pour /api, et ce
+// champ n'accepte de toute façon que 'edge' | 'experimental-edge' | 'nodejs' —
+// jamais une version. La VERSION de Node se règle dans `engines.node` du
+// package.json (ou dans les réglages du projet Vercel), pas ici.
 
 function sendError(status, code, message) {
   return new Response(JSON.stringify({ error: { code, message } }), {

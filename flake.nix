@@ -31,7 +31,7 @@
           pname = "quizz-canape";
           version = "1.0.0";
           src = buildSource pkgs;
-          nodejs = pkgs.nodejs_22;
+          nodejs = pkgs.nodejs_24;
           npmDepsHash = "sha256-K1ROyCxyCrdOWbfdJxqn26zTJz0IccQEoIGdwhasht8=";
           # `vite build` n'exige pas de `.env` (le proxy n'existe qu'en dev).
           buildPhase = "npm run build";
@@ -47,7 +47,7 @@
       # --- Environnement de développement (nodejs + npm) -----------------------
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
-          packages = [ pkgs.nodejs_22 ];
+          packages = [ pkgs.nodejs_24 ];
           shellHook = ''
             echo ""
             echo "  Quizz Canapé — env de dev (node $(node --version))"
