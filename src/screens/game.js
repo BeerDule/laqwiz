@@ -335,7 +335,10 @@ function openPlayerPicker(key, x, y) {
   const s = getState();
   const players = s.players;
   const n = players.length;
-  const radius = Math.max(88, Math.min(132, n * 26));
+  // Rayon adapté à l'écran : plus petit sur mobile pour que le cercle tienne.
+  const viewport = Math.min(window.innerWidth, window.innerHeight);
+  const maxRadius = Math.max(72, Math.min(132, (viewport - 120) / 2));
+  const radius = Math.max(72, Math.min(maxRadius, n * 26));
   const plate = radius + 36;
 
   // On rabat le centre dans la fenêtre pour que le cercle reste visible.
@@ -358,7 +361,8 @@ function openPlayerPicker(key, x, y) {
       const name = (p.name || '').trim() || 'Joueur';
       return `
         <button type="button" class="player-picker__item${active ? ' is-active' : ''}${p.eliminated ? ' is-out' : ''}"
-          data-player="${p.id}" style="left:${(px - 24).toFixed(1)}px; top:${(py - 24).toFixed(1)}px; --pc:${p.color || 'var(--color-accent-primary)'}; animation-delay:${30 + i * 24}ms"
+          data-player="${p.id}" data-tooltip="${escapeHtml(name)}"
+          style="left:${(px - 24).toFixed(1)}px; top:${(py - 24).toFixed(1)}px; --pc:${p.color || 'var(--color-accent-primary)'}; animation-delay:${30 + i * 24}ms"
           ${p.eliminated ? 'disabled' : ''} aria-pressed="${active}" aria-label="${escapeHtml(name)} : réponse ${key}">
           <span aria-hidden="true">${p.emoji}</span>
         </button>
@@ -383,7 +387,7 @@ function openPlayerPicker(key, x, y) {
 
   menu.addEventListener('click', (e) => {
     const item = e.target.closest('.player-picker__item');
-    if (!item) return;
+    if (!item) { closePlayerPicker(); return; }
     selectAnswer(item.dataset.player, key);
     const now = getState().roundAnswers[item.dataset.player] === key;
     item.classList.toggle('is-active', now);
@@ -535,6 +539,12 @@ function renderBody() {
     wireMancheEndBody(body);
   }
   updateHeader();
+
+  // Nouvelle question (ou chargement) : on remonte en haut du défilement.
+  // Sans ça, sur mobile, « Question suivante » laissait l'écran scellé en bas.
+  if (s.phase === 'QUESTION' || s.phase === 'LOADING') {
+    body.scrollTop = 0;
+  }
 }
 
 export function renderGame(rootEl) {
