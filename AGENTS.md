@@ -139,6 +139,32 @@ npm run dev
 2. Renseigner `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`
 3. `npm run dev`
 
+## Versionnage
+
+Semver strict : `<version de package.json>+<sha court>`, par exemple
+`0.1.0-beta+20b0c0a`. Affichée en pied du menu d'accueil — sur un déploiement,
+c'est le seul moyen de savoir quel commit tourne quand un bug est signalé.
+
+**Le SHA est une métadonnée de build (`+`), pas un identifiant de pré-version
+(`.`).** Ce n'est pas cosmétique : un identifiant de pré-version purement
+numérique ne peut pas commencer par zéro, donc un SHA court comme `0123456`
+rendrait `0.1.0-beta.0123456` invalide, là où `0.1.0-beta+0123456` reste
+correct. Environ un commit sur trois cents. La métadonnée de build est en outre
+ignorée dans les comparaisons de précédence, ce qui est le comportement voulu.
+
+Le numéro de base vit dans `package.json` (`"version"`), seul endroit à modifier
+pour passer en `0.2.0-beta` ou `1.0.0`. Le SHA est résolu au build par
+`resolveVersion()` dans `vite.config.js`, dans cet ordre :
+
+1. `VERCEL_GIT_COMMIT_SHA` — le conteneur de build Vercel n'a pas forcément `git` ;
+2. `git rev-parse --short HEAD` — en local, quand git est dans le PATH (ce n'est
+   pas le cas par défaut dans le shell Nix, voir le gotcha plus bas) ;
+3. la version nue, sans SHA — elle reste du semver valide, et un build ne doit
+   pas échouer pour un numéro de version.
+
+**Figée à la compilation** (`define`), comme `LLM_CONFIG_REQUIRED` : la version
+affichée est celle du commit qui a produit le bundle, pas celle du dépôt courant.
+
 ## Gotchas
 
 ### Le chrono ne doit jamais passer par `dispatch()`

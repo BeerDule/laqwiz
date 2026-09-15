@@ -239,3 +239,14 @@
   font-weight: 700;
 }
 .arcade--setup #btn-start { min-height: 54px; font-size: 19px; }
+
+/* Version de l'application, discrète en pied de menu */
+.arcade__version {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  text-align: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-muted);
+  opacity: .75;
+}

@@ -65,6 +65,10 @@ function menuHtml(s) {
         <button id="btn-sessions" class="arcade-btn">Sessions</button>
         ${session ? '<button id="btn-settings" class="arcade-btn">Réglages de partie</button>' : ''}
       </nav>
+
+      <!-- Version visible : sur un déploiement, c'est le seul moyen de savoir
+           quel commit tourne réellement quand un bug est signalé. -->
+      <p class="arcade__version">${escapeHtml(__APP_VERSION__)}</p>
     </section>
   `;
 }

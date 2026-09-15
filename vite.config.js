@@ -1,5 +1,44 @@
 // vite.config.js
 import { defineConfig, loadEnv } from 'vite';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+/**
+ * Version affichée, en semver : `<version de package.json>+<sha court>`.
+ *
+ * Le SHA est accolé en MÉTADONNÉE DE BUILD (`+`) et non en identifiant de
+ * pré-version (`.`), pour deux raisons :
+ *
+ *  - c'est ce que la spec prévoit pour un numéro de build ou un commit ;
+ *  - un identifiant de pré-version purement numérique ne peut pas commencer par
+ *    zéro. Un SHA court comme `0123456` rendrait donc `0.1.0-beta.0123456`
+ *    INVALIDE, alors que `0.1.0-beta+0123456` reste correct. Environ un commit
+ *    sur trois cents tombe dans ce cas — trop rare pour être vu en test, assez
+ *    fréquent pour casser un jour.
+ *
+ * La métadonnée de build est par ailleurs ignorée dans les comparaisons de
+ * précédence, ce qui est le comportement voulu : deux builds du même
+ * `0.1.0-beta` sont la même version, quel que soit le commit.
+ *
+ * Le SHA est cherché dans cet ordre, parce qu'aucune source n'est disponible
+ * partout :
+ *   1. VERCEL_GIT_COMMIT_SHA — fourni par Vercel, dont le conteneur de build
+ *      n'a pas forcément `git` ;
+ *   2. `git rev-parse` — en local, quand git est dans le PATH (ce n'est pas le
+ *      cas par défaut dans le shell Nix du projet) ;
+ *   3. aucune — on renvoie la version nue, qui reste du semver valide.
+ */
+function resolveVersion() {
+  const base = JSON.parse(readFileSync(new URL('./package.json', import.meta.url))).version;
+  const fromVercel = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (fromVercel) return `${base}+${fromVercel.slice(0, 7)}`;
+  try {
+    const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().trim();
+    if (sha) return `${base}+${sha}`;
+  } catch { /* ni Vercel ni git : on continue */ }
+  return base;
+}
 
 /**
  * Plugin Vite : proxy LLM OpenAI-compatible.
@@ -203,6 +242,9 @@ export default defineConfig(({ mode, command }) => {
     base: './', // §16.3 : assets en chemins relatifs, portables sous n'importe quel sous-chemin
     define: {
       __REQUIRE_LLM_CONFIG__: JSON.stringify(requireLlmConfig),
+      // Figée à la compilation, comme toute valeur `define` : un déploiement
+      // porte donc le SHA du commit qui l'a produit.
+      __APP_VERSION__: JSON.stringify(resolveVersion()),
     },
     publicDir: 'public',
     server: {
