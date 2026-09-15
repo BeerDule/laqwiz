@@ -64,7 +64,7 @@
 :root {
   color-scheme: dark;
   --font-sans: 'Mukta', 'Segoe UI', 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-button: 'Nerko One', var(--font-sans);
+  --font-button: var(--font-display);
   --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 
   /* VS Code dark palette */
@@ -115,6 +115,9 @@
   --text-glow: none;
   --texture: none;
   --font-display: 'JetBrains Mono', var(--font-mono);
+  /* Nerko One reste le défaut du jeton ci-dessus ; les thèmes qui suivent
+     le redirigent vers leur propre fonte. Paper Quest ne le redéfinit pas et
+     conserve donc Nerko One. */
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -183,6 +186,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="matrix"] {
   color-scheme: dark;
   --font-display: 'Share Tech Mono', var(--font-mono);
+  --font-button: var(--font-display);
   --bg-void: #020604;
   --bg-surface: #061a09;
   --bg-surface-raised: #0a240d;
@@ -216,6 +220,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="girly"] {
   color-scheme: dark;
   --font-display: 'Comfortaa', var(--font-sans);
+  --font-button: var(--font-display);
   --bg-void: #170a18;
   --bg-surface: #2a1630;
   --bg-surface-raised: #37203d;
@@ -252,7 +257,8 @@ h1, h2 { text-shadow: var(--text-glow); }
 /* Windows 98 — retro light with bevels */
 [data-color-theme="win98"] {
   color-scheme: light;
-  --font-display: 'Pixelify Sans', var(--font-sans);
+  --font-display: 'Silkscreen', var(--font-sans);
+  --font-button: var(--font-display);
   --bg-void: #c0c0c0;
   --bg-surface: #c0c0c0;
   --bg-surface-raised: #d4d0c8;
@@ -304,6 +310,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="jungle"] {
   color-scheme: dark;
   --font-display: 'Alfa Slab One', var(--font-sans);
+  --font-button: var(--font-display);
   --bg-void: #10140a;
   --bg-surface: #1c2410;
   --bg-surface-raised: #273317;
@@ -337,6 +344,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="kids"] {
   color-scheme: dark;
   --font-display: 'Fredoka', var(--font-sans);
+  --font-button: var(--font-display);
   --bg-void: #101b66;
   --bg-surface: #1e2f8a;
   --bg-surface-raised: #2c40b0;
@@ -374,6 +382,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="apple"] {
   color-scheme: light;
   --font-display: 'Inter', var(--font-sans);
+  --font-button: var(--font-display);
   --bg-void: #f5f5f7;
   --bg-surface: rgba(255, 255, 255, .8);
   --bg-surface-raised: rgba(255, 255, 255, .94);
@@ -429,6 +438,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="apple-glass"] {
   color-scheme: light;
   --font-display: 'Inter', var(--font-sans);
+  --font-button: var(--font-display);
   --bg-void: #eef2f8;
   --bg-surface: rgba(255, 255, 255, .58);
   --bg-surface-raised: rgba(255, 255, 255, .74);
@@ -484,6 +494,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="bubble-island"] {
   color-scheme: light;
   --font-display: 'Baloo 2', var(--font-sans);
+  --font-button: var(--font-display);
   --bg-void: #cfe6f5;
   --bg-surface: rgba(255, 255, 255, .55);
   --bg-surface-raised: rgba(255, 255, 255, .72);
@@ -722,6 +733,7 @@ h1, h2 { text-shadow: var(--text-glow); }
    papier #f8f8e8, bandeaux orange/olive/rouge/bleu. */
 [data-color-theme="paper"] {
   color-scheme: light;
+  --font-button: 'Nerko One', var(--font-sans);
   --bg-void: #e9d5b2;
   --bg-surface: #fdf8ea;
   --bg-surface-raised: #fffdf3;
@@ -1027,12 +1039,24 @@ h1, h2 { text-shadow: var(--text-glow); }
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Pixelify Sans';
+  font-family: 'Silkscreen';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/silkscreen-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Silkscreen';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('/fonts/pixelify-sans-700.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url('/fonts/silkscreen-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
   font-family: 'Alfa Slab One';
