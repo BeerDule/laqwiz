@@ -400,6 +400,26 @@ function writeRules(r) {
   root.querySelector('#punisher-severity-group').hidden = !r.penaltyWrongAnswer;
   check('suddenDeathStrikes', r.suddenDeathStrikes);
   root.querySelector('#sudden-death-group').hidden = !r.suddenDeathEnabled;
+  refreshAdvanced(r);
+}
+
+/**
+ * Compteur d'options actives sur le résumé de l'accordéon.
+ *
+ * L'accordéon reste fermé au montage, y compris quand un mode active des
+ * options à l'intérieur. Ce compteur est donc le SEUL indice que des règles
+ * sont en vigueur derrière le volet : choisir « Canap' ocalypse » change
+ * chrono, pénalités et mort subite sans rien déplier. Ne pas le retirer sans
+ * ouvrir l'accordéon à la place.
+ */
+function refreshAdvanced(r) {
+  const compte = root.querySelector('#advanced-count');
+  if (!compte) return;
+  const actives = [r.bonusEnabled, r.timerEnabled, r.penaltyNoAnswer,
+    r.penaltyWrongAnswer, r.suddenDeathEnabled].filter(Boolean).length;
+  compte.hidden = actives === 0;
+  compte.textContent = String(actives);
+  compte.setAttribute('aria-label', `${actives} option${actives > 1 ? 's' : ''} active${actives > 1 ? 's' : ''}`);
 }
 
 /** Le mode sélectionné, ou null s'il a été supprimé entre-temps. */
@@ -761,6 +781,12 @@ function wireEvents(signal) {
     root.querySelector('#sudden-death-group').hidden = !suddenDeathToggle.checked;
   }, { signal });
 
+  // Le compte du résumé suit chaque bascule. Sur `.settings-panel` plutôt que
+  // sur chaque case : la délégation survit à un redessin.
+  root.querySelector('.settings-panel').addEventListener('change', () => {
+    refreshAdvanced(readRules());
+  }, { signal });
+
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -897,45 +923,53 @@ export function renderSetup(rootEl) {
           <label for="target-score">Score cible par manche : <output id="target-score-output">15</output></label>
           <input id="target-score" type="range" min="${TARGET_SCORE_MIN}" max="${TARGET_SCORE_MAX}" step="1" value="15" />
           <label class="toggle-row"><input id="two-point-lead" type="checkbox" /> <span class="toggle-track"></span> Il faut 2 points d'écart pour gagner</label>
-          <label class="toggle-row"><input id="bonus-enabled" type="checkbox" /> <span class="toggle-track"></span> Activer les questions bonus ×2</label>
-          <label class="toggle-row"><input id="timer-enabled" type="checkbox" /> <span class="toggle-track"></span> Mode chronomètre</label>
-          <div class="rule-group" id="timer-duration-group" hidden>
-            <span class="rule-group__label" id="timer-label">Temps par question</span>
-            <div class="choice-group" role="radiogroup" aria-labelledby="timer-label">
-              ${TIMER_CHOICES.map(c => `
-                <label class="choice-chip">
-                  <input type="radio" name="timePerQuestion" value="${c.value}" />
-                  <span>${escapeHtml(c.label)}</span>
-                </label>
-              `).join('')}
+          <!-- Réglages avancés repliés par défaut. Ils restent DANS
+               .settings-panel : les écouteurs du badge « modifié » y sont
+               délégués, les sortir du conteneur les couperait en silence. -->
+          <details class="rules-advanced" id="rules-advanced">
+            <summary class="rules-advanced__summary">Vacheries<span id="advanced-count" class="rules-advanced__count" hidden></span></summary>
+            <div class="rules-advanced__body">
+            <label class="toggle-row"><input id="bonus-enabled" type="checkbox" /> <span class="toggle-track"></span> Activer les questions bonus ×2</label>
+            <label class="toggle-row"><input id="timer-enabled" type="checkbox" /> <span class="toggle-track"></span> Mode chronomètre</label>
+            <div class="rule-group" id="timer-duration-group" hidden>
+              <span class="rule-group__label" id="timer-label">Temps par question</span>
+              <div class="choice-group" role="radiogroup" aria-labelledby="timer-label">
+                ${TIMER_CHOICES.map(c => `
+                  <label class="choice-chip">
+                    <input type="radio" name="timePerQuestion" value="${c.value}" />
+                    <span>${escapeHtml(c.label)}</span>
+                  </label>
+                `).join('')}
+              </div>
             </div>
-          </div>
-          <label class="toggle-row"><input id="penalty-no-answer" type="checkbox" /> <span class="toggle-track"></span> −1 point si le joueur n'a pas répondu</label>
-          <label class="toggle-row"><input id="penalty-wrong-answer" type="checkbox" /> <span class="toggle-track"></span> Mode punisher : −1 point en cas de mauvaise réponse</label>
-          <div class="rule-group" id="punisher-severity-group" hidden>
-            <span class="rule-group__label" id="punisher-label">Sévérité</span>
-            <div class="choice-group" role="radiogroup" aria-labelledby="punisher-label">
-              ${PUNISHER_CHOICES.map(c => `
-                <label class="choice-chip">
-                  <input type="radio" name="punisherSeverity" value="${c.value}" />
-                  <span>${escapeHtml(c.label)}</span>
-                </label>
-              `).join('')}
+            <label class="toggle-row"><input id="penalty-no-answer" type="checkbox" /> <span class="toggle-track"></span> −1 point si le joueur n'a pas répondu</label>
+            <label class="toggle-row"><input id="penalty-wrong-answer" type="checkbox" /> <span class="toggle-track"></span> Mode punisher : −1 point en cas de mauvaise réponse</label>
+            <div class="rule-group" id="punisher-severity-group" hidden>
+              <span class="rule-group__label" id="punisher-label">Sévérité</span>
+              <div class="choice-group" role="radiogroup" aria-labelledby="punisher-label">
+                ${PUNISHER_CHOICES.map(c => `
+                  <label class="choice-chip">
+                    <input type="radio" name="punisherSeverity" value="${c.value}" />
+                    <span>${escapeHtml(c.label)}</span>
+                  </label>
+                `).join('')}
+              </div>
             </div>
-          </div>
-          <label class="toggle-row"><input id="sudden-death" type="checkbox" /> <span class="toggle-track"></span> Mort subite : exclusion de la manche après N fautes</label>
-          <div class="rule-group" id="sudden-death-group" hidden>
-            <span class="rule-group__label" id="sudden-death-label">Fautes avant exclusion</span>
-            <div class="choice-group" role="radiogroup" aria-labelledby="sudden-death-label">
-              ${SUDDEN_DEATH_CHOICES.map(c => `
-                <label class="choice-chip">
-                  <input type="radio" name="suddenDeathStrikes" value="${c.value}" />
-                  <span>${escapeHtml(c.label)}</span>
-                </label>
-              `).join('')}
+            <label class="toggle-row"><input id="sudden-death" type="checkbox" /> <span class="toggle-track"></span> Mort subite : exclusion de la manche après N fautes</label>
+            <div class="rule-group" id="sudden-death-group" hidden>
+              <span class="rule-group__label" id="sudden-death-label">Fautes avant exclusion</span>
+              <div class="choice-group" role="radiogroup" aria-labelledby="sudden-death-label">
+                ${SUDDEN_DEATH_CHOICES.map(c => `
+                  <label class="choice-chip">
+                    <input type="radio" name="suddenDeathStrikes" value="${c.value}" />
+                    <span>${escapeHtml(c.label)}</span>
+                  </label>
+                `).join('')}
+              </div>
+              <p class="rule-group__hint">Une mauvaise réponse <strong>ou</strong> une absence de réponse compte. Le joueur exclu ne gagne ni ne perd plus rien jusqu\u2019à la fin de la manche, puis revient à la suivante.</p>
             </div>
-            <p class="rule-group__hint">Une mauvaise réponse <strong>ou</strong> une absence de réponse compte. Le joueur exclu ne gagne ni ne perd plus rien jusqu\u2019à la fin de la manche, puis revient à la suivante.</p>
-          </div>
+            </div>
+          </details>
         </fieldset>
         <p id="setup-error" class="form-error" role="alert" hidden></p>
         <button id="btn-start" class="button button--primary button--large" type="submit" disabled>Générer la partie</button>
