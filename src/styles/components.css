@@ -256,7 +256,7 @@ output {
   min-height: 40px;
   padding: 4px 18px;
   border: var(--material-edge);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-surface-raised);
   color: var(--color-text);
   font-size: var(--text-ui);
@@ -1682,7 +1682,7 @@ dialog form {
 .rules-advanced__count {
   min-width: 1.25rem;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent-primary);
   color: var(--accent-contrast);
   font-size: 0.75rem;
