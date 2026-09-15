@@ -1,4 +1,4 @@
-# AGENTS.md — Quizz Canapé
+# AGENTS.md — Canap' QuiZZ
 
 ## Résumé
 Jeu de quiz familial multijoueur (2-6) sur un seul écran, vanilla JS, zéro dépendance runtime.
@@ -6,10 +6,16 @@ Un maître du jeu (MJ) lit les questions et saisit les réponses de tout le mond
 Les questions sont générées par un LLM OpenAI-compatible via un proxy.
 
 Deux modes de configuration LLM coexistent :
-- **BYOK** (Bring Your Own Key) : le client renseigne URL, clé et modèle depuis l'écran de
-  réglages (stockage `localStorage`, transmis via en-têtes `X-LLM-*` au proxy).
+- **BYOK** (Bring Your Own Key) : le client renseigne URL, clé et modèle depuis l'écran
+  **Paramètres** (`screens/settings.js`, accessible du menu principal), transmis via
+  en-têtes `X-LLM-*` au proxy.
 - **Serveur** : `.env` avec `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (repli si le client
   ne renseigne rien).
+
+La configuration LLM est **globale à l'appareil**, hors de `settings` : celui-ci est
+recopié en entier dans chaque partie archivée et chaque instantané de reprise, où la clé
+API se retrouvait dupliquée indéfiniment. Elle vit dans sa propre tranche d'état et sa
+propre clé `quizz-canape:llm`.
 
 `LLM_CONFIG_REQUIRED` arbitre entre les deux : `false` dispense le joueur de saisir
 quoi que ce soit, `true` l'y oblige, absent = obligatoire en production seulement.
@@ -48,10 +54,42 @@ session   roster de joueurs + sac de parties · AUCUNE condition de fin
 
 ### Phases
 `HOME` → `SETUP` → `LOADING` → `QUESTION` → `REVEAL` → `MANCHE_END` → (boucle) → `VICTORY`
-plus `SESSIONS` (gestionnaire), accessible depuis `HOME` et `SETUP`.
+plus `SESSIONS` (gestionnaire) et `SETTINGS` (réglages globaux de l'appareil), tous deux
+accessibles depuis `HOME`.
 
 Toute nouvelle phase doit être ajoutée **à la fois** dans `MOUNTERS` et `UNMOUNTERS` de `main.js`,
 sinon l'écran reste blanc sans erreur.
+
+### Modes de jeu
+
+Un **mode** est un jeu de règles nommé. Le sélectionner recopie ses règles dans les
+réglages de partie, qui restent librement retouchables ensuite — le badge passe alors à
+« modifié ».
+
+| Mode | Manches | Chrono | Pénalités | Public | Difficulté |
+|---|---|---|---|---|---|
+| 🍸 Canap' éritif | 1 | — | — | Tout public | Facile |
+| 🌙 Canap' au lit | 1 | 1 min | — | Kid friendly | Facile |
+| 🌶️ Canap' épicé **(défaut)** | 1 | 1 min | mauvaise réponse −1 | Tout public | Équilibré |
+| 🔞 Canap' éro | 1 | 1 min | mauvaise réponse −1 | Adulte | Équilibré |
+| 🔥 Canap' ocalypse | 3 | 30 s | −1 / −2 en bonus, sans réponse −1 | Tout public | Difficile |
+
+Trois règles qui coûtent cher à redécouvrir :
+
+- **`DEFAULTS` dérive du mode par défaut** (`...BUILTIN_MODES.find(…).settings`). Ne pas
+  redéclarer les règles à deux endroits : elles divergeraient à la première retouche.
+- **Corriger un mode fourni impose d'incrémenter sa `version`.** Le semis ne remplace un
+  enregistrement que si sa version est antérieure ; sans incrément, la correction
+  n'atteindra aucun appareil déjà ouvert.
+- **Un mode fourni retouché par le MJ porte `dirty` et n'est jamais écrasé.** Sa retouche
+  est délibérée, la nôtre ne l'est pas pour lui. Il garde « Réinitialiser » pour revenir
+  aux valeurs d'origine. Les fournis ne sont pas supprimables — le semis les recréerait,
+  et supprimer les cinq laisserait un écran sans issue.
+
+Le badge « modifié » se **calcule** (`diffFromMode`, comparaison des onze `MODE_RULE_KEYS`),
+il ne se stocke pas : un drapeau mentirait dès qu'on remet une valeur à sa position
+d'origine. Sélectionner un mode ne touche qu'aux **règles** — le thème et l'article
+Wikipédia survivent, pour qu'on puisse durcir les règles sans reperdre l'article choisi.
 
 ### Options de partie
 | Réglage | Effet |
@@ -64,6 +102,7 @@ sinon l'écran reste blanc sans erreur.
 | `penaltyNoAnswer` | −1 si le joueur n'a pas répondu |
 | `penaltyWrongAnswer` | mode punisher : −1 si mauvaise réponse |
 | `punisherSeverity` | `punitive` (−1) ou `ultra` (−2 sur une question bonus) |
+| `modeId` | mode d'origine des règles ci-dessus — sert au badge « modifié », rien d'autre |
 
 Toutes les pénalités passent par `applyPenalty()` : **plancher à 0**, la perte réellement
 appliquée est enregistrée dans `roundPenalties` (l'écran de révélation l'affiche) et débitée
@@ -84,9 +123,13 @@ src/
   api.js              # fetchQuestionBatch(), extractJson(), retries
   prompt.js           # buildSystemPrompt / buildUserPrompt (SPEC §8)
   validation.js       # validateQuestion(), parseQuestions() — contrat Question (SPEC §6)
-  constants.js        # palettes, choix de réglages, STORAGE_KEYS, COLOR_THEMES, DEFAULTS
-  storage.js          # localStorage typé (roster, réglages, stats, id de session active)
-  db.js               # IndexedDB — archive des sessions et parties
+  constants.js        # palettes, avatars, choix de réglages, BUILTIN_MODES, STORAGE_KEYS,
+                      #   COLOR_THEMES, DEFAULTS
+  modes.js            # gestionnaire de modes : semis versionné, CRUD, diffFromMode
+  wikipedia.js        # recherche et découpage en fenêtre de sections (mode « article »)
+  shareConfig.js      # encodage base64url de la config LLM dans une URL
+  storage.js          # localStorage typé (roster, réglages, stats, LLM, id de session)
+  db.js               # IndexedDB — sessions, parties, reprises, modes
   themeSwitcher.js    # thème de couleurs (data-color-theme)
   confetti.js         # animation de victoire
   screens/
@@ -95,11 +138,14 @@ src/
     game.js           # question, saisie MJ, révélation, chrono, fin de manche
     victory.js        # podium de partie (classé sur les MANCHES gagnées) + confettis
     sessions.js       # gestionnaire : lister, créer, renommer, rouvrir, supprimer
+    settings.js       # réglages GLOBAUX de l'appareil : LLM, partage d'URL, reset d'usine
+  components/
+    playerChip.js     # jeton de joueur avec info-bulle de nom (partagé par 3 écrans)
   styles/
-    theme.css         # jetons + 9 thèmes de couleurs
+    theme.css         # jetons + 10 thèmes de couleurs
     layout.css        # mise en page
     components.css    # composants
-    arcade.css        # coquille « jeu vidéo » des écrans de menu
+    arcade.css      # coquille « jeu vidéo » des écrans de menu (structure + jetons)
 public/
   bubble-island/      # 15 PNG (1,4 Mo) découpés du pack craft/ — voir « Assets »
 craft/                # pack d'assets brut (8,6 Mo) — matière première, non servie
@@ -107,12 +153,34 @@ demo/
   mock-llm.mjs        # faux LLM OpenAI-compatible en Node stdlib, zéro dep
 ```
 
+(`.githooks/` contient le hook de versionnage, voir « Versionnage ».)
+
 ## Stockage : la répartition est volontaire
 
 | Où | Quoi | Pourquoi |
 |---|---|---|
-| `localStorage` | roster, réglages, stats, thème, **id** de session active | `main.js` hydrate **en synchrone avant le premier rendu** |
-| IndexedDB (`db.js`) | sessions et parties archivées | grossit sans limite ; lecture asynchrone hors du chemin de démarrage |
+| `localStorage` | roster, réglages, stats, thème, config LLM, **id** de session active | `main.js` hydrate **en synchrone avant le premier rendu** |
+| IndexedDB (`db.js`) | sessions, parties, parties interrompues, **modes de jeu** | grossit sans limite ; lecture asynchrone hors du chemin de démarrage |
+
+Quatre stores : `sessions`, `parties` (index `sessionId`), `resume` (clé = **id de partie**,
+index `sessionId`) et `modes`. `DB_VERSION` vaut **4**.
+
+**Reset d'usine** (écran Paramètres) : `clearArchive()` vide les stores dans **une seule
+transaction
+puis `wipeLocalStorage()` balaie le préfixe `quizz-canape:`, et la page se
+recharge **immédiatement**. Trois points non négociables :
+
+- On ne détruit plus la base (`deleteDatabase`). Détruire puis rouvrir dans une page qui va
+  se recharger se bloquait indéfiniment dès qu'un autre onglet tenait la base : la
+  réouverture se met en file derrière la suppression en suspens.
+- L'archive d'abord. Si elle résiste, on s'arrête **avant** de toucher à `localStorage` :
+  mieux vaut un appareil intact qu'un appareil à moitié réinitialisé.
+- **Rien entre le wipe et le `reload()`.** L'abonné de `main.js` réécrit roster, réglages et
+  clé API à chaque dispatch ; la moindre navigation dans l'intervalle ressuscitait ce qu'on
+  venait d'effacer.
+
+Les **modes de jeu sont conservés** par le reset (`keepModes: true` par défaut) : ce sont des
+réglages composés par le MJ, pas des données de partie.
 
 **Ne pas déplacer l'hydratation vers IndexedDB** sans ajouter un état de démarrage : il n'y a pas
 d'API synchrone, et le souscripteur de `main.js` écrit à chaque dispatch.
@@ -165,6 +233,38 @@ pour passer en `0.2.0-beta` ou `1.0.0`. Le SHA est résolu au build par
 **Figée à la compilation** (`define`), comme `LLM_CONFIG_REQUIRED` : la version
 affichée est celle du commit qui a produit le bundle, pas celle du dépôt courant.
 
+### Incrément automatique du patch (hook `pre-commit`)
+
+`.githooks/pre-commit` incrémente le patch de `package.json` à chaque commit **sur `dev`**
+et l'ajoute au commit. `master` est la branche de déploiement : sa version arrive par
+report depuis `dev`, elle ne doit pas dériver toute seule.
+
+**Activation obligatoire après un clone** — `.git/hooks` n'est pas versionné :
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`npm version patch` n'est **pas** utilisé : sur une préversion comme `0.1.0-beta`, npm
+retire l'identifiant au lieu de l'incrémenter, ce qui publierait `0.1.0` — une version
+stable annoncée par accident. `.githooks/bump-patch.mjs` fait un remplacement ciblé par
+expression régulière, sans aller-retour `JSON.parse`/`stringify` qui reformaterait le
+fichier entier et polluerait chaque commit d'un diff sans rapport.
+
+Le hook s'abstient dans cinq cas :
+
+| Cas | Pourquoi |
+|---|---|
+| branche ≠ `dev` | seule `dev` porte le compteur |
+| merge, rebase, cherry-pick, revert | chaque commit rejoué ferait bondir la version d'autant de crans |
+| `package.json` déjà mis en scène avec un changement de `version` | passage de mineure ou sortie de bêta : choix humain, on ne repasse pas derrière |
+| `SKIP_VERSION_BUMP=1` | échappatoire explicite |
+| `git commit --no-verify` | court-circuit natif de git |
+
+**Limite connue** : `git commit --amend` sur `dev` incrémente une seconde fois. Il n'existe
+pas de moyen fiable de détecter un amend depuis un hook. Utiliser
+`SKIP_VERSION_BUMP=1 git commit --amend`.
+
 ## Gotchas
 
 ### Le chrono ne doit jamais passer par `dispatch()`
@@ -189,16 +289,42 @@ erreurs remontées à l'UI.
 `main.js` lit la session active en arrière-plan. Sans la vérification de phase, un utilisateur
 qui lance une partie avant que la lecture réponde se ferait renvoyer aux réglages.
 
-### `arcade.css` fige ses couleurs hors des jetons, et c'est voulu
-Les écrans de menu gardent l'identité Bubble Island quel que soit le thème sélectionné.
-Reprendre les jetons y rendrait le texte illisible en Matrix ou Win98, où les valeurs partent
-dans l'autre sens. Les écrans **de jeu**, eux, suivent bien le thème.
+### `arcade.css` ne porte plus aucune couleur
+Ce fichier a longtemps figé l'identité Bubble Island sur les écrans de menu, quel que soit le
+thème. **Ce n'est plus le cas** : il ne contient que de la structure et des jetons, zéro
+couleur en dur, zéro sprite. Chaque thème est désormais purement lui-même, menus compris ;
+les sprites propres à Paper Quest et Bubble Island vivent dans leurs blocs de `theme.css`.
+
+### L'attribut `hidden` perd contre toute règle `display`
+`[hidden] { display: none }` vient de la feuille du **navigateur**. N'importe quelle règle
+**auteur** posant `display` la bat, même à spécificité égale — `el.hidden = true` était donc
+sans effet visuel sur tout élément stylé en `display: grid/flex`. Cinq panneaux étaient
+concernés. Un garde global dans `layout.css` règle la question :
+
+```css
+[hidden] { display: none !important; }
+```
+
+`!important` est ici l'intention même : aucune règle de présentation ne doit pouvoir
+ressusciter un élément déclaré masqué. Ne pas ajouter de `display: … !important` ailleurs.
 
 ### Thème ≠ thème
 `settings.theme` = le sujet du quiz (« Cinéma & séries »), envoyé au LLM.
-`data-color-theme` = l'apparence. 9 thèmes : VS Code, Matrix, Girly, Windows 98, Jungle,
-Kids Friendly, Apple, Apple Glass, Bubble Island. Ajouter un thème = une entrée dans
-`COLOR_THEMES` + un bloc de surcharges dans `theme.css`. Aucun autre fichier à toucher.
+`data-color-theme` = l'apparence. **10 thèmes** : VS Code, Matrix, Girly, Windows 98,
+Jungle, Kids Friendly, Apple, Apple Glass, Bubble Island, **Paper Quest (défaut)**.
+Ajouter un thème = une entrée dans `COLOR_THEMES` + un bloc de surcharges dans `theme.css`.
+Aucun autre fichier à toucher.
+
+### Les avatars de joueur sont choisis pour le contraste, pas au hasard
+30 emoji dans `PLAYER_EMOJIS`, tous en **un seul point de code** : pas de séquence ZWJ qui
+s'afficherait en plusieurs glyphes sur une police ancienne, et la comparaison stricte
+utilisée par `nextEmoji()` reste fiable. Les pastels (panda, koala, licorne) ont été écartés :
+leur contour se dissout sur les thèmes clairs, il ne reste que les yeux. `PLAYER_EMOJI_LABELS`
+donne le nom français de chacun — sans lui, la grille de choix annonçait « bouton » 30 fois.
+
+La grille (`emojiPickerHtml`) est une **rangée pleine largeur dans la grille de la carte**
+(`grid-column: 1 / -1`), pas un flottant positionné : pas de `z-index` à arbitrer entre les
+dix thèmes, rien qui déborde d'un conteneur à `overflow` caché.
 
 ### Modèles reasoning (deepseek-v4-flash, etc.)
 Ils génèrent du `reasoning_content` avant la réponse JSON : coûteux, et souvent du JSON malformé.
@@ -243,6 +369,15 @@ const { getState, dispatch } = await import('./src/state.js');
 Attention : `navigator` n'est pas assignable directement sous Node 22, d'où `defineProperty`.
 `START_GAME` déclenche un appel réseau — pour tester la boucle de jeu, monter `s.session` et
 `s.partie` à la main plutôt que de le dispatcher.
+
+**Le bouchon IndexedDB doit donner un `Map` PAR store**, chacun avec son `keyPath`
+(`sessions`/`parties`/`modes` → `id`, `resume` → `partieId`). Un bouchon qui écrase tous les
+stores dans une seule `Map` a déjà fait passer un test pour de mauvaises raisons et échouer
+un autre pour de mauvaises raisons : l'enregistrement de session masquait l'instantané de
+reprise portant la même clé.
+
+Vérifier le **code de retour** de `npm run build`, jamais ses dernières lignes : une erreur
+de bundling y affiche une trace de pile, pas un résumé.
 
 ## Historique git
 Voir `git log`. (Ne pas recopier les commits ici : cette section a été fausse deux fois.)

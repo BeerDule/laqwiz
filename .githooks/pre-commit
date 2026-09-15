@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit — incrémente la version patch sur `dev`.
+#
+# Actif seulement via `git config core.hooksPath .githooks` (voir AGENTS.md) :
+# .git/hooks n'est pas versionné, ce répertoire-ci l'est.
+set -euo pipefail
+
+if [ "${SKIP_VERSION_BUMP:-}" = "1" ]; then
+  exit 0
+fi
+
+# `master` est la branche de déploiement : sa version vient de `dev` par report,
+# elle ne doit pas dériver toute seule.
+branche="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
+if [ "$branche" != "dev" ]; then
+  exit 0
+fi
+
+# Pendant un merge, un rebase, un cherry-pick ou un revert, chaque commit rejoué
+# repasserait ici et ferait bondir la version d'autant de crans.
+gitdir="$(git rev-parse --git-dir)"
+for marqueur in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do
+  if [ -e "$gitdir/$marqueur" ]; then
+    exit 0
+  fi
+done
+
+# Version déjà modifiée à la main dans ce commit : c'est un choix délibéré
+# (passage de mineure, sortie de bêta). On ne repasse pas derrière.
+if git diff --cached --unified=0 -- package.json | grep -qE '^\+[[:space:]]*"version"[[:space:]]*:'; then
+  exit 0
+fi
+
+node "$(git rev-parse --show-toplevel)/.githooks/bump-patch.mjs"
+git add "$(git rev-parse --show-toplevel)/package.json"

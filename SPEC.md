@@ -1,8 +1,15 @@
-# SPEC — Quizz Canapé
+# SPEC — Canap' QuiZZ
 
-> Spécification technique exhaustive et autonome, destinée à un agent IA développeur.
-> Document de référence unique. Aucune dépendance externe n'est nécessaire pour son application.
+> Spécification technique du MVP, écrite **avant** implémentation.
 > Stack imposée : Vite + Vanilla JS / HTML / CSS. Provider LLM générique OpenAI-compatible.
+
+> **État du document.** Les sections 6, 7, 8, 10, 11 et 13 (contrat `Question`, `api.js`,
+> `prompt.js`, scoring, préchargement, design system) décrivent toujours le code en place.
+> Les sections 3, 9, 12, 14 et 16 ont été remises à jour et font foi.
+>
+> En revanche, le produit a dépassé ce document sur trois axes qui n'y ont **jamais** été
+> spécifiés : la hiérarchie **session / partie / manche**, l'archive **IndexedDB** et la
+> **source Wikipédia**. Pour ceux-là, `AGENTS.md` fait autorité, pas ce fichier.
 
 ---
 
@@ -130,52 +137,72 @@
 quizz-canape/
 ├── .env                          # NON versionné (gitignored)
 ├── .env.example                  # Modèle versionné
-├── .gitignore
-├── README.md                     # Instructions de démarrage (≤ 60 lignes)
+├── .githooks/
+│   ├── pre-commit                # incrémente le patch sur `dev` (voir AGENTS.md)
+│   └── bump-patch.mjs
+├── AGENTS.md                     # guide de travail — fait autorité sur ce fichier
 ├── SPEC.md                       # Ce document
 ├── package.json
-├── package-lock.json
-├── vite.config.js
-├── index.html                    # Entrée unique, charge src/main.js en module
+├── vite.config.js                # build + proxy LLM du serveur de DEV
+├── vercel.json                   # rewrites : /api/* → /api/gateway
+├── flake.nix                     # shell reproductible
+├── index.html
+├── api/
+│   └── gateway.js                # proxy LLM serverless (production)
+├── demo/
+│   └── mock-llm.mjs              # faux LLM OpenAI-compatible, zéro dépendance
 ├── public/
-│   └── favicon.svg
+│   └── bubble-island/            # sprites découpés du pack craft/
 └── src/
-    ├── main.js                   # Bootstrap, montage écrans, glue
-    ├── state.js                  # Store + pub/sub + machine à états
-    ├── api.js                    # Client HTTP vers /api (proxy)
-    ├── prompt.js                 # Construction des prompts système / utilisateur
-    ├── storage.js                # Wrappers localStorage typés
-    ├── confetti.js               # Animation canvas victoire
+    ├── main.js                   # bootstrap, hydratation, routage, toasts
+    ├── state.js                  # store + pub/sub + machine à états
+    ├── api.js                    # client HTTP vers /api (proxy)
+    ├── prompt.js                 # prompts système / utilisateur
+    ├── storage.js                # wrappers localStorage typés
+    ├── db.js                     # IndexedDB : sessions, parties, reprises, modes
+    ├── modes.js                  # modes de jeu : semis versionné, CRUD, diff
+    ├── wikipedia.js              # recherche et fenêtre de sections
+    ├── shareConfig.js            # config LLM encodée en URL (base64url)
+    ├── themeSwitcher.js          # thème de couleurs (data-color-theme)
+    ├── confetti.js               # animation canvas victoire
     ├── validation.js             # validateQuestion(), parseQuestions()
-    ├── constants.js              # Émojis joueurs, couleurs, thèmes, défauts
+    ├── constants.js              # avatars, couleurs, BUILTIN_MODES, DEFAULTS, STORAGE_KEYS
+    ├── components/
+    │   └── playerChip.js         # jeton de joueur avec info-bulle
     ├── screens/
-    │   ├── setup.js              # Écran SETUP (joueurs, thème, règles)
-    │   ├── game.js               # Écran GAME (question, saisie, reveal)
-    │   └── victory.js            # Écran VICTORY (podium, confettis, rejouer)
+    │   ├── home.js               # menu principal
+    │   ├── setup.js              # roster, thème, modes, règles
+    │   ├── game.js               # question, saisie, révélation, chrono
+    │   ├── victory.js            # podium + confettis
+    │   ├── sessions.js           # gestionnaire de sessions
+    │   └── settings.js           # réglages globaux de l'appareil
     └── styles/
-        ├── theme.css             # Variables CSS, reset, typographie
-        ├── layout.css            # Grilles, conteneurs, breakpoints
-        └── components.css        # Boutons, cartes, inputs, animations
+        ├── theme.css             # jetons + 10 thèmes de couleurs
+        ├── layout.css            # mise en page + garde [hidden]
+        ├── components.css        # composants
+        └── arcade.css            # coquille « jeu vidéo » (structure + jetons)
 ```
 
 ### 3.1. Responsabilités par fichier
 
 | Fichier | Responsabilité unique | Public API |
 |---------|----------------------|------------|
-| `main.js` | Démarrage, routage d'écrans, init `state` | Aucun export, point d'entrée |
+| `main.js` | Démarrage, routage d'écrans, hydratation | Aucun export, point d'entrée |
 | `state.js` | Source de vérité de l'app | `getState()`, `subscribe(fn)`, `dispatch(action)` |
 | `api.js` | I/O LLM avec retries | `fetchQuestionBatch({theme, batchSize, exclude})` |
-| `prompt.js` | Construction des prompts | `buildSystemPrompt({theme, batchSize, history, schemaJSON})`, `buildUserPrompt({theme, batchSize, history})` |
-| `storage.js` | Persistance typée | `loadPlayers()`, `savePlayers()`, `loadSettings()`, `saveSettings()`, `loadStats()`, `saveStats()`, `clearAll()` |
-| `confetti.js` | Animation DOM/canvas | `launchConfetti({durationMs, intensity})`, `stopConfetti()` |
+| `prompt.js` | Construction des prompts | `buildSystemPrompt(…)`, `buildUserPrompt(…)` |
+| `storage.js` | Persistance typée | `loadPlayers/savePlayers`, `loadSettings/saveSettings`, `loadStats/saveStats`, `loadLlmConfig/saveLlmConfig`, `clearAll()`, `wipeLocalStorage()` |
+| `db.js` | Archive IndexedDB (avale ses erreurs) | `putSession/getSession/listSessions/deleteSession`, `putPartie/listParties/deletePartie`, `putResume/getResume/listResumes/deleteResume`, `listModes/putMode/deleteMode`, `clearArchive()` |
+| `modes.js` | Modes de jeu | `loadModes()`, `createMode()`, `updateMode()`, `removeMode()`, `resetBuiltinMode()`, `diffFromMode()`, `sanitizeModeSettings()` |
+| `wikipedia.js` | Source « article » | `parseArticleUrl()`, `searchArticles()`, `fetchArticle()`, `sectionWindow()` |
+| `shareConfig.js` | Partage de config par URL | `encodeShareConfig()`, `decodeShareConfig()`, `buildShareUrl()` |
+| `themeSwitcher.js` | Thème de couleurs | `initColorTheme()`, `setColorTheme()`, `getColorTheme()`, `renderThemeSelect()`, `wireThemeSelect()` |
+| `confetti.js` | Animation DOM/canvas | `launchConfetti(…)`, `stopConfetti()` |
 | `validation.js` | Validation contrat Question | `validateQuestion(q)`, `parseQuestions(json)` |
-| `constants.js` | Valeurs constantes | `PLAYER_EMOJIS`, `PLAYER_COLORS`, `PRESET_THEMES`, `DEFAULTS`, `STORAGE_KEYS` |
-| `screens/setup.js` | Rendu + événements SETUP | `renderSetup(root)`, `unmountSetup()` |
-| `screens/game.js` | Rendu + événements GAME | `renderGame(root)`, `unmountGame()` |
-| `screens/victory.js` | Rendu + événements VICTORY | `renderVictory(root)`, `unmountVictory()` |
-| `styles/theme.css` | Tokens design system | Aucun |
-| `styles/layout.css` | Layout & responsive | Aucun |
-| `styles/components.css` | Composants UI | Aucun |
+| `constants.js` | Valeurs constantes | `PLAYER_EMOJIS`, `PLAYER_EMOJI_LABELS`, `PLAYER_COLORS`, `PRESET_THEMES`, `BUILTIN_MODES`, `MODE_RULE_KEYS`, `DEFAULTS`, `STORAGE_KEYS`, `COLOR_THEMES` |
+| `components/playerChip.js` | Jeton de joueur partagé | `playerChip(player, opts)`, `playerChips(list, opts)` |
+| `screens/*.js` | Rendu + événements | `render<Écran>(root)`, `unmount<Écran>()` |
+| `styles/*.css` | Présentation | Aucun |
 
 ### 3.2. Conventions de nommage
 
@@ -1204,16 +1231,35 @@ const INITIAL_STATE = Object.freeze({
   ],
 
   // === Paramètres (modifiables à SETUP, snapshotés au début de partie) ===
+  // Les onze premiers champs sont les `MODE_RULE_KEYS` : ce sont eux, et eux
+  // seuls, qu'un mode de jeu pilote.
   settings: {
-    theme: 'cinéma',           // string, prédéfini ou libre
-    targetScore: 15,           // int 5..30
-    twoPointLead: false,       // bool : pour gagner, avoir ≥ target ET ≥ 2 pts d'avance
-    bonusEnabled: false,       // bool : activer la question bonus (double points)
-    // LLM
-    model: 'mammouth-chat',
-    temperature: 0.9,
-    batchSize: 5,
+    targetScore: 15, twoPointLead: false, bonusEnabled: false,
+    difficulty: 'balanced', audience: 'general',
+    timerEnabled: true, timePerQuestion: 60,
+    penaltyNoAnswer: false, penaltyWrongAnswer: true,
+    punisherSeverity: 'punitive', manchesTarget: 1,
+
+    theme: 'Culture générale', // sujet du quiz, prédéfini ou libre
+    modeId: 'epice',           // mode d'origine des règles ci-dessus
+    sourceMode: 'theme',       // 'theme' | 'wikipedia'
+    sourceTitle: '', sourceLang: 'fr', sourceUrl: '',
   },
+
+  // === Configuration LLM ===
+  // Délibérément HORS de `settings` : celui-ci est recopié en entier dans chaque
+  // partie archivée et chaque instantané de reprise. La clé API s'y retrouvait
+  // dupliquée à chaque sauvegarde. Elle est aussi globale à l'appareil.
+  llm: { model: '', baseUrl: '', apiKey: '', temperature: 0.9, batchSize: 5 },
+
+  // === Hiérarchie de jeu (non spécifiée dans ce document — voir AGENTS.md) ===
+  session: null, // roster + sac de parties, aucune condition de fin
+  partie: null,  // best-of de manches
+
+  // === Source Wikipédia ===
+  // Hors de `settings` : celui-ci est réécrit dans localStorage à chaque
+  // dispatch, et l'article pèse plusieurs kilo-octets.
+  source: null,
 
   // === Questions ===
   questions: [],               // Question[] déjà validées
@@ -1226,7 +1272,12 @@ const INITIAL_STATE = Object.freeze({
   isBonusRound: false,         // la question courante est-elle une question bonus ?
 
   // === Phase courante ===
-  phase: 'SETUP',              // 'SETUP' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'VICTORY'
+  phase: 'HOME',
+  // 'HOME' | 'SETUP' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'MANCHE_END'
+  // | 'VICTORY' | 'SESSIONS' | 'SETTINGS'
+  //
+  // Toute nouvelle phase doit être ajoutée À LA FOIS dans `MOUNTERS` et
+  // `UNMOUNTERS` de `main.js`, sinon l'écran reste blanc sans erreur.
 
   // === File de préchargement ===
   prefetchQueue: [],           // Question[] déjà reçues, en attente d'affichage
@@ -1250,6 +1301,10 @@ const INITIAL_STATE = Object.freeze({
     lastError: null,           // { code, message, ts } | null
     isOnline: navigator.onLine,
     isFetching: false,
+    // Transients : la source de vérité reste IndexedDB, ceci n'en est que
+    // la copie affichable. Vidés par un reset, jamais persistés tels quels.
+    resumables: [],            // parties interrompues de la session courante
+    modes: [],                 // catalogue des modes de jeu
   },
 });
 ```
@@ -1716,6 +1771,34 @@ Afficher 8 thèmes prédéfinis sous forme de boutons radio : `Culture général
 - À la soumission : sauvegarder joueurs et settings, désactiver le formulaire, afficher `LOADING`, lancer le lot initial.
 - Afficher un texte de progression non mensonger : « Le maître des questions prépare 5 cartes… ».
 
+#### Sélecteur de mode de jeu
+
+Une rangée de cartes en tête du panneau de règles, suivie d'une carte « Créer ».
+Cliquer sur une carte recopie les onze `MODE_RULE_KEYS` du mode **dans le formulaire**,
+pas dans l'état : le formulaire reste la vérité jusqu'à la soumission.
+
+- Le thème et l'article Wikipédia **ne sont pas touchés** — durcir les règles ne doit pas
+  faire reperdre l'article qu'on venait de chercher.
+- Le badge « modifié » se **calcule** (`diffFromMode`) à chaque saisie, il ne se stocke pas :
+  un drapeau mentirait dès qu'on remet une valeur à sa position d'origine.
+- Actions contextuelles : « Enregistrer comme nouveau mode », « Mettre à jour », « Annuler mes
+  retouches », « Renommer », plus « Réinitialiser » (mode fourni retouché) ou « Supprimer »
+  (mode perso). **Un mode fourni ne se supprime pas** : le semis le recréerait au rechargement.
+
+#### Grille de choix d'avatar
+
+Cliquer sur l'avatar d'un joueur ouvre une grille des 30 `PLAYER_EMOJIS`, **rangée pleine
+largeur dans la grille de la carte** (`grid-column: 1 / -1`) et non flottant positionné :
+pas de `z-index` à arbitrer entre les dix thèmes, rien qui déborde d'un conteneur à
+`overflow` caché.
+
+- Les avatars pris par un **autre** joueur sont `disabled`, pas masqués : on comprend pourquoi
+  ils sont hors d'atteinte. Deux joueurs identiques rendraient l'attribution des points
+  illisible.
+- Fermeture par `Échap` ou clic à l'extérieur. Le focus part sur la première case libre à
+  l'ouverture et **revient au déclencheur** à la fermeture, la grille ayant quitté le document.
+- Chaque case porte son nom français (`PLAYER_EMOJI_LABELS`) : sans lui, un lecteur d'écran
+  annonce « bouton » trente fois.
 ### 12.3. GAME — spécification détaillée
 
 #### 12.3.1. Layout
@@ -1955,10 +2038,24 @@ export const STORAGE_KEYS = {
   players: 'quizz-canape:players',
   settings: 'quizz-canape:settings',
   stats: 'quizz-canape:stats',
+  activeSession: 'quizz-canape:active-session',
+  llm: 'quizz-canape:llm',
 };
 ```
 
-**Interdiction absolue :** ne jamais stocker une clé API, un token, un header `Authorization`, ni une réponse contenant un secret côté client. La recherche dans les valeurs `localStorage` doit confirmer l'absence de `LLM_API_KEY` et `Bearer`.
+Plus `quizz-canape:color-theme`, écrite par `themeSwitcher.js` et **absente de cette table** —
+c'est pourquoi `wipeLocalStorage()` balaie par **préfixe** et non par cette liste figée.
+
+**La clé API est stockée en clair** dans `quizz-canape:llm` en mode BYOK. C'est un écart
+assumé par rapport au MVP, qui l'interdisait : sans lui, le mode « chacun son provider » est
+impossible. Deux garde-fous en découlent :
+
+- elle vit **hors de `settings`**, qui est recopié en entier dans chaque partie archivée et
+  chaque instantané de reprise — elle s'y dupliquait indéfiniment ;
+- le lien de partage (`shareConfig.js`) la contient **en clair** : base64url est un encodage,
+  pas un chiffrement. L'URL est nettoyée par `history.replaceState` dès son import.
+
+Pour un hébergement public, préférer la configuration serveur `.env`.
 
 ### 14.2. Schéma `quizz-canape:players`
 
@@ -1975,14 +2072,36 @@ Le score n'est pas persisté dans cette clé : il est toujours remis à zéro au
 
 ```json
 {
-  "theme": "cinéma & séries",
+  "theme": "Cinéma & séries",
   "targetScore": 15,
   "twoPointLead": false,
-  "bonusEnabled": true
+  "bonusEnabled": false,
+  "difficulty": "balanced",
+  "audience": "general",
+  "timerEnabled": true,
+  "timePerQuestion": 60,
+  "penaltyNoAnswer": false,
+  "penaltyWrongAnswer": true,
+  "punisherSeverity": "punitive",
+  "manchesTarget": 1,
+  "modeId": "epice",
+  "sourceMode": "theme",
+  "sourceTitle": "",
+  "sourceLang": "fr",
+  "sourceUrl": ""
 }
 ```
 
-Les champs LLM ne doivent pas être enregistrés ici : ils sont décidés côté serveur par `.env`. À l'hydratation, rejeter tout champ inconnu et borner `targetScore` à 5-30.
+**Aucun champ LLM ici** : ils vivent dans `quizz-canape:llm`. À l'hydratation, chaque valeur
+est revalidée contre sa liste de choix — un `localStorage` bricolé à la main ne doit pas
+injecter n'importe quoi dans une partie. `targetScore` est borné à 5-30.
+
+`modeId` est un simple identifiant : on ne peut pas vérifier ici que le mode existe encore,
+le catalogue vivant en IndexedDB et se lisant de façon asynchrone. Le sélecteur retombe sur
+« personnalisé » s'il ne le retrouve pas.
+
+L'article Wikipédia n'est **jamais** persisté, seulement ses identifiants : `saveSettings` est
+appelé à chaque dispatch et le texte pèse plusieurs kilo-octets.
 
 ### 14.4. Schéma `quizz-canape:stats`
 
@@ -2064,10 +2183,10 @@ export function clearAll() { ['quizz-canape:players', 'quizz-canape:settings', '
 ```json
 {
   "name": "quizz-canape",
-  "version": "1.0.0",
+  "version": "0.1.0-beta",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20.0.0" },
+  "engines": { "node": "24.x" },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -2078,6 +2197,21 @@ export function clearAll() { ['quizz-canape:players', 'quizz-canape:settings', '
   }
 }
 ```
+
+### 16.1 bis. Versionnage
+
+`engines.node` décide aussi de la version déployée sur Vercel : l'export `config` d'une
+fonction `/api` n'accepte pas de numéro de runtime (`edge` | `experimental-edge` | `nodejs`
+uniquement).
+
+Le champ `version` est **incrémenté automatiquement** à chaque commit sur `dev` par
+`.githooks/pre-commit`. Activation après clone : `git config core.hooksPath .githooks`.
+Détail des garde-fous dans `AGENTS.md`.
+
+La version affichée dans l'application vaut `<version>+<sha court>`, résolue au build par
+`resolveVersion()` et figée par `define`. Le SHA est une **métadonnée de build** (`+`), pas un
+identifiant de préversion (`.`) : un identifiant numérique ne peut pas commencer par zéro,
+donc `0.1.0-beta.0123456` serait invalide là où `0.1.0-beta+0123456` reste correct.
 
 ### 16.2. Commandes
 
