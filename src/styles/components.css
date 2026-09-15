@@ -477,8 +477,10 @@ output {
 .option-card__player-btn:hover { border-color: var(--color-accent-primary); background: var(--bg-surface-soft); }
 .option-card__player-btn.is-active { background: var(--color-accent-primary); border-color: var(--color-accent-primary); }
 
-/* Popover — nom du joueur au survol / focus */
-.option-card__player-btn::after {
+/* Popover — nom du joueur au survol / focus. Porté par .player-chip pour que
+   toutes les pastilles de l application se comportent pareil. */
+.player-chip { position: relative; }
+.player-chip::after {
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 6px);
@@ -499,8 +501,8 @@ output {
   transition: opacity var(--transition-fast), transform var(--transition-fast);
   z-index: 20;
 }
-.option-card__player-btn:hover::after,
-.option-card__player-btn:focus-visible::after {
+.player-chip:hover::after,
+.player-chip:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }
@@ -1233,3 +1235,31 @@ kbd.option-card__hint {
 /* ===== Nom de session éditable (écran de réglages) ===== */
 .session-banner { display: grid; gap: 4px; }
 .session-banner input { width: 100%; }
+
+/* ===== Reprise d'une partie interrompue ===== */
+.arcade-resume-hint {
+  margin-top: -6px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.resume-banner { display: grid; gap: var(--space-3); }
+.resume-banner__label { font-weight: 700; }
+.resume-banner__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.arcade-card__resume { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; flex-wrap: wrap; }
+.arcade-tag--resume { background: var(--color-warning); color: var(--accent-contrast); }
+
+.resume-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.resume-item { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.resume-item__label { margin-right: auto; font-size: 13px; }
+
+/* Pastille de joueur partagée (voir components/playerChip.js) */
+.player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  line-height: 1;
+}
+.player-chip__suffix { font-weight: 700; font-variant-numeric: tabular-nums; }

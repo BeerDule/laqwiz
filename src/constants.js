@@ -162,7 +162,7 @@ export const COLOR_THEMES = {
   'bubble-island': { label: 'Bubble Island' },
   paper:   { label: 'Paper Quest' },
 };
-export const DEFAULT_COLOR_THEME = 'default';
+export const DEFAULT_COLOR_THEME = 'paper';
 
 export const DIFFICULTY_LABELS = {
   easy: 'Facile',

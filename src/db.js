@@ -6,9 +6,12 @@
 // vit ici — sa lecture asynchrone ne bloque pas le démarrage.
 
 const DB_NAME = 'quizz-canape';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 const STORE_SESSIONS = 'sessions';
 const STORE_PARTIES = 'parties';
+// Instantanés des parties EN COURS. Clé = identifiant de PARTIE, index sur la
+// session : une même session peut donc avoir plusieurs parties interrompues.
+const STORE_RESUME = 'resume';
 
 let dbPromise = null;
 
@@ -20,10 +23,22 @@ function openDb() {
       return;
     }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
+      // v2 indexait par session (une seule partie reprenable). v3 indexe par
+      // partie. Le keyPath n'étant pas modifiable, le store est recréé — les
+      // instantanés de la v2 sont donc perdus, mais aucune partie TERMINÉE ne
+      // l'est : celles-ci vivent dans le store `parties`.
+      if (event.oldVersion >= 2 && event.oldVersion < 3
+          && db.objectStoreNames.contains(STORE_RESUME)) {
+        db.deleteObjectStore(STORE_RESUME);
+      }
       if (!db.objectStoreNames.contains(STORE_SESSIONS)) {
         db.createObjectStore(STORE_SESSIONS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_RESUME)) {
+        const resume = db.createObjectStore(STORE_RESUME, { keyPath: 'partieId' });
+        resume.createIndex('sessionId', 'sessionId', { unique: false });
       }
       if (!db.objectStoreNames.contains(STORE_PARTIES)) {
         const parties = db.createObjectStore(STORE_PARTIES, { keyPath: 'id' });
@@ -71,10 +86,20 @@ export function listSessions() {
     .then(rows => (rows || []).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
 }
 
+/**
+ * Supprime une session, ses parties terminées ET ses parties interrompues.
+ * Sans ce dernier point, les instantanés survivaient en orphelins : la partie
+ * disparaissait de l'archive mais restait proposée à la reprise.
+ */
 export function deleteSession(id) {
+  if (!id) return Promise.resolve(null);
   return safe(
-    run(STORE_SESSIONS, 'readwrite', st => st.delete(id)).then(() => listParties(id))
-      .then(parties => Promise.all(parties.map(p => deletePartie(p.id)))),
+    run(STORE_SESSIONS, 'readwrite', st => st.delete(id))
+      .then(() => Promise.all([listParties(id), listResumes(id)]))
+      .then(([parties, resumes]) => Promise.all([
+        ...parties.map(p => deletePartie(p.id)),
+        ...resumes.map(r => deleteResume(r.partieId)),
+      ])),
     null
   );
 }
@@ -92,4 +117,30 @@ export function listParties(sessionId) {
     run(STORE_PARTIES, 'readonly', st => st.index('sessionId').getAll(sessionId)),
     []
   ).then(rows => (rows || []).sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0)));
+}
+
+// --- Reprise d'une partie interrompue ---
+
+export function putResume(snapshot) {
+  return safe(run(STORE_RESUME, 'readwrite', st => st.put(snapshot)), null);
+}
+
+export function getResume(partieId) {
+  if (!partieId) return Promise.resolve(null);
+  return safe(run(STORE_RESUME, 'readonly', st => st.get(partieId)), null)
+    .then(r => r || null);
+}
+
+/** Toutes les parties interrompues d'une session, la plus récente d'abord. */
+export function listResumes(sessionId) {
+  if (!sessionId) return Promise.resolve([]);
+  return safe(
+    run(STORE_RESUME, 'readonly', st => st.index('sessionId').getAll(sessionId)),
+    []
+  ).then(rows => (rows || []).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)));
+}
+
+export function deleteResume(partieId) {
+  if (!partieId) return Promise.resolve(null);
+  return safe(run(STORE_RESUME, 'readwrite', st => st.delete(partieId)), null);
 }

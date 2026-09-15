@@ -2,7 +2,7 @@
 import { normalizeQuestionText } from './validation.js';
 import { fetchQuestionBatch, toUiError } from './api.js';
 import { saveStats, clearAll, saveActiveSessionId } from './storage.js';
-import { putSession, putPartie } from './db.js';
+import { putSession, putPartie, putResume, deleteResume } from './db.js';
 import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS } from './constants.js';
 import { fetchArticle, sectionWindow } from './wikipedia.js';
 
@@ -86,6 +86,9 @@ const INITIAL_STATE = Object.freeze({
     lastError: null,
     isOnline: isOnline(),
     isFetching: false,
+    // Parties interrompues de la session courante, la plus récente d'abord.
+    // Transient : la source de vérité reste le store IndexedDB.
+    resumables: [],
   },
 });
 
@@ -167,6 +170,55 @@ function persistSession(s) {
     history: s.history,
     updatedAt: Date.now(),
   });
+}
+
+/**
+ * Instantané de la partie en cours, pour la reprendre après une interruption.
+ *
+ * Appelé aux moments qui comptent (question affichée, réponse saisie, manche
+ * close) et NON à chaque dispatch : une transaction IndexedDB par clic serait
+ * le même gaspillage que celui déjà évité pour le chronomètre.
+ *
+ * La file de préchargement est incluse : sans elle, une reprise hors ligne
+ * n'aurait aucune question à afficher. L'article Wikipédia l'est aussi —
+ * quelques milliers de caractères, contre un nouveau téléchargement sinon.
+ */
+function persistResume(s) {
+  if (!s.session || !s.partie) return null;
+  // Une partie gagnée n'est pas reprenable : sans ce garde, quitter l'écran de
+  // victoire recréait un instantané pour une partie terminée, et le bandeau de
+  // reprise apparaissait alors qu'il n'y avait plus rien à reprendre.
+  if (s.partie.winnerId || s.phase === 'VICTORY') return null;
+  const snapshot = {
+    partieId: s.partie.id, // clé du store : une entrée par partie
+    sessionId: s.session.id,
+    savedAt: Date.now(),
+    phase: s.phase,
+    partie: s.partie,
+    players: s.players.map(({ id, name, emoji, color, score }) => ({ id, name, emoji, color, score })),
+    questions: s.questions,
+    currentIndex: s.currentIndex,
+    roundAnswers: s.roundAnswers,
+    roundPenalties: s.roundPenalties,
+    isBonusRound: s.isBonusRound,
+    prefetchQueue: s.prefetchQueue,
+    history: s.history,
+    source: s.source,
+    settings: { ...s.settings },
+  };
+  putResume(snapshot);
+  return snapshot; // rendu pour que l'appelant puisse le proposer aussitôt
+}
+
+/** La partie porte son `sessionId` : on ne dépend donc pas de l'ordre dans
+ *  lequel session et partie ont été restaurées. */
+function dropResume(s) {
+  const id = s.partie?.id;
+  if (!id) return;
+  deleteResume(id);
+  // On ne retire QUE cette partie : les autres parties interrompues de la
+  // session restent reprenables.
+  s.ui.resumables = s.ui.resumables.filter(r => r.partieId !== id);
 }
 
 function persistPartie(s) {
@@ -265,6 +317,10 @@ function reducer(s, action) {
         s.session = newSession();
         s.history = [];
       }
+      // Une nouvelle partie remplace l'instantané précédent : c'est le seul
+      // moment où l'on renonce vraiment à reprendre.
+      dropResume(s);
+      s.ui.resumables = [];
       s.partie = newPartie(s);
       // Rechargé à chaque partie : un re-téléchargement coûte quelques centaines
       // de millisecondes et évite toute confusion si l'article a été changé.
@@ -301,16 +357,19 @@ function reducer(s, action) {
       s.roundPenalties = {};
       s.isBonusRound = s.settings.bonusEnabled && Math.random() < BONUS_CHANCE;
       s.phase = 'QUESTION';
+      persistResume(s);
       maybePrefetchNext();
       break;
     }
 
     case 'PLAYER_ANSWER':
       s.roundAnswers[action.playerId] = action.optionKey;
+      persistResume(s);
       break;
 
     case 'CLEAR_PLAYER_ANSWER':
       delete s.roundAnswers[action.playerId];
+      persistResume(s);
       break;
 
     case 'REVEAL_ANSWER': {
@@ -335,6 +394,7 @@ function reducer(s, action) {
       }
       s.stats.questionsAnswered += s.players.length;
       s.stats.correctAnswers += correctCount;
+      persistResume(s);
       break;
     }
 
@@ -365,6 +425,8 @@ function reducer(s, action) {
       }
       persistPartie(s);
       persistSession(s);
+      // Partie gagnée : plus rien à reprendre. Sinon on garde l'instantané.
+      if (s.phase === 'VICTORY') dropResume(s); else persistResume(s);
       break;
     }
 
@@ -377,10 +439,18 @@ function reducer(s, action) {
       s.roundPenalties = {};
       s.isBonusRound = false;
       s.phase = 'LOADING';
+      persistResume(s);
       break;
 
     // Nouvelle partie dans la MÊME session : le roster et l'anti-doublon restent.
     case 'NEW_GAME':
+      // Quitter, rejouer, revenir aux réglages : NEW_GAME sert à quatre
+      // intentions. Aucune n'est un abandon — on garde donc l'instantané et on
+      // le propose tout de suite, sans attendre un rechargement de page.
+      const quitte = persistResume(s);
+      if (quitte) {
+        s.ui.resumables = [quitte, ...s.ui.resumables.filter(r => r.partieId !== quitte.partieId)];
+      }
       s.players = s.players.map(p => ({ ...p, score: 0 }));
       s.partie = null;
       s.questions = [];
@@ -396,6 +466,58 @@ function reducer(s, action) {
     case 'SET_SOURCE':
       s.source = action.source;
       break;
+
+    /**
+     * Reprise d'une partie interrompue. On restaure l'état de jeu tel qu'il
+     * était, y compris la file de préchargement : la partie peut donc repartir
+     * même hors ligne, avec les questions déjà téléchargées.
+     *
+     * Les réglages sont restaurés depuis l'instantané et non depuis
+     * localStorage : ce sont ceux qui étaient en vigueur au lancement, et ils
+     * peuvent avoir été modifiés depuis dans l'écran de réglages.
+     */
+    // Abandon explicite d'UNE partie, visée par son identifiant : les autres
+    // parties interrompues de la session ne bougent pas.
+    case 'DISCARD_RESUME': {
+      const id = action.partieId;
+      if (!id) break;
+      deleteResume(id);
+      s.ui.resumables = s.ui.resumables.filter(r => r.partieId !== id);
+      break;
+    }
+
+    case 'SET_RESUMABLES':
+      s.ui.resumables = Array.isArray(action.snapshots) ? action.snapshots : [];
+      break;
+
+    case 'RESUME_PARTIE': {
+      const r = action.snapshot;
+      if (!r || !r.partie) break;
+      // Garde-fou : une partie appartient à sa session. Reprendre l'instantané
+      // d'une autre session mélangerait deux rosters et deux historiques.
+      if (s.session && r.sessionId && r.sessionId !== s.session.id) {
+        console.warn('[state] instantané ignoré : il appartient à une autre session');
+        break;
+      }
+      s.settings = { ...s.settings, ...r.settings };
+      s.partie = r.partie;
+      s.players = (r.players || []).map(p => ({ ...p, score: p.score || 0 }));
+      s.questions = r.questions || [];
+      s.currentIndex = typeof r.currentIndex === 'number' ? r.currentIndex : -1;
+      s.roundAnswers = r.roundAnswers || {};
+      s.roundPenalties = r.roundPenalties || {};
+      s.isBonusRound = !!r.isBonusRound;
+      s.prefetchQueue = r.prefetchQueue || [];
+      s.prefetchInflight = false; // toute requête en vol est morte avec l'onglet
+      s.history = Array.isArray(r.history) ? r.history : s.history;
+      s.source = r.source || null;
+      // Une partie sauvegardée en LOADING n'a rien à afficher : on la relance.
+      s.phase = r.phase === 'LOADING' ? 'LOADING' : r.phase;
+      // Reprise : cette partie n'est plus « en attente », les autres si.
+      s.ui.resumables = s.ui.resumables.filter(x => x.partieId !== r.partieId);
+      if (s.phase === 'LOADING') triggerInitialBatch();
+      break;
+    }
 
     case 'GOTO_HOME':
       s.phase = 'HOME';
@@ -415,6 +537,9 @@ function reducer(s, action) {
       s.session = newSession();
       s.history = [];
       s.partie = null;
+      // Session neuve : elle n'a aucune partie interrompue. Sans cette ligne,
+      // le panneau continuait d'afficher celles de la session précédente.
+      s.ui.resumables = [];
       s.players = s.players.map(p => ({ ...p, score: 0 }));
       s.phase = 'SETUP';
       persistSession(s);
@@ -428,6 +553,7 @@ function reducer(s, action) {
       s.session = null;
       s.partie = null;
       s.history = [];
+      s.ui.resumables = [];
       setActiveSessionId(null);
       s.phase = 'HOME';
       break;
@@ -439,6 +565,9 @@ function reducer(s, action) {
         s.players = action.session.players.map(p => ({ ...p, score: 0 }));
       }
       s.partie = null;
+      // L'instantané appartient à UNE session : on le vide en changeant de
+      // session, l'appelant chargera celui de la nouvelle.
+      s.ui.resumables = [];
       s.phase = 'SETUP';
       setActiveSessionId(s.session.id); // sinon la reprise est perdue au rechargement
       persistSession(s);

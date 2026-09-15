@@ -35,7 +35,7 @@ export function renderThemeSelect() {
   ).join('');
   return `
     <label class="theme-picker" aria-label="Thème de couleurs">
-      <select id="color-theme-select">
+      <select id="color-theme-select" autocomplete="off">
         ${options}
       </select>
     </label>`;

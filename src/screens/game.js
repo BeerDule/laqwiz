@@ -2,6 +2,7 @@
 import { getState, dispatch, subscribe, hasMancheWinner, manchesNeeded, retryGeneration } from '../state.js';
 import { DIFFICULTY_LABELS } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+import { playerChip } from '../components/playerChip.js';
 
 let teardown = null;
 let root = null;
@@ -113,14 +114,11 @@ function questionHtml(s) {
   const bonus = s.isBonusRound;
 
   const optionsHtml = q.options.map((o, i) => {
-    const playerBtns = s.players.map(p => `
-      <button type="button"
-        class="option-card__player-btn"
-        data-player="${p.id}"
-        data-key="${o.key}"
-        data-tooltip="${escapeHtml(p.name)}"
-        aria-label="${escapeHtml(p.name)} — ${o.key}">${p.emoji}</button>
-    `).join('');
+    const playerBtns = s.players.map(p => playerChip(p, {
+      as: 'button',
+      className: 'option-card__player-btn',
+      attrs: { 'data-player': p.id, 'data-key': o.key },
+    })).join('');
 
     return `
     <div class="option-card" data-key="${o.key}">

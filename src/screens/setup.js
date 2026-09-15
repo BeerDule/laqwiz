@@ -9,6 +9,7 @@ import {
 } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
+import { listResumes } from '../db.js';
 
 // Le mode BYOK — chaque joueur renseigne sa propre configuration LLM — est
 // obligatoire en production par défaut, optionnel en développement.
@@ -316,8 +317,67 @@ function wireWikiSearch(signal) {
   }, { signal });
 }
 
+/**
+ * Recharge les parties interrompues DE LA SESSION COURANTE.
+ *
+ * L'écran ne peut pas se contenter de ce que `ui.resumables` contient : ouvrir
+ * une session vide cette liste (elle appartient à une session), et selon le
+ * chemin emprunté — accueil, gestionnaire, sortie de partie — personne ne la
+ * repeuplait. Charger ici rend l'écran autonome quel que soit le chemin.
+ */
+let lastLoadedSessionId = null;
+function loadResumesFor(sessionId) {
+  lastLoadedSessionId = sessionId;
+  if (!sessionId) {
+    dispatch({ type: 'SET_RESUMABLES', snapshots: [] });
+    return;
+  }
+  listResumes(sessionId).then((snapshots) => {
+    // L'écran a pu être démonté, ou la session changer, pendant la lecture.
+    if (!root || getState().session?.id !== sessionId) return;
+    dispatch({ type: 'SET_RESUMABLES', snapshots });
+  });
+}
+
+/**
+ * Liste des parties interrompues de la session. Masquée quand il n'y en a
+ * aucune — le bandeau restait affiché à vide tant que `resumable` n'était pas
+ * nettoyé après une victoire.
+ */
+function renderResumeBanner() {
+  const el = root.querySelector('#resume-banner');
+  if (!el) return;
+  const list = getState().ui.resumables || [];
+  el.hidden = list.length === 0;
+  if (!list.length) return;
+
+  root.querySelector('#resume-list').innerHTML = list.map(r => {
+    const manche = (r.partie?.mancheIndex ?? 0) + 1;
+    const total = r.partie?.manchesTarget ?? '?';
+    // Prénom inclus : entre deux parties de la même session, les emojis se
+    // ressemblent et le score seul ne dit pas de quelle tablée il s'agit.
+    // L'échappement est appliqué plus bas, sur la chaîne entière.
+    const scores = (r.players || [])
+      .map(p => `${p.emoji} ${p.name || 'Joueur'} ${p.score ?? 0}`)
+      .join(' · ');
+    let quand = '';
+    try {
+      quand = new Date(r.savedAt).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    } catch { /* horodatage illisible */ }
+    return `
+      <li class="resume-item" data-partie="${escapeHtml(r.partieId)}">
+        <span class="resume-item__label">Manche ${manche}/${total}${scores ? ` · ${escapeHtml(scores)}` : ''}${quand ? ` · ${quand}` : ''}</span>
+        <button class="button button--primary" type="button" data-resume-action="resume">Reprendre</button>
+        <button class="button button--ghost button--danger" type="button" data-resume-action="drop">Supprimer</button>
+      </li>`;
+  }).join('');
+}
+
 function renderSettings() {
   const { settings: s, session } = getState();
+  loadResumesFor(getState().session?.id ?? null);
+  renderResumeBanner();
+
   const banner = root.querySelector('#session-banner');
   if (banner) {
     banner.hidden = !session;
@@ -454,6 +514,24 @@ function wireEvents(signal) {
     dispatch({ type: 'GOTO_HOME' });
   }, { signal });
 
+  // Délégation : la liste est réécrite à chaque rendu, un écouteur par bouton
+  // serait perdu au premier redessin.
+  root.querySelector('#resume-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-resume-action]');
+    if (!btn) return;
+    const partieId = btn.closest('.resume-item')?.dataset.partie;
+    if (!partieId) return;
+    const snapshot = (getState().ui.resumables || []).find(r => r.partieId === partieId);
+    if (!snapshot) return;
+
+    if (btn.dataset.resumeAction === 'resume') {
+      dispatch({ type: 'RESUME_PARTIE', snapshot });
+    } else if (window.confirm('Supprimer définitivement cette partie interrompue ?')) {
+      dispatch({ type: 'DISCARD_RESUME', partieId });
+      renderResumeBanner();
+    }
+  }, { signal });
+
   wireWikiSearch(signal);
 
   // `change` et non `input` : chaque renommage écrit la session dans IndexedDB.
@@ -547,6 +625,12 @@ export function renderSetup(rootEl) {
            L'attribut autocomplete est posé ici, celui du formulaire ne couvrant
            que ses propres descendants. (Pas de backtick dans ce commentaire : il
            vit dans un template literal.) -->
+      <!-- Reprise d'une partie interrompue. C'est ici qu'on atterrit en quittant
+           l'écran de jeu, donc c'est ici que la proposition doit être. -->
+      <div id="resume-banner" class="arcade-plaque arcade-plaque--slim resume-banner" hidden>
+        <span class="resume-banner__label">Parties interrompues</span>
+        <ul id="resume-list" class="resume-list"></ul>
+      </div>
       <div id="session-banner" class="arcade-plaque arcade-plaque--slim session-banner" hidden>
         <label class="field-label" for="session-name">Nom de la session</label>
         <input id="session-name" type="text" maxlength="60" autocomplete="off"
@@ -679,11 +763,23 @@ export function renderSetup(rootEl) {
   const cleanup = new AbortController();
   wireEvents(cleanup.signal);
 
+  // La session et les instantanés arrivent de façon asynchrone (IndexedDB) :
+  // sans ces deux suivis, le panneau restait figé sur son état de montage.
+  let lastResumeKey = '';
   const unsub = subscribe(() => {
     if (!root) return;
     const s = getState();
     showError(s.ui.lastError ? s.ui.lastError.message : null);
     updateStartButton();
+
+    const sessionId = s.session?.id ?? null;
+    if (sessionId !== lastLoadedSessionId) loadResumesFor(sessionId);
+
+    const key = (s.ui.resumables || []).map(r => r.partieId).join(',');
+    if (key !== lastResumeKey) {
+      lastResumeKey = key;
+      renderResumeBanner();
+    }
   });
 
   teardown = () => {

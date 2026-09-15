@@ -6,7 +6,7 @@ import './styles/arcade.css';
 
 import { getState, dispatch, subscribe } from './state.js';
 import { loadPlayers, loadSettings, loadStats, savePlayers, saveSettings, loadActiveSessionId } from './storage.js';
-import { getSession } from './db.js';
+import { getSession, listResumes } from './db.js';
 import { renderSetup, unmountSetup } from './screens/setup.js';
 import { renderGame, unmountGame } from './screens/game.js';
 import { renderVictory, unmountVictory } from './screens/victory.js';
@@ -54,6 +54,12 @@ if (activeSessionId) {
     if ((s.phase !== 'HOME' && s.phase !== 'SETUP') || s.partie) return;
     const backHome = s.phase === 'HOME';
     dispatch({ type: 'RESUME_SESSION', session });
+    // Une partie interrompue ? On ne la relance pas d'office : le MJ décide.
+    // getResume est asynchrone comme le reste de l'archive, donc l'accueil se
+    // redessine quand la réponse arrive (voir l'abonnement de home.js).
+    listResumes(session.id).then((snapshots) => {
+      if (snapshots.length) dispatch({ type: 'SET_RESUMABLES', snapshots });
+    });
     // RESUME_SESSION ouvre les réglages ; si on attendait encore au menu, on y reste.
     if (backHome) dispatch({ type: 'GOTO_HOME' });
   });
