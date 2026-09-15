@@ -31,3 +31,7 @@ result-*
 
 # Matière première graphique — les sprites découpés sont dans public/paper-ui/
 iimport/
+
+# Notes de passation — documents de travail destinés à une autre IA,
+# pas de la documentation du projet (celle-ci vit dans AGENTS.md et README.md)
+jauge.md
