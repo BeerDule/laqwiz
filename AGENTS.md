@@ -11,6 +11,12 @@ Deux modes de configuration LLM coexistent :
 - **Serveur** : `.env` avec `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (repli si le client
   ne renseigne rien).
 
+`LLM_CONFIG_REQUIRED` arbitre entre les deux : `false` dispense le joueur de saisir
+quoi que ce soit, `true` l'y oblige, absent = obligatoire en production seulement.
+**Figée à la compilation** — injectée par `define` dans `vite.config.js`, donc un
+changement impose un rebuild. Sans ce drapeau à `false`, un serveur pourtant
+configuré reste inatteignable : la validation du formulaire bloque avant l'appel.
+
 ## Stack
 - **Runtime** : Node 24 LTS (`fetch` natif, `AbortController`, ESM). Épinglé dans
   `engines.node` — c'est ce champ qui décide aussi de la version déployée sur

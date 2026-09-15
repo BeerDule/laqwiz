@@ -10,9 +10,11 @@ import {
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
 
-// En production (build statique déployé), le mode BYOK est obligatoire :
-// chaque joueur doit renseigner sa propre configuration LLM.
-const REQUIRE_LLM_CONFIG = import.meta.env.PROD;
+// Le mode BYOK — chaque joueur renseigne sa propre configuration LLM — est
+// obligatoire en production par défaut, optionnel en développement.
+// `LLM_CONFIG_REQUIRED=false` dans l'environnement de build le désactive, pour
+// un déploiement dont le serveur porte déjà les identifiants (voir vite.config.js).
+const REQUIRE_LLM_CONFIG = __REQUIRE_LLM_CONFIG__;
 
 let teardown = null;
 let root = null;

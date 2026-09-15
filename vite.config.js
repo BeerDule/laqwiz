@@ -185,9 +185,25 @@ export default defineConfig(({ mode, command }) => {
     env.LLM_BATCH_SIZE = String(batchSize);
   }
 
+  // LLM_CONFIG_REQUIRED — faut-il que chaque joueur saisisse ses propres
+  // identifiants LLM (mode BYOK) ?
+  //   'false' → non : le serveur fournit la configuration via .env
+  //   'true'  → oui, même en développement
+  //   absent  → obligatoire en production, optionnel en développement
+  //
+  // Injectée par `define` et non via un préfixe VITE_ : le nom reste aligné sur
+  // les autres LLM_*. Comme toute valeur `define`, elle est FIGÉE À LA
+  // COMPILATION — la changer impose de rebuilder, ce n'est pas un interrupteur.
+  const requireLlmConfig = env.LLM_CONFIG_REQUIRED === undefined || env.LLM_CONFIG_REQUIRED === ''
+    ? command === 'build'
+    : env.LLM_CONFIG_REQUIRED !== 'false';
+
   return {
     root: '.',
     base: './', // §16.3 : assets en chemins relatifs, portables sous n'importe quel sous-chemin
+    define: {
+      __REQUIRE_LLM_CONFIG__: JSON.stringify(requireLlmConfig),
+    },
     publicDir: 'public',
     server: {
       port: 5173,
