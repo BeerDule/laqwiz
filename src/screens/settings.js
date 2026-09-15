@@ -7,7 +7,7 @@ import { getState, dispatch } from '../state.js';
 import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitcher.js';
 import { buildShareUrl } from '../shareConfig.js';
 import { wipeLocalStorage } from '../storage.js';
-import { deleteDatabase } from '../db.js';
+import { deleteDatabase, listModes, putMode } from '../db.js';
 
 let teardown = null;
 let root = null;
@@ -69,9 +69,10 @@ const SHELL = `
       <fieldset class="panel danger-zone">
         <legend>Zone dangereuse</legend>
         <p class="llm-note">
-          Efface <strong>tout</strong> sur cet appareil : sessions, parties
-          terminées, parties en cours, statistiques, joueurs, thème et
-          configuration LLM. Rien n'est récupérable.
+          Efface sessions, parties terminées, parties en cours, statistiques,
+          joueurs, thème et configuration LLM. Rien n'est récupérable.
+          <br />Vos <strong>modes de jeu sont conservés</strong>, y compris ceux que
+          vous avez créés — supprimez-les un par un depuis les réglages de partie.
         </p>
         <button id="btn-cleanup" type="button" class="button button--danger">
           Tout effacer
@@ -207,15 +208,23 @@ export function renderSettings(rootEl) {
     // qu'on ne peut pas reconstituer. La seconde demande de taper un mot, pour
     // qu'un double-clic accidentel ne suffise pas.
     if (!window.confirm(
-      'Effacer TOUTES les données de cet appareil ?\n\n'
+      'Effacer les données de cet appareil ?\n\n'
       + 'Sessions, parties terminées, parties en cours, statistiques, joueurs, '
-      + 'thème et configuration LLM. Cette action est définitive.'
+      + 'thème et configuration LLM. Vos modes de jeu sont conservés.\n\n'
+      + 'Cette action est définitive.'
     )) return;
     const saisie = window.prompt('Pour confirmer, tapez : EFFACER');
     if (saisie !== 'EFFACER') {
       dispatchToast('Effacement annulé.', 'info');
       return;
     }
+
+    // Le catalogue de modes survit à l'effacement. Ce sont des réglages que le
+    // MJ a composés, pas des données de partie : les perdre coûterait de tout
+    // recomposer, alors que l'effacement vise l'historique et les identifiants.
+    // On le relit avant la suppression, on le réécrit après — `putMode` rouvre
+    // la base, ce qui recrée les stores au passage.
+    const modesConserves = await listModes();
 
     const supprimees = wipeLocalStorage();
     const res = await deleteDatabase();
@@ -227,7 +236,9 @@ export function renderSettings(rootEl) {
         + 'Fermez-le puis réessayez.', 'error');
       return;
     }
-    dispatchToast(`Effacé (${supprimees} clés). Rechargement…`, 'info');
+    await Promise.all(modesConserves.map(putMode));
+
+    dispatchToast(`Effacé (${supprimees} clés), ${modesConserves.length} modes conservés. Rechargement…`, 'info');
     // Rechargement : l'état en mémoire décrit des données qui n'existent plus.
     setTimeout(() => window.location.reload(), 600);
   }, { signal });
