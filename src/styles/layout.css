@@ -217,23 +217,20 @@
 .app-nav__item:hover { background: var(--bg-surface-soft); }
 .app-nav__item.is-active { color: var(--color-accent-primary); }
 .app-nav__icon { display: grid; place-items: center; }
-.app-nav__icon svg { width: 1.692em; height: 1.692em; display: block; }
-.app-nav__item--play { color: var(--color-accent-primary); }
-.app-nav__item--play .app-nav__icon {
-  width: 2.923em;
-  height: 2.923em;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-accent-primary);
-  color: var(--accent-contrast);
-  box-shadow: var(--shadow-pop), var(--shadow-2);
-}
+/* 2em du corps de l'entrée, pas une taille absolue : l'icône suit le libellé
+   d'un palier à l'autre. Le bloc bureau la rebase, le corps y passant à 14px. */
+.app-nav__icon svg { width: 2em; height: 2em; display: block; }
 
-/* Espace réservé sous la barre + toasts remontés quand elle est visible */
-body.with-app-nav .arcade,
+/* Espace réservé sous la barre + toasts remontés quand elle est visible.
+   La réservation vaut 76px de haut, mais `em` se résout contre l'élément qui
+   PORTE la règle : tout `.arcade` est aussi un `.screen` et monte le corps de
+   texte à 15px, d'où deux valeurs pour une seule hauteur. La règle `.arcade`
+   suit celle de `.screen` pour l'emporter sur les écrans qui portent les deux. */
 body.with-app-nav .screen {
   padding-bottom: calc(var(--space-8) + 5.846em + env(safe-area-inset-bottom, 0em));
+}
+body.with-app-nav .arcade {
+  padding-bottom: calc(var(--space-8) + 5.067em + env(safe-area-inset-bottom, 0em));
 }
 body.with-app-nav #toast-region {
   bottom: calc(5.846em + env(safe-area-inset-bottom, 0em));
@@ -266,18 +263,14 @@ body.with-app-nav #toast-region {
     padding: .571em 1.143em;
     font-size: 1.077em;
   }
-  .app-nav__item--play { color: var(--color-accent-primary); }
-  .app-nav__item--play .app-nav__icon {
-    width: auto;
-    height: auto;
-    background: transparent;
-    color: inherit;
-    box-shadow: none;
-  }
-  body.with-app-nav .arcade,
+  .app-nav__icon svg { width: 1.571em; height: 1.571em; }
   body.with-app-nav .screen {
     padding-bottom: var(--space-8);
     padding-top: calc(var(--space-5) + 4.308em);
+  }
+  body.with-app-nav .arcade {
+    padding-bottom: var(--space-8);
+    padding-top: calc(var(--space-5) + 3.733em);
   }
   body.with-app-nav #toast-region { bottom: var(--space-3); }
 }
