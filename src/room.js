@@ -4,7 +4,7 @@
 // Le serveur est un dumb relay : room.js traduit les messages reçus en actions
 // du store et expose `send()` pour diffuser. La logique de jeu reste en state.js.
 
-import { dispatch, getState } from './state.js';
+import { dispatch, getState, subscribe } from './state.js';
 import { RELAY_ORIGIN, relayWsUrl } from './relay.js';
 import { NAME_MAX_LENGTH, PLAYER_EMOJIS } from './constants.js';
 
@@ -18,6 +18,22 @@ let deliberateClose = false;
 // host ré-associe la nouvelle connexion sans créer de doublon.
 const clientToSender = new Map();
 const senderToClient = new Map();
+
+// Diffusion des questions/résultats aux joueurs (projection, WS.md §18.4 :
+// jamais `answer`/`funnyOption`/`explanation` avant le reveal).
+let lastQuestionSig = -1;
+let lastRevealSig = -1;
+
+subscribe((state) => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (state.phase === 'QUESTION' && state.currentIndex !== lastQuestionSig) {
+    lastQuestionSig = state.currentIndex;
+    broadcastQuestion(state);
+  } else if (state.phase === 'REVEAL' && state.currentIndex !== lastRevealSig) {
+    lastRevealSig = state.currentIndex;
+    broadcastReveal(state);
+  }
+});
 
 /**
  * Crée la room puis ouvre la connexion WS du host.
@@ -35,6 +51,8 @@ export async function startHost() {
   }
   const created = await res.json();
   await connect(created.sessionId);
+  lastQuestionSig = -1;
+  lastRevealSig = -1;
   // Lien construit côté client : en dev, le relais (:3000) n'a pas l'origine
   // du front (:5173). En prod, même origine, donc équivalent.
   const shareUrl = new URL(`/game/${created.sessionId}`, location.origin).href;
@@ -137,6 +155,17 @@ function handle(msg) {
       }
       break;
     }
+    case 'game.answer': {
+      const clientId = senderToClient.get(msg.senderId);
+      const optionKey = msg.payload?.optionKey;
+      const s = getState();
+      // Le joueur ne répond qu'en phase QUESTION, s'il existe et n'est pas éliminé.
+      const player = clientId && s.players.find(p => p.id === clientId);
+      if (!player || player.eliminated || s.phase !== 'QUESTION') break;
+      if (!['A', 'B', 'C', 'D'].includes(optionKey)) break;
+      dispatch({ type: 'PLAYER_ANSWER', playerId: clientId, optionKey });
+      break;
+    }
     // game.answer arrivera à l'étape suivante (réponses des joueurs).
   }
 }
@@ -147,6 +176,41 @@ function remapSender(clientId, senderId) {
   if (old) senderToClient.delete(old);
   clientToSender.set(clientId, senderId);
   senderToClient.set(senderId, clientId);
+}
+
+/** Diffuse la question courante, sans la réponse (WS.md §18.4). */
+function broadcastQuestion(state) {
+  const q = state.questions[state.currentIndex];
+  if (!q) return;
+  send('game.question', {
+    question: q.question,
+    options: q.options.map(o => ({ key: o.key, text: o.text })),
+    difficulty: q.difficulty,
+    isBonus: state.isBonusRound,
+    deadline: state.settings.timerEnabled
+      ? Date.now() + (state.settings.timePerQuestion || 60) * 1000
+      : null,
+  });
+}
+
+/** Diffuse la révélation : réponse + explication + résultats de chacun. */
+function broadcastReveal(state) {
+  const q = state.questions[state.currentIndex];
+  if (!q) return;
+  send('game.reveal', {
+    answer: q.answer,
+    funnyOption: q.funnyOption,
+    explanation: q.explanation,
+    results: state.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      score: p.score,
+      answered: state.roundAnswers[p.id] || null,
+      penalty: state.roundPenalties[p.id] || 0,
+      eliminated: !!p.eliminated,
+    })),
+  });
 }
 
 /**

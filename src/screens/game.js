@@ -542,6 +542,8 @@ function wireQuestionBody(body) {
   board.addEventListener('click', (e) => {
     const card = e.target.closest('.option-card');
     if (!card || timeUp) return;
+    // En ligne, les réponses viennent des joueurs : pas de saisie manuelle.
+    if (getState().room) return;
     // Ouvre le menu radial des joueurs autour du point cliqué.
     openPlayerPicker(card.dataset.key, e.clientX, e.clientY);
   }, { signal });
@@ -638,7 +640,10 @@ export function renderGame(rootEl) {
         if (next) next.focus();
       }
     } else {
-      if (s.phase === 'QUESTION') updateRevealButton();
+      if (s.phase === 'QUESTION') {
+        updateRevealButton();
+        syncBoard();
+      }
       updateHeader();
     }
     handleError(s);

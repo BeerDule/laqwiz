@@ -453,6 +453,36 @@
   color: var(--color-muted);
 }
 
+/* Écran joueur : la question et ses réponses (réutilise la carte du host) */
+.join__body .question-meta {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.join__body .player-question {
+  margin: 0;
+  font-size: 1.25em;
+  line-height: 1.35;
+}
+.join__body .options-grid {
+  grid-template-columns: 1fr;
+}
+.join__body .option-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.join__body .option-card.is-selected {
+  border-color: var(--color-accent-primary);
+  background-color: var(--bg-surface-soft);
+  box-shadow: var(--shadow-pop);
+}
+.join__body .player-reveal {
+  margin: 0;
+  color: var(--color-muted);
+}
+
 /* Mobile : un peu plus serré, la frise tient sur une ligne. */
 @media (max-width: 47.938em) {
   .arcade--join { padding: var(--space-3); gap: var(--space-2); }

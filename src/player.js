@@ -178,6 +178,12 @@ function handleMessage(msg) {
     case 'game.start':
       renderStarted();
       break;
+    case 'game.question':
+      renderQuestion(msg.payload);
+      break;
+    case 'game.reveal':
+      renderPlayerReveal(msg.payload);
+      break;
     // game.question / game.reveal arriveront à l'étape suivante.
   }
 }
@@ -215,5 +221,65 @@ function renderStarted() {
     <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
     <p class="join-waiting">La partie commence&nbsp;!</p>
     <p class="join-waiting-hint">Les questions vont arriver…</p>
+  `;
+}
+
+function renderQuestion(payload) {
+  const body = document.querySelector('.join__body');
+  const options = (payload.options || []).map(o => `
+    <button type="button" class="option-card" data-key="${escapeHtml(o.key)}">
+      <span class="option-card__key">${escapeHtml(o.key)}</span>
+      <span class="option-card__text">${escapeHtml(o.text)}</span>
+    </button>
+  `).join('');
+  body.innerHTML = `
+    <div class="question-meta">
+      ${payload.isBonus ? '<span class="badge badge--bonus">×2 BONUS</span>' : ''}
+      ${payload.deadline ? '<span class="timer" id="player-timer" role="timer"></span>' : ''}
+    </div>
+    <h2 class="player-question">${escapeHtml(payload.question)}</h2>
+    <div class="options-grid" id="player-options">${options}</div>
+  `;
+
+  wirePlayerOptions(payload.deadline);
+}
+
+function wirePlayerOptions(deadline) {
+  const grid = document.querySelector('#player-options');
+  if (!grid) return;
+  grid.querySelectorAll('.option-card').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key;
+      grid.querySelectorAll('.option-card').forEach((b) => b.classList.toggle('is-selected', b === btn));
+      socket.send(JSON.stringify({ type: 'game.answer', payload: { optionKey: key } }));
+    });
+  });
+  if (deadline) startPlayerTimer(deadline);
+}
+
+let playerTimerId = null;
+function startPlayerTimer(deadline) {
+  clearInterval(playerTimerId);
+  const tick = () => {
+    const el = document.querySelector('#player-timer');
+    if (!el) { clearInterval(playerTimerId); return; }
+    const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    el.textContent = left > 0 ? `${left} s` : 'Temps écoulé';
+  };
+  tick();
+  playerTimerId = setInterval(tick, 500);
+}
+
+function renderPlayerReveal(payload) {
+  const body = document.querySelector('.join__body');
+  const mine = (payload.results || []).find(r => r.id === clientId);
+  const correct = mine && mine.answered === payload.answer;
+  body.innerHTML = `
+    <div class="question-meta">
+      <span class="badge badge--${correct ? 'easy' : 'hard'}">${correct ? '✔ Bonne réponse' : '✕ Raté'}</span>
+    </div>
+    <h2 class="player-question">Bonne réponse&nbsp;: ${escapeHtml(payload.answer)}</h2>
+    ${payload.explanation ? `<p class="player-reveal">${escapeHtml(payload.explanation)}</p>` : ''}
+    <p class="join-waiting-hint">Ton score&nbsp;: ${mine?.score ?? 0} pt</p>
   `;
 }
