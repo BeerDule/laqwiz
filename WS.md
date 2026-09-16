@@ -844,7 +844,7 @@ Elle est la source de vérité pour la partie en ligne : en cas de conflit, elle
 
 | # | Décision | Statut |
 |---|---|---|
-| 1 | Hébergement : **Vercel Functions + WebSocket (beta) + Upstash Redis** (état + pub/sub inter-instances) — voir §18.6 | acté |
+| 1 | Hébergement : **Vercel Functions + WebSocket (beta) + Redis Cloud** (intégration Marketplace `redis`) — voir §18.6 | acté |
 | 2 | Mode **hybride** : le local (un seul écran) reste le défaut ; l'« en ligne » est une option activée par le MJ | acté |
 | 3 | Le MJ reste **animateur** : pas de siège joueur en mode en ligne | acté |
 | 4 | Reprise d'une partie en ligne : **terrain préparé** (identité reconnectable + projection au rejoin), non implémentée | acté |
@@ -895,18 +895,18 @@ Host → Players (filtrés, relayés) :
 | `game.manche_end` | `{ winnerId, scores }` | |
 | `game.victory` | `{ winnerId, podium }` | |
 
-## 18.6 Déploiement — décision : Vercel + Redis (beta)
+## 18.6 Déploiement — décision : Vercel + Redis Cloud (beta)
 
-Retenu : **Vercel Functions avec WebSocket (Public Beta) + Upstash Redis**. On reste ainsi 100 % Vercel, au prix de deux contraintes assumées :
+Retenu : **Vercel Functions avec WebSocket (Public Beta) + Redis Cloud** (intégration Marketplace `redis`, le service Redis officiel). On reste ainsi 100 % Vercel, au prix de deux contraintes assumées :
 
 - **instances serverless, éphémères et multiples** : une connexion WS est épinglée à une instance pour sa durée de vie (Fluid compute permet à une instance d'en porter plusieurs), mais deux clients d'une même room peuvent atterrir sur des instances différentes ;
-- **état partagé hors instance** : la `Map` en mémoire du §3 devient **locale à chaque instance**. L'état de room et le relais inter-instances passent par **Upstash Redis**.
+- **état partagé hors instance** : la `Map` en mémoire du §3 devient **locale à chaque instance**. L'état de room et le relais inter-instances passent par **Redis Cloud**.
 
 Architecture cible :
 
 ```text
 client ──> Vercel Function (instance X) ──╮
-                                          ├──> Upstash Redis
+                                          ├──> Redis Cloud
 client ──> Vercel Function (instance Y) ──╯   · état des rooms (TTL)
                                                · pub/sub `room:<roomId>`
 ```
@@ -920,7 +920,9 @@ Règles :
 
 Le dumb relay reste inchangé dans son principe (§17) : seule la localisation de l'état change. Le proxy LLM reste `api/gateway.js` (Vercel) / `vite.config.js` (dev) tel quel — la duplication « deux proxys » demeure, comme aujourd'hui.
 
-**Dépendance serveur** : ce choix introduit la **première dépendance npm runtime** du dépôt — `@upstash/redis` — utilisée **uniquement côté serveur**, jamais embarquée dans le bundle front (qui reste à zéro dépendance runtime). Elle suppose en outre un compte/projet Upstash.
+**Provisionnement** : `vercel install redis` (alias `vc i redis`) crée la base **Redis Cloud** et injecte les variables de connexion dans le projet (URL `redis://`/`rediss://`, typiquement `REDIS_URL` — nom exact à confirmer au setup).
+
+**Dépendances serveur** : ce choix introduit les premières dépendances npm runtime du dépôt — `ws` (WebSocket) et `ioredis` (client Redis standard) — utilisées **uniquement côté serveur**, jamais embarquées dans le bundle front (qui reste à zéro dépendance runtime).
 
 ## 18.7 Reprise en ligne — terrain préparé (non implémenté)
 
