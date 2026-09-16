@@ -246,7 +246,13 @@ function dropResume(s) {
 
 function persistPartie(s) {
   if (!s.partie) return;
-  putPartie({ ...s.partie, settings: { ...s.settings } });
+  // Le roster est figé avec la partie : l'historique doit nommer ses joueurs
+  // même s'ils ont quitté la session depuis.
+  putPartie({
+    ...s.partie,
+    settings: { ...s.settings },
+    players: s.players.map(({ id, name, emoji, color }) => ({ id, name, emoji, color })),
+  });
 }
 
 /**

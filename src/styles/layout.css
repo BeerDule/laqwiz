@@ -100,7 +100,8 @@
 }
 
 /* ===== Panneau LLM pleine largeur ===== */
-.setup-screen .llm-panel {
+.setup-screen .llm-panel,
+.setup-screen .history-panel {
   grid-column: 1 / -1;
 }
 
@@ -171,6 +172,13 @@
   .setup-screen #btn-start,
   .setup-screen .form-error {
     grid-column: 1;
+  }
+  /* Historique : les avatars suffisent, le nom reste en popover */
+  .history-table__name {
+    display: none;
+  }
+  .setup-screen .history-card__rules {
+    grid-template-columns: repeat(auto-fill, minmax(6em, 1fr));
   }
   .game-header,
   .arcade__bar {

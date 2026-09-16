@@ -158,6 +158,7 @@ src/
   storage.js          # localStorage typé (roster, réglages, stats, LLM, id de session)
   db.js               # IndexedDB — sessions, parties, reprises, modes
   themeSwitcher.js    # thème de couleurs (data-color-theme)
+  mechaBackdrop.js    # fond animé <canvas> du thème Mecha, autonome
   confetti.js         # animation de victoire
   screens/
     home.js           # menu principal (Continuer / Nouvelle session / Sessions / Réglages)
@@ -174,8 +175,8 @@ src/
     components.css    # composants
     arcade.css      # coquille « jeu vidéo » des écrans de menu (structure + jetons)
 public/
-  bubble-island/      # 15 PNG (1,4 Mo) découpés du pack craft/ — voir « Assets »
-craft/                # pack d'assets brut (8,6 Mo) — matière première, non servie
+  paper-ui/           # sprites du thème Paper Quest
+  fonts/              # polices hébergées localement (licences OFL)
 demo/
   mock-llm.mjs        # faux LLM OpenAI-compatible en Node stdlib, zéro dep
 ```
@@ -368,10 +369,11 @@ Il vise une **échéance** (`Date.now() + durée`) et non un compteur décrémen
 dérive et se fait brider quand l'onglet passe en arrière-plan.
 
 ### `border-image` ne réserve pas d'espace
-Les cadres 9-slice (thème Bubble Island, `arcade.css`) peignent vers l'intérieur **par-dessus**
-le padding. Tout élément encadré doit avoir `padding ≥ border-image-width`, sinon le cadre
-recouvre le texte. Les rayons de coin ont été mesurés sur l'alpha des PNG, pas estimés :
-pilules `slice 350`, cadres `slice 110`, boutons ronds `slice 348` + `border-image-width: 50%`.
+Les cadres 9-slice (thème Paper Quest) peignent vers l'intérieur **par-dessus** le padding.
+Tout élément encadré doit avoir `padding ≥ border-image-width`, sinon le cadre recouvre le
+texte. Les découpes ont été mesurées sur l'alpha des PNG, pas estimées : parchemin lacé
+`frame.png` en `slice 110`, feuille froissée `paper.png` en `slice 60`, plaques `bar-*.png`
+en `slice 0 40`.
 
 ### `db.js` avale ses erreurs, et c'est voulu
 L'archive est un confort, pas une dépendance. Un navigateur en navigation privée qui refuse
@@ -383,10 +385,10 @@ erreurs remontées à l'UI.
 qui lance une partie avant que la lecture réponde se ferait renvoyer aux réglages.
 
 ### `arcade.css` ne porte plus aucune couleur
-Ce fichier a longtemps figé l'identité Bubble Island sur les écrans de menu, quel que soit le
-thème. **Ce n'est plus le cas** : il ne contient que de la structure et des jetons, zéro
-couleur en dur, zéro sprite. Chaque thème est désormais purement lui-même, menus compris ;
-les sprites propres à Paper Quest et Bubble Island vivent dans leurs blocs de `theme.css`.
+Ce fichier a longtemps figé l'identité d'un seul thème sur les écrans de menu, quel que soit
+le thème choisi. **Ce n'est plus le cas** : il ne contient que de la structure et des jetons,
+zéro couleur en dur, zéro sprite. Chaque thème est désormais purement lui-même, menus
+compris ; les sprites propres à Paper Quest vivent dans son bloc de `theme.css`.
 
 ### L'attribut `hidden` perd contre toute règle `display`
 `[hidden] { display: none }` vient de la feuille du **navigateur**. N'importe quelle règle
@@ -404,9 +406,47 @@ ressusciter un élément déclaré masqué. Ne pas ajouter de `display: … !imp
 ### Thème ≠ thème
 `settings.theme` = le sujet du quiz (« Cinéma & séries »), envoyé au LLM.
 `data-color-theme` = l'apparence. **10 thèmes** : VS Code, Matrix, Girly, Windows 98,
-Jungle, Kids Friendly, Apple, Apple Glass, Bubble Island, **Paper Quest (défaut)**.
+Jungle, Kids Friendly, Apple, Apple Glass, **Paper Quest (défaut)**, Mecha.
 Ajouter un thème = une entrée dans `COLOR_THEMES` + un bloc de surcharges dans `theme.css`.
-Aucun autre fichier à toucher.
+Aucun autre fichier à toucher, **sauf Mecha**, dont le fond animé vit dans `mechaBackdrop.js`
+(voir « Le thème Mecha »).
+
+### Le thème Mecha
+Cockpit de mobile suit : aluminium brossé, verre fumé, LED, coins coupés à 45°. Références :
+Ghost in the Shell (orange sur noir), Akira, Gundam, Appleseed, Matrix. Le bloc de `theme.css`
+commence par un commentaire qui détaille les mécanismes ; l'essentiel :
+
+- **Préfixe `html:root[data-color-theme="mecha"]`**, de spécificité 0,2,1. `theme.css` est
+  importé avant `components.css` : à spécificité égale, le composant gagnerait. Le préfixe bat
+  `.answer-board .option-card:hover` sans `!important`. En contrepartie, **chaque état de
+  composant est redéclaré** dans le bloc (correct, meneur, coché, survol…).
+- **`:is()` prend la spécificité de son argument le plus fort.** Un seul sélecteur composé dans
+  la liste (`.choice-chip span`, `#target-score-output`) fait passer TOUTE la liste au-dessus des
+  variantes écrites plus bas : l'aluminium des boutons et l'ambre du titre de victoire ont
+  disparu ainsi, sans erreur. Les listes `:is()` du bloc ne contiennent que des classes simples.
+- **Deux familles de coupe**, parce que `clip-path` rogne aussi les ombres externes, l'anneau de
+  focus et tout ce qui déborde :
+  - les **plaques** (panneaux, cartes, couloirs, podium) ne sont pas rognées : leur matière vit
+    sur un `::before` absolu en `z-index: -1`, seul rogné, sous `isolation: isolate`. Info-bulles
+    et liste Wikipédia débordent librement ;
+  - les **découpes directes** (boutons, puces, badges, barres de titre) sont rognées
+    elles-mêmes, anneau de focus rentré à l'intérieur (encre sombre sur l'aluminium et l'ambre,
+    cyan sur le verre).
+- **Les jetons d'état (`--frame`, `--tint`, `--cut`…) sont déclarés sur l'élément**, jamais à
+  la racine : une propriété personnalisée qui en référence une autre se résout là où elle est
+  déclarée. À la racine, la couleur du liseré serait figée.
+- **`font-size: 0` y est doublement interdit** (voir « Toutes les longueurs sont en `em` ») :
+  pour masquer un libellé, `color: transparent`.
+- **Polices** : Chakra Petch (titres, boutons) et DSEG7 Classic (chiffres 7 segments), OFL 1.1,
+  dans `public/fonts/`. La plage `unicode-range` de DSEG7 est limitée aux chiffres, `:`, `.`
+  et `-` : dans « 45 s » ou « 3 pts », seuls les chiffres passent en 7 segments.
+- **Fond animé** : `mechaBackdrop.js` observe `data-color-theme` et crée ou détruit seul son
+  `<canvas>` ; `themeSwitcher.js` l'ignore. Rien ne clignote (WCAG 2.3.1), 30 images/s au plus,
+  pause onglet caché, image fixe en mouvement réduit. Tout y est tracé à faible opacité : du
+  texte nu (titre du menu, crédits) passe devant. `#app` monte en `z-index: 1` et `.arcade`
+  renonce à son fond pour laisser le canvas visible.
+- **Accessibilité** : contrastes vérifiés (texte 13:1, ambre 7,7:1, rouge 4,65:1 au pire),
+  panneaux opaques en `prefers-reduced-transparency`, flou retiré sous 768 px.
 
 ### Les avatars de joueur sont choisis pour le contraste, pas au hasard
 30 emoji dans `PLAYER_EMOJIS`, tous en **un seul point de code** : pas de séquence ZWJ qui
@@ -460,10 +500,12 @@ fond/filet dans `layout.css`, sprites de thème dans `theme.css`.
   retirer aussi `aria-live` ; la garder impose de **remettre `lastLaneSig = null` à chaque montage**,
   sinon un remontage laisse la piste vide.
 - `.leaderboard-mini__item` est une grille à **cinq colonnes** : ne jamais y poser de
-  `::before`/`::after` (ce serait un sixième élément de grille implicite). `::after` est déjà pris
-  sur le jeton (`playerChip` y attache l'info-bulle de nom) : un thème pose son marqueur en `::before`.
+  `::before`/`::after` **dans le flux** (ce serait un sixième élément de grille implicite). Un
+  pseudo-élément en `position: absolute` est hors flux et n'occupe aucune cellule : c'est ainsi que
+  Mecha y pose sa plaque. `::after` est déjà pris sur le jeton (`playerChip` y attache l'info-bulle
+  de nom) : un thème pose son marqueur en `::before`.
 - Le nom de classe `.leaderboard-mini__item` est un **contrat de thème** (Apple, Apple Glass,
-  Bubble Island, Paper Quest s'y accrochent) : le renommer éteint leur matière sans erreur.
+  Paper Quest, Mecha s'y accrochent) : le renommer éteint leur matière sans erreur.
 - Les pastilles `.manche-pip` sont **partagées** avec le podium de fin de manche.
 - Paper Quest pilote le rail par sprites (`bar-a.png` / `bar-d.png`), pas par le dégradé par défaut.
 

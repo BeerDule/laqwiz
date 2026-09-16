@@ -152,7 +152,8 @@ quizz-canape/
 ├── demo/
 │   └── mock-llm.mjs              # faux LLM OpenAI-compatible, zéro dépendance
 ├── public/
-│   └── bubble-island/            # sprites découpés du pack craft/
+│   ├── paper-ui/                 # sprites du thème Paper Quest
+│   └── fonts/                    # polices hébergées localement (licences OFL)
 └── src/
     ├── main.js                   # bootstrap, hydratation, routage, toasts
     ├── state.js                  # store + pub/sub + machine à états
@@ -164,6 +165,7 @@ quizz-canape/
     ├── wikipedia.js              # recherche et fenêtre de sections
     ├── shareConfig.js            # config LLM encodée en URL (base64url)
     ├── themeSwitcher.js          # thème de couleurs (data-color-theme)
+    ├── mechaBackdrop.js          # fond animé <canvas> du thème Mecha
     ├── confetti.js               # animation canvas victoire
     ├── validation.js             # validateQuestion(), parseQuestions()
     ├── constants.js              # avatars, couleurs, BUILTIN_MODES, DEFAULTS, STORAGE_KEYS

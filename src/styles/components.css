@@ -633,6 +633,10 @@ input[type='range']::-moz-range-thumb {
   gap: var(--space-4);
 }
 /* Menu radial des joueurs (ouvert au clic sur une carte de réponse) */
+/* Géométrie en em : le JS ne fournit que des nombres sans unité.
+   --pick-r : rayon du cercle, en diamètres d'avatar ;
+   --cos / --sin : direction de chaque avatar.
+   Un avatar mesure 2.182em × 1.692 = 3.692em à la taille du menu. */
 .player-picker {
   position: fixed;
   z-index: 90;
@@ -641,6 +645,11 @@ input[type='range']::-moz-range-thumb {
 }
 .player-picker__plate {
   position: absolute;
+  left: 0;
+  top: 0;
+  width: calc((var(--pick-r) * 2 + 1) * 3.692em + 1.2em);
+  aspect-ratio: 1;
+  translate: -50% -50%;
   border-radius: 50%;
   background: color-mix(in srgb, var(--bg-surface-raised) 92%, transparent);
   border: .1em solid var(--color-border);
@@ -669,6 +678,9 @@ input[type='range']::-moz-range-thumb {
 .player-picker__item {
   position: absolute;
   z-index: 3;
+  left: calc(var(--cos) * var(--pick-r) * 2.182em);
+  top: calc(var(--sin) * var(--pick-r) * 2.182em);
+  translate: -50% -50%;
   width: 2.182em;
   height: 2.182em;
   display: flex;
@@ -1269,6 +1281,69 @@ input[type='range']::-moz-range-thumb {
 .resume-banner__label { font-weight: 700; }
 .resume-banner__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .resume-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+
+/* ===== Historique des parties terminées (réglages) ===== */
+.history-list { display: grid; gap: var(--space-4); margin-top: var(--space-3); }
+.history-empty { margin: 0; color: var(--color-muted); }
+.history-card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+}
+.history-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+.history-card__title { margin: 0; font-size: 1.2em; }
+.history-card__when { color: var(--color-muted); font-size: .9em; }
+.history-card__when::first-letter { text-transform: uppercase; }
+.history-card__winner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 700;
+}
+.history-card__rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+.history-card__rules dt {
+  color: var(--color-muted);
+  font-size: .8em;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.history-card__rules dd { margin: 0; font-weight: 600; }
+.history-card__rules a { color: var(--color-accent-primary); }
+.history-card__tally { white-space: nowrap; }
+.history-card__table { overflow-x: auto; }
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.history-table :is(th, td) {
+  padding: .4em .6em;
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: .1em solid var(--color-border);
+}
+.history-table :is(th, td):first-child { text-align: left; white-space: normal; }
+.history-table :is(tbody, tfoot) th { font-weight: 600; }
+.history-table thead th { font-weight: 600; }
+.history-table thead .player-chip { margin-right: .3em; }
+.history-table .is-win { color: var(--color-accent-primary); font-weight: 700; }
+.history-table tfoot :is(th, td) { font-weight: 700; border-bottom: 0; }
 .resume-item { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .resume-item__label { margin-right: auto; font-size: .867em; }
 

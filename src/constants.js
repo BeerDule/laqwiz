@@ -308,8 +308,8 @@ export const COLOR_THEMES = {
   kids:    { label: 'Kids Friendly' },
   apple:   { label: 'Apple' },
   'apple-glass': { label: 'Apple Glass' },
-  'bubble-island': { label: 'Bubble Island' },
   paper:   { label: 'Paper Quest' },
+  mecha:   { label: 'Mecha' },
 };
 export const DEFAULT_COLOR_THEME = 'paper';
 

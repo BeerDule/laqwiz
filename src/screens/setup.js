@@ -9,10 +9,11 @@ import {
   SUDDEN_DEATH_CHOICES,
   MODE_NAME_MAX_LENGTH,
 } from '../constants.js';
+import { playerChip } from '../components/playerChip.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { confirmDialog, promptDialog } from '../components/dialog.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
-import { listResumes } from '../db.js';
+import { listResumes, listParties } from '../db.js';
 import {
   loadModes, createMode, updateMode, removeMode, resetBuiltinMode, diffFromMode,
 } from '../modes.js';
@@ -297,6 +298,117 @@ function wireWikiSearch(signal) {
   }, { signal });
 }
 
+// ===== Historique des parties terminées de la session =====
+
+const HISTORY_EMPTY = '<p class="history-empty">Aucune partie terminée dans cette session.</p>';
+
+const choiceLabel = (choices, value) => choices.find(c => c.value === value)?.label ?? '—';
+
+function formatDateTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function formatDuration(ms) {
+  const min = Math.round(ms / 60000);
+  if (min < 1) return 'moins d’une minute';
+  const h = Math.floor(min / 60);
+  return h ? `${h} h ${String(min % 60).padStart(2, '0')}` : `${min} min`;
+}
+
+/** Réglages de la partie, tels qu'ils étaient à son lancement. */
+function historyRules(st) {
+  const mode = (getState().ui.modes || []).find(m => m.id === st.modeId);
+  const wiki = st.sourceMode === 'wikipedia' && st.sourceTitle;
+  const link = wiki && /^https?:\/\//.test(st.sourceUrl || '')
+    ? `<a href="${escapeHtml(st.sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(st.sourceTitle)}</a>`
+    : escapeHtml(st.sourceTitle || '');
+  const penalties = [
+    st.penaltyNoAnswer && '−1 sans réponse',
+    st.penaltyWrongAnswer && `Punisher ${choiceLabel(PUNISHER_CHOICES, st.punisherSeverity)}`,
+  ].filter(Boolean).join(' · ');
+  const rows = [
+    ['Mode', mode ? `${mode.emoji} ${escapeHtml(mode.name)}` : '—'],
+    ['Sujet', wiki ? `Wikipédia : ${link}` : escapeHtml(st.theme || '—')],
+    ['Format', escapeHtml(choiceLabel(MANCHE_CHOICES, st.manchesTarget))],
+    ['Score cible', `${st.targetScore ?? '—'} points${st.twoPointLead ? ', 2 points d’écart' : ''}`],
+    ['Difficulté', escapeHtml(choiceLabel(DIFFICULTY_CHOICES, st.difficulty))],
+    ['Public', escapeHtml(choiceLabel(AUDIENCE_CHOICES, st.audience))],
+    ['Chronomètre', st.timerEnabled ? escapeHtml(choiceLabel(TIMER_CHOICES, st.timePerQuestion)) : 'Désactivé'],
+    ['Questions bonus', st.bonusEnabled ? 'Oui (×2)' : 'Non'],
+    ['Pénalités', escapeHtml(penalties || 'Aucune')],
+    ['Mort subite', st.suddenDeathEnabled
+      ? `Exclusion à ${escapeHtml(choiceLabel(SUDDEN_DEATH_CHOICES, st.suddenDeathStrikes))}`
+      : 'Non'],
+  ];
+  return rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+}
+
+function historyCard(partie, number) {
+  // Les parties archivées avant le gel du roster n'ont pas `players` : le
+  // roster courant est alors la meilleure source.
+  const byId = Object.fromEntries((partie.players || getState().players).map(p => [p.id, p]));
+  const who = id => byId[id] || { name: 'Joueur retiré', emoji: '❔' };
+  const manches = partie.manches || [];
+  const won = partie.manchesWon || {};
+  const ids = [...new Set(manches.flatMap(m => Object.keys(m.scores || {})))]
+    .sort((a, b) => (won[b] || 0) - (won[a] || 0));
+  const winner = who(partie.winnerId);
+  const tally = ids.map(id => won[id] || 0).join(' – ');
+  const duration = partie.endedAt && partie.startedAt ? formatDuration(partie.endedAt - partie.startedAt) : '—';
+  const avatar = id => `${playerChip(who(id), { className: 'arcade-avatar' })}<span class="history-table__name">${escapeHtml(who(id).name)}</span>`;
+
+  return `
+    <article class="history-card">
+      <header class="history-card__head">
+        <h3 class="history-card__title">Partie ${number}</h3>
+        <span class="history-card__when">${formatDateTime(partie.startedAt)} · durée ${duration}</span>
+      </header>
+      <p class="history-card__winner">
+        🏆 ${playerChip(winner, { className: 'arcade-avatar' })}
+        <span>${escapeHtml(winner.name)} remporte la partie${manches.length > 1 ? `, <span class="history-card__tally">${tally}</span> en manches` : ''}</span>
+      </p>
+      <dl class="history-card__rules">${historyRules(partie.settings || {})}</dl>
+      <div class="history-card__table">
+        <table class="history-table">
+          <thead>
+            <tr><th scope="col">Manche</th>${ids.map(id => `<th scope="col">${avatar(id)}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${manches.map(m => `
+              <tr>
+                <th scope="row">${(m.index ?? 0) + 1}</th>
+                ${ids.map(id => `<td class="${m.winnerId === id ? 'is-win' : ''}">${m.scores?.[id] ?? '—'}${m.winnerId === id ? ' 🏅' : ''}</td>`).join('')}
+              </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr><th scope="row">Manches gagnées</th>${ids.map(id => `<td>${won[id] || 0}</td>`).join('')}</tr>
+          </tfoot>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+/** Recharge l'historique, la partie la plus récente en tête. */
+function loadHistoryFor(sessionId) {
+  if (!root?.querySelector('#history-list')) return;
+  if (!sessionId) {
+    root.querySelector('#history-list').innerHTML = HISTORY_EMPTY;
+    return;
+  }
+  listParties(sessionId).then((parties) => {
+    const list = root?.querySelector('#history-list');
+    if (!list || getState().session?.id !== sessionId) return;
+    const done = parties.filter(p => p.winnerId);
+    list.innerHTML = done.length
+      ? done.map((p, i) => historyCard(p, i + 1)).reverse().join('')
+      : HISTORY_EMPTY;
+  });
+}
+
 /**
  * Recharge les parties interrompues DE LA SESSION COURANTE.
  *
@@ -308,6 +420,7 @@ function wireWikiSearch(signal) {
 let lastLoadedSessionId = null;
 function loadResumesFor(sessionId) {
   lastLoadedSessionId = sessionId;
+  loadHistoryFor(sessionId);
   if (!sessionId) {
     dispatch({ type: 'SET_RESUMABLES', snapshots: [] });
     return;
@@ -853,7 +966,7 @@ export function renderSetup(rootEl) {
     <section class="setup-screen screen arcade arcade--setup" data-screen="setup" aria-labelledby="setup-title">
       <header class="arcade__bar setup-header">
         <button id="btn-home" class="arcade-btn arcade-btn--icon" type="button" aria-label="Retour au menu">‹</button>
-        <h1 id="setup-title">Réglages de partie</h1>
+        <h1 id="setup-title">Réglages</h1>
         <button id="btn-sessions" class="arcade-btn arcade-btn--small" type="button">Sessions</button>
         ${renderThemeSelect()}
       </header>
@@ -998,6 +1111,10 @@ export function renderSetup(rootEl) {
         </fieldset>
         <p id="setup-error" class="form-error" role="alert" hidden></p>
         <button id="btn-start" class="button button--primary button--large" type="submit" disabled>▶ Générer la partie</button>
+        <fieldset class="panel history-panel">
+          <legend>📜 Historique de la session</legend>
+          <div id="history-list" class="history-list">${HISTORY_EMPTY}</div>
+        </fieldset>
       </form>
       <button id="btn-lobby" class="button button--ghost button--large setup-lobby-btn" type="button">📡 Démarrer un lobby</button>
     </section>

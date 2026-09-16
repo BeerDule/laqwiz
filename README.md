@@ -117,10 +117,10 @@ des sessions est perdu.
 
 ## Thèmes
 
-Neuf apparences au choix, commutables en cours de partie : **VS Code** (défaut),
-Matrix, Girly, Windows 98, Jungle, Kids Friendly, Apple, Apple Glass et
-**Bubble Island**, qui habille le jeu d'une interface de jeu vidéo à partir d'un
-pack d'assets 9-slice (`public/bubble-island/`).
+Dix apparences au choix, commutables en cours de partie : VS Code, Matrix, Girly,
+Windows 98, Jungle, Kids Friendly, Apple, Apple Glass, **Paper Quest** (défaut),
+qui habille le jeu de parchemin et de plaques peintes (`public/paper-ui/`), et
+**Mecha**, cockpit d'aluminium, de verre fumé et de LED sur fond animé.
 
 Tout passe par des variables CSS : ajouter un thème ne demande qu'une entrée dans
 `COLOR_THEMES` et un bloc de surcharges dans `src/styles/theme.css`.

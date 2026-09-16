@@ -3,7 +3,7 @@
  * Ce fichier ne porte QUE de la structure et des jetons du design system :
  * aucune couleur en dur, aucun sprite. Les menus suivent donc intégralement le
  * thème sélectionné, comme le reste de l'application. Un thème qui veut habiller
- * ses menus le fait dans son propre bloc de theme.css (Paper Quest, Bubble Island).
+ * ses menus le fait dans son propre bloc de theme.css (Paper Quest, Mecha).
  */
 
 /* Irish Grover (Google Fonts, licence OFL) — hébergée localement : le jeu se joue
@@ -237,7 +237,7 @@
 }
 
 /* Décompte de parties gagnées. Le pictogramme est fourni par les thèmes qui en
-   ont un (Paper Quest / Bubble Island) ; sinon un emoji tient lieu. */
+   ont un (Paper Quest) ; sinon un emoji tient lieu. */
 .arcade-trophy { display: inline-flex; align-items: center; gap: .308em; }
 .arcade-trophy::before { content: '🏆'; font-size: 1.067em; line-height: 1; }
 .arcade-trophy__count { font-weight: 700; font-variant-numeric: tabular-nums; }
