@@ -880,7 +880,7 @@ Player → Host :
 
 | type | payload | notes |
 |---|---|---|
-| `lobby.join` | `{ name, emoji }` | validé côté host (1–18 chars, emoji ∈ liste, unicité) |
+| `lobby.join` | `{ clientId, name, emoji }` | `clientId` persistant (localStorage) : identité stable, rejoin ; nom 1–18 chars, emoji ∈ liste |
 | `lobby.leave` | `{}` | départ volontaire |
 | `game.answer` | `{ optionKey }` | A/B/C/D, avant expiration du chrono |
 | `game.answer.cancel` | `{}` | le joueur retire sa réponse |
@@ -889,13 +889,15 @@ Host → Players (filtrés, relayés) :
 
 | type | payload | notes |
 |---|---|---|
-| `session.connected` | `{ playerId, reconnectToken, state }` | `state` = projection complète (hook reconnexion, §18.7) |
-| `lobby.joined` | `{ player, roster }` | `roster` = `[{id,name,emoji,color,score}]` |
+| `lobby.roster` | `{ players }` | `players` = `[{id,name,emoji,color,score}]`, diffusé à chaque join/leave |
+| `lobby.join.rejected` | `{ targetId, reason }` | `reason` = `full` (complet), `taken` (nom/emoji pris), `started` (déjà lancée) |
 | `game.start` | `{ settings }` | règles publiques, **sans config LLM** |
 | `game.question` | `{ question, options[], difficulty, isBonus, deadline }` | **jamais** `answer`/`funnyOption`/`explanation` |
-| `game.reveal` | `{ answer, funnyOption, explanation, results[] }` | `results` = gain/pénalité/faute de chacun |
-| `game.manche_end` | `{ winnerId, scores }` | |
-| `game.victory` | `{ winnerId, podium }` | |
+| `game.reveal` | `{ answer, answerText, funnyOption, funnyText, explanation, results[] }` | `answerText`/`funnyText` portent le libellé — le joueur n'a pas la question en cache au rejoin |
+| `game.manche_end` | `{ winnerId, manchesTarget, players[] }` | |
+| `game.victory` | `{ winnerId, players[] }` | |
+| `game.state` | `{ targetId, question\|reveal\|mancheEnd\|victory\|waiting }` | projection ciblée au rejoin (§18.7) ; seul le joueur visé par `targetId` la traite |
+| `room.closed` | `{}` | l'hôte a fermé la room (quitter la partie, terminer la session) |
 
 ## 18.6 Déploiement — décision : Vercel + Redis Cloud (beta)
 
@@ -926,15 +928,22 @@ Le dumb relay reste inchangé dans son principe (§17) : seule la localisation d
 
 **Dépendances serveur** : ce choix introduit les premières dépendances npm runtime du dépôt — `ws` (WebSocket) et `ioredis` (client Redis standard) — utilisées **uniquement côté serveur**, jamais embarquées dans le bundle front (qui reste à zéro dépendance runtime).
 
-## 18.7 Reprise en ligne — terrain préparé (non implémenté)
+## 18.7 Rejoin en pleine partie (implémenté)
 
-Pour rendre la reprise possible plus tard, on pose dès maintenant les hooks suivants, **sans les brancher** :
+Un joueur qui recharge en pleine partie rejoint avec le même `clientId` (persisté dans
+`localStorage`). Le host reconnaît l'identité et **ré-associe la nouvelle connexion**
+(`remapSender`) sans créer de doublon, puis renvoie la **projection d'état courante** via
+`game.state { targetId, … }`, ciblée sur ce joueur (le relais relaie à tous, seul celui
+visé par `targetId` la traite) :
 
-1. **Identité reconnectable** : au `lobby.join`, le host attribue un `playerId` (UUID) + un `reconnectToken` ; le player les stocke (`localStorage`/`sessionStorage`) et les réutilise pour re-joindre la même room et retrouver son siège.
-2. **Projection d'état au (re)join** : `session.connected` transporte une **projection complète** de l'état courant (phase, question sans réponse, options, chrono, scores, roster). Un joueur qui se reconnecte ou recharge retrouve sa vue sans que le host rejoue tout l'historique.
-3. **Instantané host** : la reprise « partie interrompue » reste celle du host (`persistResume`), qui sérialise déjà `players` avec leurs `id` ; l'ajout online se bornera à ré-associer `playerId` ↔ token à la reconnexion.
+- `question` — question sans réponse, options, chrono : le joueur reprend sa saisie ;
+- `reveal` — révélation (réponse + textes + résultats). `answerText`/`funnyText` sont
+  embarqués exprès : le joueur qui recharge n'a plus la question en cache ;
+- `mancheEnd` / `victory` — fin de manche ou podium ;
+- `waiting` — phase LOADING : la prochaine question arrivera d'elle-même.
 
-En v1, un départ ferme la room : la partie en ligne n'est pas reprise.
+La sortie du host (quitter la partie, terminer la session) ferme la room et diffuse
+`room.closed` aux joueurs. Une partie en ligne n'est pas reprise après fermeture.
 
 ## 18.8 Chronomètre
 
