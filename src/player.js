@@ -7,6 +7,11 @@
 import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH } from './constants.js';
 import { relayWsUrl } from './relay.js';
 
+let socket = null;
+let myPlayerId = null;
+let myName = '';
+let myEmoji = '';
+
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -68,7 +73,31 @@ export function mountPlayer(rootEl, sessionId) {
       return;
     }
     showError('');
-    join(sessionId, name, selectedEmoji);
+    submitJoin(name, selectedEmoji);
+  });
+
+  // Connexion au relais, une seule fois pour tout l'écran.
+  socket = new WebSocket(relayWsUrl(sessionId));
+  socket.addEventListener('message', (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+    if (msg.type === 'session.connected') {
+      myPlayerId = msg.payload.playerId;
+    } else {
+      handleMessage(msg);
+    }
+  });
+  socket.addEventListener('error', () => {
+    showError('Impossible de rejoindre la partie (session inexistante ou expirée ?).');
+    resetSubmit();
+  });
+  socket.addEventListener('close', () => {
+    if (document.querySelector('#btn-join')) {
+      showError('Connexion perdue.');
+      resetSubmit();
+    } else {
+      dispatchToast('Connexion perdue.', 'error');
+    }
   });
 }
 
@@ -79,48 +108,76 @@ function showError(msg) {
   el.hidden = !msg;
 }
 
-function join(sessionId, name, emoji) {
+function submitJoin(name, emoji) {
+  myName = name;
+  myEmoji = emoji;
   const btn = document.querySelector('#btn-join');
   btn.disabled = true;
   btn.textContent = 'Connexion…';
-  let joined = false;
 
-  const socket = new WebSocket(relayWsUrl(sessionId));
-
-  socket.addEventListener('message', (e) => {
-    let msg;
-    try { msg = JSON.parse(e.data); } catch { return; }
-    if (msg.type === 'session.connected') {
-      // Identifié par le relais : on annonce son identité de jeu (WS.md §18.5).
-      socket.send(JSON.stringify({ type: 'lobby.join', payload: { name, emoji } }));
-      joined = true;
-      renderWaiting(name, emoji);
-    }
-    // game.question / game.reveal arriveront ici (étape suivante).
-  });
-
-  socket.addEventListener('error', () => {
-    showError('Impossible de rejoindre la partie (session inexistante ou expirée ?).');
-    btn.disabled = false;
-    btn.textContent = 'Rejoindre';
-  });
-
-  socket.addEventListener('close', () => {
-    if (!joined) {
-      showError('Connexion perdue avant de rejoindre.');
-      btn.disabled = false;
-      btn.textContent = 'Rejoindre';
-    } else {
-      dispatchToast('Connexion perdue.', 'error');
-    }
-  });
+  const send = () => socket.send(JSON.stringify({ type: 'lobby.join', payload: { name, emoji } }));
+  if (socket?.readyState === WebSocket.OPEN) {
+    send();
+  } else {
+    socket.addEventListener('open', send, { once: true });
+  }
 }
 
-function renderWaiting(name, emoji) {
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'lobby.join.rejected':
+      if (msg.payload?.targetId === myPlayerId) {
+        showError(reasonMessage(msg.payload.reason));
+        resetSubmit();
+      }
+      break;
+    case 'lobby.roster': {
+      const players = msg.payload?.players || [];
+      // On n'est « connecté » que si NOTRE identité (id du relais) figure dans
+      // le roster : les broadcasts liés aux autres joueurs ne doivent pas nous
+      // faire quitter le formulaire avant notre propre acceptation.
+      if (players.some(p => p.id === myPlayerId)) renderWaiting(players);
+      break;
+    }
+    case 'game.start':
+      renderStarted();
+      break;
+    // game.question / game.reveal arriveront à l'étape suivante.
+  }
+}
+
+function reasonMessage(reason) {
+  switch (reason) {
+    case 'name-taken': return 'Ce prénom est déjà pris, choisis-en un autre.';
+    case 'emoji-taken': return 'Cet avatar est déjà pris, choisis-en un autre.';
+    case 'started': return 'La partie a déjà commencé.';
+    default: return 'Impossible de rejoindre.';
+  }
+}
+
+function resetSubmit() {
+  const btn = document.querySelector('#btn-join');
+  if (!btn) return;
+  btn.disabled = false;
+  btn.textContent = 'Rejoindre';
+}
+
+function renderWaiting(players) {
+  const body = document.querySelector('.join__body');
+  const list = players.map(p => `${p.emoji} ${escapeHtml(p.name)}`).join(' · ');
+  body.innerHTML = `
+    <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
+    <p class="join-waiting">${escapeHtml(myName)}, tu es connecté·e&nbsp;!</p>
+    <p class="join-waiting-hint">Joueurs connectés : ${players.length}${list ? ` — ${list}` : ''}</p>
+    <p class="join-waiting-hint">En attente du début de la partie…</p>
+  `;
+}
+
+function renderStarted() {
   const body = document.querySelector('.join__body');
   body.innerHTML = `
-    <p class="join-waiting__emoji" aria-hidden="true">${emoji}</p>
-    <p class="join-waiting">${escapeHtml(name)}, tu es connecté·e&nbsp;!</p>
-    <p class="join-waiting-hint">En attente du début de la partie…</p>
+    <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
+    <p class="join-waiting">La partie commence&nbsp;!</p>
+    <p class="join-waiting-hint">Les questions vont arriver…</p>
   `;
 }

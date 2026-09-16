@@ -4,8 +4,9 @@
 // Le serveur est un dumb relay : room.js traduit les messages reçus en actions
 // du store et expose `send()` pour diffuser. La logique de jeu reste en state.js.
 
-import { dispatch } from './state.js';
+import { dispatch, getState } from './state.js';
 import { RELAY_ORIGIN, relayWsUrl } from './relay.js';
+import { NAME_MAX_LENGTH, PLAYER_EMOJIS } from './constants.js';
 
 let ws = null;
 let hostPlayerId = null;
@@ -76,19 +77,50 @@ function connect(sessionId) {
 function handle(msg) {
   switch (msg.type) {
     case 'lobby.join': {
-      const name = String(msg.payload?.name ?? '').trim().slice(0, 18);
-      const emoji = typeof msg.payload?.emoji === 'string' ? msg.payload.emoji : '•';
       // Le serveur ajoute `senderId` (identité attribuée par le relais).
-      if (name) dispatch({ type: 'ROOM_JOIN', id: msg.senderId, name, emoji });
+      const targetId = msg.senderId;
+      const name = String(msg.payload?.name ?? '').trim().slice(0, NAME_MAX_LENGTH);
+      const emoji = typeof msg.payload?.emoji === 'string' ? msg.payload.emoji : '';
+
+      // La partie est déjà lancée : plus personne ne rejoint.
+      if (getState().phase !== 'LOBBY') {
+        send('lobby.join.rejected', { targetId, reason: 'started' });
+        break;
+      }
+
+      // Checks d'unicité côté host (le client ne fait pas foi) : nom
+      // insensible à la casse, avatar unique, avatar dans la liste autorisée.
+      const players = getState().players;
+      if (!name || !PLAYER_EMOJIS.includes(emoji)) {
+        send('lobby.join.rejected', { targetId, reason: 'invalid' });
+      } else if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        send('lobby.join.rejected', { targetId, reason: 'name-taken' });
+      } else if (players.some(p => p.emoji === emoji)) {
+        send('lobby.join.rejected', { targetId, reason: 'emoji-taken' });
+      } else {
+        dispatch({ type: 'ROOM_JOIN', id: targetId, name, emoji });
+        broadcastRoster();
+      }
       break;
     }
     case 'lobby.leave':
     case 'player.left':
       dispatch({ type: 'ROOM_LEAVE', id: msg.senderId });
+      broadcastRoster();
       break;
-    // Les types `game.*` seront branchés à l'étape suivante (diffusion des
-    // questions aux joueurs).
+    // game.answer arrivera à l'étape suivante (réponses des joueurs).
   }
+}
+
+/**
+ * Diffuse le roster courant aux joueurs (projection, WS.md §18.4).
+ * Le relais étant un dumb relay, ce message part vers tous les joueurs ;
+ * chacun s'en sert pour afficher qui est connecté.
+ */
+function broadcastRoster() {
+  send('lobby.roster', {
+    players: getState().players.map(p => ({ id: p.id, name: p.name, emoji: p.emoji })),
+  });
 }
 
 /** Diffuse un message vers la room (relayé à tous les autres clients). */

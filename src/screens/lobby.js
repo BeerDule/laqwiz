@@ -6,8 +6,8 @@
 import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChips } from '../components/playerChip.js';
-import { closeRoom } from '../room.js';
-import { MAX_PLAYERS } from '../constants.js';
+import { closeRoom, send } from '../room.js';
+import { MAX_PLAYERS, MIN_PLAYERS } from '../constants.js';
 
 let teardown = null;
 let root = null;
@@ -50,9 +50,8 @@ function lobbyHtml(s) {
         <div class="arcade-plaque__roster">${roster}</div>
       </div>
 
-      <p class="lobby-hint">La diffusion des questions aux joueurs arrive à l'étape suivante.</p>
-
       <nav class="arcade__menu" aria-label="Lobby">
+        <button id="btn-start" class="arcade-btn arcade-btn--primary" disabled>▶ Démarrer la partie</button>
         <button id="btn-quit" class="arcade-btn">Quitter le lobby</button>
       </nav>
     </section>
@@ -63,6 +62,13 @@ function quit() {
   closeRoom();
   dispatch({ type: 'ROOM_CLOSED' });
   dispatch({ type: 'GOTO_HOME' });
+}
+
+function startGame() {
+  // On prévient les joueurs, puis on lance la partie côté host (START_GAME
+  // déclenche la génération des questions).
+  send('game.start', {});
+  dispatch({ type: 'START_GAME', resetHistory: true });
 }
 
 function copyLink() {
@@ -107,8 +113,10 @@ export function renderLobby(rootEl) {
     const cleanup = new AbortController();
     const { signal } = cleanup;
     wireThemeSelect(root);
+    root.querySelector('#btn-start').addEventListener('click', startGame, { signal });
     root.querySelector('#btn-quit').addEventListener('click', quit, { signal });
     root.querySelector('#btn-copy').addEventListener('click', copyLink, { signal });
+    root.querySelector('#btn-start').disabled = getState().players.length < MIN_PLAYERS;
     abort = () => cleanup.abort();
     renderQr(getState().room?.shareUrl);
   }

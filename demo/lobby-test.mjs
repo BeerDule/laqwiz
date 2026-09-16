@@ -158,6 +158,25 @@ async function main() {
     `reçu : ${JSON.stringify(join.payload)}`,
   );
 
+  // 6 bis) Broadcasts host → joueur : roster (acceptation), rejet ciblé, démarrage.
+  host.ws.send(JSON.stringify({ type: 'lobby.roster', payload: { players: [{ id: playerId, name: 'Alice', emoji: '🦊' }] } }));
+  const roster = await player.next();
+  assert(roster.type === 'lobby.roster', 'joueur reçoit lobby.roster', `reçu : ${roster.type}`);
+  assert(roster.payload?.players?.[0]?.id === playerId, "roster porte l'id du joueur");
+
+  host.ws.send(JSON.stringify({ type: 'lobby.join.rejected', payload: { targetId: playerId, reason: 'name-taken' } }));
+  const rejected = await player.next();
+  assert(rejected.type === 'lobby.join.rejected', 'joueur reçoit lobby.join.rejected', `reçu : ${rejected.type}`);
+  assert(
+    rejected.payload?.targetId === playerId && rejected.payload?.reason === 'name-taken',
+    'rejet ciblé + raison corrects',
+    `reçu : ${JSON.stringify(rejected.payload)}`,
+  );
+
+  host.ws.send(JSON.stringify({ type: 'game.start', payload: {} }));
+  const started = await player.next();
+  assert(started.type === 'game.start', 'joueur reçoit game.start', `reçu : ${started.type}`);
+
   // 7) Départ du joueur.
   player.ws.close();
   const left = await host.next();
