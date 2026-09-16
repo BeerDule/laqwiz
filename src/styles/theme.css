@@ -1429,6 +1429,7 @@ html:root[data-color-theme="mecha"] .theme-panel > legend::after { content: 'テ
 html:root[data-color-theme="mecha"] .modes-panel > legend::after { content: 'モード'; content: 'モード' / ''; }
 html:root[data-color-theme="mecha"] .settings-panel > legend::after { content: 'ルール'; content: 'ルール' / ''; }
 html:root[data-color-theme="mecha"] .llm-panel > legend::after { content: 'リンク'; content: 'リンク' / ''; }
+html:root[data-color-theme="mecha"] .history-panel > legend::after { content: '記録'; content: '記録' / ''; }
 html:root[data-color-theme="mecha"] .recap::after,
 html:root[data-color-theme="mecha"] .question-card::after,
 html:root[data-color-theme="mecha"] .modal__card::after,

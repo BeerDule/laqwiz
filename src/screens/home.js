@@ -65,7 +65,7 @@ function menuHtml(s) {
         <button id="btn-new-session" class="arcade-btn">Nouvelle session</button>
         <button id="btn-sessions" class="arcade-btn">Sessions</button>
         <button id="btn-app-settings" class="arcade-btn">Paramètres</button>
-        ${session ? '<button id="btn-settings" class="arcade-btn">Réglages de partie</button>' : ''}
+        ${session ? '<button id="btn-settings" class="arcade-btn">Réglages</button>' : ''}
       </nav>
 
       <footer class="arcade__footer">
