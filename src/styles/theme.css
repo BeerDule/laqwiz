@@ -1470,6 +1470,808 @@ h2 {
     background: center / contain no-repeat url('/bubble-island/medal-gold.png');
 }
 
+/* =====================================================================
+ * Mecha — cockpit de mobile suit : aluminium brossé, verre fumé, LED.
+ * Références : Ghost in the Shell (orange sur noir), Akira (capitales
+ * monumentales, rouge Kaneda), Gundam (plaques chanfreinées, bandes de
+ * danger), Appleseed (données projetées en cyan), Matrix (vert = statut).
+ *
+ * Trois mécanismes à connaître avant d'y toucher :
+ *
+ * 1. Préfixe `html:root[data-color-theme="mecha"]` (spécificité 0,2,1).
+ *    theme.css est importé AVANT components.css : à spécificité égale, le
+ *    composant gagne. Le préfixe bat `.answer-board .option-card:hover`
+ *    (0,3,0) sans recourir à !important. En contrepartie, chaque état de
+ *    composant (correct, meneur, coché…) est redéclaré ici.
+ *
+ * 2. Coins à 45° : `clip-path` rogne AUSSI les ombres externes, l'anneau de
+ *    focus et tout ce qui déborde (info-bulles, liste Wikipédia). D'où deux
+ *    familles :
+ *    - les « plaques » (panneaux, cartes, couloirs) : l'hôte n'est PAS rogné,
+ *      sa matière vit sur un ::before absolu en z-index -1, seul rogné. Le
+ *      contenu déborde librement. `isolation: isolate` garde la plaque
+ *      au-dessus du fond du parent.
+ *    - les « découpes directes » (boutons, puces, badges) : rognées
+ *      elles-mêmes, anneau de focus rentré vers l'intérieur.
+ *    Les segments diagonaux du liseré sont quatre dégradés : chaque bande
+ *    perpendiculaire à la coupe, à cut × cos 45° du coin, ne traverse la
+ *    boîte que sur l'hypoténuse de la coupe.
+ *
+ * 3. Les états pilotent des jetons locaux (--frame, --tint, --plate-glow…)
+ *    DÉCLARÉS SUR L'ÉLÉMENT : une propriété personnalisée qui en référence
+ *    une autre se résout là où elle est déclarée, pas là où elle est lue.
+ *    Déclarées à la racine, elles figeraient la couleur de la racine.
+ *
+ * Le fond animé (grille, skyline, réticules) est dessiné par
+ * src/mechaBackdrop.js dans un <canvas> — seule exception à la règle
+ * « un thème = theme.css + une entrée de registre », voir AGENTS.md.
+ * ===================================================================== */
+
+@property --mecha-pulse { syntax: '<number>'; inherits: true; initial-value: 1; }
+@property --mecha-scan  { syntax: '<percentage>'; inherits: true; initial-value: -20%; }
+@property --mecha-sweep { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --mecha-flare { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+html:root[data-color-theme="mecha"] {
+  color-scheme: dark;
+  --font-display: 'Chakra Petch', var(--font-sans);
+  --font-button: 'Chakra Petch', var(--font-sans);
+  /* DSEG7 ne couvre que les chiffres (voir son @font-face) : « 45 s » ou
+     « 3 pts » affichent les chiffres en 7 segments et les lettres en repli. */
+  --font-led: 'DSEG7 Classic', var(--font-mono);
+
+  --led-amber: #ffa22e;
+  --led-cyan: #3fdcff;
+  --led-red: #ff4757;
+  --led-green: #3dff8a;
+  --led-yellow: #ffd23f;
+  --steel: #34495a;
+  --ink: #0a0f14;
+
+  --bg-void: #06090d;
+  --bg-surface: rgba(12, 18, 25, .82);
+  --bg-surface-raised: rgba(20, 29, 38, .86);
+  --bg-surface-soft: rgba(38, 52, 66, .9);
+  --color-accent-primary: var(--led-amber);
+  --color-accent-cyan: var(--led-cyan);
+  --color-accent-pink: #ff6bd6;
+  --color-accent-lime: var(--led-yellow);
+  --color-success: var(--led-green);
+  --color-error: var(--led-red);
+  --color-warning: var(--led-yellow);
+  --color-text: #e6edf3;
+  --color-muted: #8fa3b5;
+  --color-border: var(--steel);
+  --color-overlay: rgba(2, 5, 9, .8);
+
+  --gradient-bg: radial-gradient(120% 80% at 50% 0%, #16212c 0%, #0a0f15 55%, #05080b 100%);
+  /* Trames de balayage d'un moniteur, sous le canvas */
+  --texture: repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 .077em, transparent .077em .231em);
+  --gradient-surface:
+    linear-gradient(160deg, rgba(255, 255, 255, .07) 0%, rgba(255, 255, 255, 0) 38%),
+    linear-gradient(0deg, rgba(63, 220, 255, .045) 0%, rgba(63, 220, 255, 0) 55%);
+  --gradient-accent: linear-gradient(180deg, #ffc26a 0%, #ffa22e 45%, #e88a12 100%);
+  --accent-contrast: #140b00;
+  --on-success: #04170c;
+  --on-pink: #1c0616;
+
+  /* Les plaques rognées perdent toute ombre externe : les jetons d'ombre
+     « pop » et « carte » sont donc INTÉRIEURS. Les ombres portées restent
+     pour ce qui n'est jamais rogné (avatars, menu radial, toasts). */
+  --shadow-card: inset 0 .1em 0 rgba(255, 255, 255, .07), inset 0 -.6em 1.2em rgba(0, 0, 0, .35);
+  --shadow-pop: inset 0 0 0 .1em rgba(255, 162, 46, .9), inset 0 0 1.2em rgba(255, 162, 46, .35);
+  --shadow-1: 0 .15em .4em rgba(0, 0, 0, .5);
+  --shadow-2: 0 .4em 1.2em rgba(0, 0, 0, .55);
+  --shadow-3: 0 1em 3em rgba(0, 0, 0, .7);
+  --glow-accent: 0 0 .35em rgba(255, 162, 46, .9), 0 0 1em rgba(255, 162, 46, .45);
+  --text-glow: 0 0 .12em rgba(255, 162, 46, .35), 0 0 .6em rgba(255, 162, 46, .2);
+  --focus-ring: .15em solid var(--led-cyan);
+  --focus-ring-offset: .15em;
+  --material-edge: .1em solid var(--steel);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-pill: 0;
+
+  /* Aluminium brossé : bruit fractal très étiré en x, rendu en gris à 14 %
+     d'opacité. Une seule image, qui éclaircit et assombrit à la fois, sert
+     à l'aluminium clair comme au métal canon. Aucun fichier à télécharger. */
+  --alu-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='120'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.002 .6' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='2 0 0 0 -.5 2 0 0 0 -.5 2 0 0 0 -.5 0 0 0 0 .14'/%3E%3C/filter%3E%3Crect width='600' height='120' filter='url(%23g)'/%3E%3C/svg%3E");
+  --alu-plate:
+    var(--alu-grain),
+    linear-gradient(180deg, rgba(255, 255, 255, .45) 0%, rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0) 65%, rgba(0, 0, 0, .12) 100%),
+    linear-gradient(100deg, #a3aeb9 0%, #dde3e8 36%, #b1bcc6 55%, #cdd4da 80%, #9ca8b3 100%);
+  --gun-plate:
+    var(--alu-grain),
+    linear-gradient(180deg, rgba(255, 255, 255, .06) 0%, rgba(255, 255, 255, 0) 40%),
+    linear-gradient(180deg, #232d38 0%, #161d25 100%);
+  --lit-plate:
+    linear-gradient(180deg, rgba(255, 255, 255, .35) 0%, rgba(255, 255, 255, 0) 35%),
+    var(--gradient-accent);
+}
+html:root[data-color-theme="mecha"] ::selection { background: var(--led-amber); color: var(--ink); }
+
+/* ===== Scène : fond, canvas, vignette ===== */
+/* Le canvas (z-index 0) doit passer entre le fond du body et l'application :
+   #app monte d'un cran, et le cadre `.arcade` renonce à son propre fond,
+   qui recouvrirait le canvas. */
+html:root[data-color-theme="mecha"] #app { position: relative; z-index: 1; }
+html:root[data-color-theme="mecha"] .arcade { background: none; }
+html:root[data-color-theme="mecha"] #mecha-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+html:root[data-color-theme="mecha"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, .6) 100%);
+}
+
+/* ===== Titres ===== */
+/* Capitales pour les titres seulement : un énoncé de question en capitales
+   se lit nettement moins vite. */
+html:root[data-color-theme="mecha"] :is(.arcade__title h1, .arcade__bar h1, .winner-title, .modal__title, .loading-panel h2, .recap h3) {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+html:root[data-color-theme="mecha"] .arcade__title h1 {
+  color: var(--led-amber);
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-shadow: 0 0 .04em #fff3dc, 0 0 .15em rgba(255, 162, 46, .8), 0 0 .5em rgba(255, 162, 46, .35);
+}
+/* Sous-titre en katakana, décoratif : l'alternative vide du `content` le
+   masque aux lecteurs d'écran. La première déclaration sert de repli aux
+   navigateurs qui ignorent cette syntaxe. */
+html:root[data-color-theme="mecha"] .arcade__title h1::after {
+  content: 'カナップ・クイズ';
+  content: 'カナップ・クイズ' / '';
+  display: block;
+  margin-top: .35em;
+  font-size: .22em;
+  letter-spacing: .8em;
+  color: var(--led-cyan);
+  text-shadow: 0 0 .5em rgba(63, 220, 255, .6);
+}
+html:root[data-color-theme="mecha"] .arcade__title p {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+html:root[data-color-theme="mecha"] .arcade__bar h1,
+html:root[data-color-theme="mecha"] .winner-title {
+  color: var(--color-text);
+  text-shadow: 0 0 .5em rgba(255, 162, 46, .45);
+}
+html:root[data-color-theme="mecha"] .winner-title { color: var(--led-amber); text-shadow: 0 0 .15em rgba(255, 162, 46, .7), 0 0 .5em rgba(255, 162, 46, .35); }
+
+/* ===== Plaques : la matière vit sur ::before ===== */
+html:root[data-color-theme="mecha"] :is(
+  .panel, .question-card, .option-card, .answer-card, .podium__row,
+  .player-card, .leaderboard-mini__item, .mode-card, .modal__card,
+  .arcade-card, .arcade-plaque, .toast, .retry-banner, .form-error, .explanation
+) {
+  --line: .1em;
+  --cut: .7em;
+  --cut2: 0em;
+  --frame: var(--steel);
+  --tint: transparent;
+  --strip: transparent;
+  --status: transparent;
+  --extra: linear-gradient(transparent, transparent);
+  --plate-fill: var(--bg-surface);
+  --plate-glow: inset 0 .1em 0 rgba(255, 255, 255, .06);
+  position: relative;
+  isolation: isolate;
+  border: var(--line) solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+html:root[data-color-theme="mecha"] :is(
+  .panel, .question-card, .option-card, .answer-card, .podium__row,
+  .player-card, .leaderboard-mini__item, .mode-card, .modal__card,
+  .arcade-card, .arcade-plaque, .toast, .retry-banner, .form-error, .explanation
+)::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--line) * -1);
+  z-index: -1;
+  pointer-events: none;
+  border: var(--line) solid var(--frame);
+  clip-path: polygon(
+    var(--cut) 0, calc(100% - var(--cut2)) 0, 100% var(--cut2),
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    var(--cut2) 100%, 0 calc(100% - var(--cut2)), 0 var(--cut));
+  background:
+    linear-gradient(135deg, transparent calc(var(--cut) * .7071), var(--frame) 0 calc(var(--cut) * .7071 + var(--line)), transparent 0),
+    linear-gradient(225deg, transparent calc(var(--cut2) * .7071), var(--frame) 0 calc(var(--cut2) * .7071 + var(--line)), transparent 0),
+    linear-gradient(315deg, transparent calc(var(--cut) * .7071), var(--frame) 0 calc(var(--cut) * .7071 + var(--line)), transparent 0),
+    linear-gradient(45deg, transparent calc(var(--cut2) * .7071), var(--frame) 0 calc(var(--cut2) * .7071 + var(--line)), transparent 0),
+    linear-gradient(var(--strip), var(--strip)) calc(var(--cut) + .8em) var(--line) / 3em .22em no-repeat,
+    radial-gradient(circle, var(--status) 0 .2em, color-mix(in srgb, var(--status) 35%, transparent) .32em, transparent .6em)
+      calc(100% - var(--cut2) - .9em) .45em / 1.2em 1.2em no-repeat,
+    var(--extra),
+    linear-gradient(var(--tint), var(--tint)),
+    var(--gradient-surface),
+    var(--plate-fill);
+  background-origin: border-box;
+  box-shadow: var(--plate-glow), inset 0 0 calc(1.6em * var(--mecha-flare)) color-mix(in srgb, var(--frame) 70%, transparent);
+}
+
+/* Grandes plaques : coupe plus franche, bandeau LED, voyant d'état, verre */
+html:root[data-color-theme="mecha"] :is(.panel, .question-card, .modal__card, .arcade-card, .arcade-plaque) {
+  --cut: 1.1em;
+  --cut2: .35em;
+  --strip: rgba(255, 162, 46, .85);
+  --status: var(--led-green);
+}
+html:root[data-color-theme="mecha"] :is(.panel, .question-card, .modal__card, .arcade-card, .arcade-plaque)::before {
+  backdrop-filter: blur(.6em) saturate(1.2);
+  -webkit-backdrop-filter: blur(.6em) saturate(1.2);
+}
+html:root[data-color-theme="mecha"] .leaderboard-mini__item { --cut: .55em; }
+html:root[data-color-theme="mecha"] .arcade-plaque--slim { --strip: transparent; }
+
+/* La liste Wikipédia déborde du panneau : sans ce relèvement, le panneau
+   suivant, isolé lui aussi et plus tard dans le DOM, la recouvrirait. */
+html:root[data-color-theme="mecha"] .panel:has(.wiki-results:not([hidden])),
+html:root[data-color-theme="mecha"] .leaderboard-mini__item:is(:hover, :focus-within) { z-index: 3; }
+
+/* ===== Panneaux de formulaire ===== */
+/* Une légende FLOTTANTE n'est plus la « légende rendue » du fieldset : la
+   bordure ne se décale plus sous elle, et la plaque couvre le panneau
+   exactement. Elle devient un bandeau de titre dans le panneau. */
+html:root[data-color-theme="mecha"] .panel > legend {
+  float: left;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: .6em;
+  margin: 0 0 .9em;
+  padding: 0 1.4em .5em 0;
+  border-bottom: .1em solid rgba(255, 162, 46, .25);
+  color: var(--led-amber);
+  font-family: var(--font-display);
+  letter-spacing: .14em;
+}
+html:root[data-color-theme="mecha"] .panel > legend + * { clear: both; }
+html:root[data-color-theme="mecha"] .panel > legend::before {
+  content: '';
+  flex: none;
+  width: .55em;
+  height: .55em;
+  background: var(--led-amber);
+  box-shadow: 0 0 .5em var(--led-amber);
+}
+html:root[data-color-theme="mecha"] .panel > legend::after {
+  margin-left: auto;
+  font-size: .85em;
+  letter-spacing: .2em;
+  color: var(--color-muted);
+}
+html:root[data-color-theme="mecha"] .players-panel > legend::after { content: 'パイロット'; content: 'パイロット' / ''; }
+html:root[data-color-theme="mecha"] .theme-panel > legend::after { content: 'テーマ'; content: 'テーマ' / ''; }
+html:root[data-color-theme="mecha"] .modes-panel > legend::after { content: 'モード'; content: 'モード' / ''; }
+html:root[data-color-theme="mecha"] .settings-panel > legend::after { content: 'ルール'; content: 'ルール' / ''; }
+html:root[data-color-theme="mecha"] .llm-panel > legend::after { content: 'リンク'; content: 'リンク' / ''; }
+html:root[data-color-theme="mecha"] .recap::after,
+html:root[data-color-theme="mecha"] .question-card::after,
+html:root[data-color-theme="mecha"] .modal__card::after,
+html:root[data-color-theme="mecha"] .explanation::after {
+  position: absolute;
+  top: .5em;
+  right: 3.6em;
+  font-size: .75em;
+  letter-spacing: .25em;
+  color: var(--color-muted);
+  pointer-events: none;
+}
+html:root[data-color-theme="mecha"] .question-card::after { content: '問題'; content: '問題' / ''; }
+html:root[data-color-theme="mecha"] .modal__card::after { content: '確認'; content: '確認' / ''; }
+html:root[data-color-theme="mecha"] .recap::after { content: '記録'; content: '記録' / ''; }
+html:root[data-color-theme="mecha"] .explanation::after { content: '解説'; content: '解説' / ''; right: 1em; color: var(--led-cyan); }
+
+/* Zone de reset : liseré rouge, bande de danger, idéogramme d'alerte */
+html:root[data-color-theme="mecha"] .danger-zone {
+  --frame: var(--led-red);
+  --strip: transparent;
+  --status: var(--led-red);
+  --extra: repeating-linear-gradient(-45deg, var(--led-yellow) 0 .5em, #111 0 1em) 0 0 / 100% .45em no-repeat;
+  border-color: transparent !important;
+}
+html:root[data-color-theme="mecha"] .danger-zone > legend { color: var(--led-red); border-bottom-color: rgba(255, 71, 87, .3); padding-top: .5em; }
+html:root[data-color-theme="mecha"] .danger-zone > legend::before { background: var(--led-red); box-shadow: 0 0 .5em var(--led-red); }
+html:root[data-color-theme="mecha"] .danger-zone > legend::after { content: '警告'; content: '警告' / ''; color: var(--led-red); }
+
+/* ===== Carte question : balayage et voyant qui respire ===== */
+html:root[data-color-theme="mecha"] .question-card {
+  --status: rgb(61 255 138 / var(--mecha-pulse));
+  --extra: linear-gradient(180deg, transparent, rgba(63, 220, 255, .09), transparent) 0 var(--mecha-scan) / 100% 4em no-repeat;
+  animation: mecha-pulse 2.4s ease-in-out infinite, mecha-scan 7s linear infinite;
+}
+@keyframes mecha-pulse {
+  0%, 100% { --mecha-pulse: 1; }
+  50% { --mecha-pulse: .3; }
+}
+@keyframes mecha-scan {
+  from { --mecha-scan: -20%; }
+  to { --mecha-scan: 120%; }
+}
+
+/* ===== États des plaques ===== */
+html:root[data-color-theme="mecha"] .answer-board .option-card:hover {
+  --frame: var(--led-amber);
+  --tint: rgba(255, 162, 46, .08);
+  box-shadow: none;
+}
+html:root[data-color-theme="mecha"] .option-card--correct {
+  --frame: var(--led-green);
+  --tint: rgba(61, 255, 138, .14);
+  --plate-glow: inset 0 0 1.2em rgba(61, 255, 138, .35);
+}
+html:root[data-color-theme="mecha"] .option-card--funny {
+  --frame: var(--color-accent-pink);
+  --tint: rgba(255, 107, 214, .1);
+}
+html:root[data-color-theme="mecha"] :is(.leaderboard-mini__item--leader, .podium__row--first, .mode-card--on, .arcade-card--active) {
+  --frame: var(--led-amber);
+  --tint: rgba(255, 162, 46, .1);
+  --plate-glow: inset 0 0 1.1em rgba(255, 162, 46, .35);
+}
+html:root[data-color-theme="mecha"] .leaderboard-mini__item--out { --frame: rgba(255, 71, 87, .6); }
+html:root[data-color-theme="mecha"] .mode-card:hover { --frame: var(--led-amber); }
+html:root[data-color-theme="mecha"] .mode-card--new { --frame: rgba(52, 73, 90, .8); --plate-fill: rgba(12, 18, 25, .5); }
+html:root[data-color-theme="mecha"] .answer-card--correct {
+  --frame: var(--led-green);
+  --tint: rgba(61, 255, 138, .1);
+  animation: card-rise var(--dur-base) var(--ease-out) backwards, mecha-flare 700ms ease-out 2;
+}
+html:root[data-color-theme="mecha"] .answer-card--wrong {
+  --frame: var(--led-red);
+  --tint: rgba(255, 71, 87, .08);
+  animation: card-rise var(--dur-base) var(--ease-out) backwards, mecha-glitch 420ms steps(1, end) 1;
+}
+html:root[data-color-theme="mecha"] .toast--error,
+html:root[data-color-theme="mecha"] .form-error { --frame: var(--led-red); --tint: rgba(255, 71, 87, .1); }
+html:root[data-color-theme="mecha"] .toast--info { --frame: var(--led-amber); }
+html:root[data-color-theme="mecha"] .retry-banner { --frame: var(--led-yellow); --tint: rgba(255, 210, 63, .08); }
+html:root[data-color-theme="mecha"] .explanation {
+  --frame: rgba(63, 220, 255, .55);
+  --extra: linear-gradient(var(--led-cyan), var(--led-cyan)) var(--line) var(--cut) / .25em calc(100% - 2 * var(--cut)) no-repeat;
+  padding-left: 1.1em;
+  padding-right: 3.6em; /* colonne réservée à l'idéogramme décoratif */
+}
+html:root[data-color-theme="mecha"] .player-card {
+  --extra: linear-gradient(var(--pc), var(--pc)) var(--line) var(--cut) / .3em calc(100% - 2 * var(--cut)) no-repeat;
+  padding-left: .9em;
+}
+html:root[data-color-theme="mecha"] .player-card:hover { --frame: #4d6a82; }
+
+/* Un seul sursaut de luminosité, jamais un clignotement (seuil WCAG 2.3.1) */
+@keyframes mecha-flare {
+  0%, 100% { --mecha-flare: 0; }
+  40% { --mecha-flare: 1; }
+}
+/* Glitch d'impact : décalage chromatique bref, sans changement de luminance */
+@keyframes mecha-glitch {
+  0%   { transform: translate(.15em, 0) skewX(-3deg); text-shadow: .08em 0 rgba(255, 71, 87, .8), -.08em 0 rgba(63, 220, 255, .8); }
+  25%  { transform: translate(-.2em, .05em); text-shadow: -.06em 0 rgba(255, 71, 87, .8), .06em 0 rgba(63, 220, 255, .8); }
+  50%  { transform: translate(.1em, -.05em) skewX(2deg); text-shadow: .04em 0 rgba(255, 71, 87, .6), -.04em 0 rgba(63, 220, 255, .6); }
+  75%, 100% { transform: none; text-shadow: none; }
+}
+
+/* ===== Découpes directes : boutons, puces, barres ===== */
+/* `.choice-chip span` reste HORS de la liste :is() : un :is() prend la
+   spécificité de son argument le plus fort, et ce sélecteur composé ferait
+   passer toute la liste au-dessus des variantes (aluminium, ambre…). */
+html:root[data-color-theme="mecha"] :is(.button, .arcade-btn, .modal__btn, .timer, .game-header, .arcade__bar),
+html:root[data-color-theme="mecha"] .choice-chip span {
+  --line: .1em;
+  --cut: .55em;
+  --cut2: .55em;
+  --frame: #5d6b78;
+  --fill: var(--bg-surface-raised);
+  --fill-image: none;
+  --glow: inset 0 .1em 0 rgba(255, 255, 255, .25);
+  border: var(--line) solid var(--frame);
+  border-radius: 0;
+  clip-path: polygon(
+    var(--cut) 0, calc(100% - var(--cut2)) 0, 100% var(--cut2),
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    var(--cut2) 100%, 0 calc(100% - var(--cut2)), 0 var(--cut));
+  background-color: var(--fill);
+  background-image:
+    linear-gradient(135deg, transparent calc(var(--cut) * .7071), var(--frame) 0 calc(var(--cut) * .7071 + var(--line)), transparent 0),
+    linear-gradient(225deg, transparent calc(var(--cut2) * .7071), var(--frame) 0 calc(var(--cut2) * .7071 + var(--line)), transparent 0),
+    linear-gradient(315deg, transparent calc(var(--cut) * .7071), var(--frame) 0 calc(var(--cut) * .7071 + var(--line)), transparent 0),
+    linear-gradient(45deg, transparent calc(var(--cut2) * .7071), var(--frame) 0 calc(var(--cut2) * .7071 + var(--line)), transparent 0),
+    var(--fill-image);
+  background-origin: border-box;
+  box-shadow: var(--glow);
+  backdrop-filter: none;
+  filter: none;
+}
+
+/* Aluminium : boutons secondaires, boutons de menu, boutons de dialogue */
+html:root[data-color-theme="mecha"] :is(.button, .arcade-btn, .modal__btn) {
+  --fill: #b1bcc6;
+  --fill-image: var(--alu-plate);
+  color: var(--ink);
+  font-family: var(--font-button);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  text-shadow: 0 .06em 0 rgba(255, 255, 255, .45);
+}
+html:root[data-color-theme="mecha"] :is(.button, .arcade-btn, .modal__btn):hover:not(:disabled) {
+  --frame: var(--led-amber);
+  --glow: inset 0 .1em 0 rgba(255, 255, 255, .35), inset 0 -.2em 0 var(--led-amber), inset 0 0 .9em rgba(255, 162, 46, .35);
+  background-color: var(--fill);
+  filter: none;
+}
+html:root[data-color-theme="mecha"] :is(.button, .arcade-btn, .modal__btn):active:not(:disabled) {
+  --glow: inset 0 .15em .4em rgba(0, 0, 0, .35);
+}
+/* LED allumée : action principale */
+html:root[data-color-theme="mecha"] :is(.button--primary, .arcade-btn--primary, .modal__btn--primary) {
+  --frame: #ffd08a;
+  --fill: var(--led-amber);
+  --fill-image: var(--lit-plate);
+  --glow: inset 0 0 1em rgba(255, 240, 210, .45);
+  color: var(--accent-contrast);
+  text-shadow: 0 .06em 0 rgba(255, 255, 255, .35);
+}
+html:root[data-color-theme="mecha"] :is(.button--primary, .arcade-btn--primary, .modal__btn--primary):hover:not(:disabled) {
+  --frame: #fff0d6;
+  --glow: inset 0 0 1.4em rgba(255, 250, 235, .7);
+  filter: brightness(1.06);
+}
+/* Verre fumé : boutons fantômes */
+html:root[data-color-theme="mecha"] .button--ghost {
+  --frame: rgba(52, 73, 90, .9);
+  --fill: rgba(12, 18, 25, .6);
+  --fill-image: none;
+  --glow: none;
+  color: var(--color-text);
+  text-shadow: none;
+}
+html:root[data-color-theme="mecha"] .button--ghost:hover:not(:disabled) {
+  --fill: var(--bg-surface-soft);
+  --glow: inset 0 -.2em 0 var(--led-amber);
+}
+/* Rouge d'alerte : encre bordeaux sur aluminium (5,3:1 au pire),
+   rouge LED sur verre fumé */
+html:root[data-color-theme="mecha"] :is(.button--danger, .arcade-btn--danger, .modal__btn--danger) { color: #6b0a14; }
+html:root[data-color-theme="mecha"] .button--ghost.button--danger { color: var(--led-red); }
+html:root[data-color-theme="mecha"] :is(.button--danger, .arcade-btn--danger, .modal__btn--danger):hover:not(:disabled) {
+  --frame: var(--led-red);
+  --glow: inset 0 -.2em 0 var(--led-red), inset 0 0 .9em rgba(255, 71, 87, .3);
+}
+html:root[data-color-theme="mecha"] .add-player-btn {
+  --frame: rgba(255, 162, 46, .6);
+  --fill: rgba(12, 18, 25, .55);
+  --fill-image: none;
+  --glow: none;
+  color: var(--led-amber);
+  border-style: solid;
+  text-shadow: none;
+}
+html:root[data-color-theme="mecha"] .arcade-btn { --cut: .7em; --cut2: .25em; }
+html:root[data-color-theme="mecha"] .arcade-btn--icon { --cut: .3em; --cut2: .3em; }
+
+/* Anneau de focus : rentré vers l'intérieur, la découpe rognerait l'extérieur.
+   Encre sombre sur l'aluminium et l'ambre, où le cyan tomberait sous 3:1. */
+html:root[data-color-theme="mecha"] :is(.button, .arcade-btn, .modal__btn):focus-visible {
+  outline: .15em solid var(--ink);
+  outline-offset: -.4em;
+}
+html:root[data-color-theme="mecha"] .button--ghost:focus-visible,
+html:root[data-color-theme="mecha"] .app-nav__item:focus-visible {
+  outline: .15em solid var(--led-cyan);
+  outline-offset: -.35em;
+}
+html:root[data-color-theme="mecha"] .choice-chip input:focus-visible + span {
+  outline: .15em solid var(--led-cyan);
+  outline-offset: -.4em;
+}
+
+/* Puces de choix : verre, LED ambre quand cochées */
+html:root[data-color-theme="mecha"] .choice-chip span {
+  --cut: .45em;
+  --cut2: 0em;
+  --fill: rgba(12, 18, 25, .7);
+  --glow: none;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+html:root[data-color-theme="mecha"] .choice-chip:hover span { --frame: #7d8a96; background-color: var(--fill); }
+html:root[data-color-theme="mecha"] .choice-chip input:checked + span {
+  --frame: #ffd08a;
+  --fill: var(--led-amber);
+  --fill-image: var(--lit-plate);
+  --glow: inset 0 0 .8em rgba(255, 240, 210, .45);
+  color: var(--accent-contrast);
+  box-shadow: var(--glow);
+}
+
+/* Barres de titre : métal canon, filet LED côté contenu */
+html:root[data-color-theme="mecha"] :is(.game-header, .arcade__bar) {
+  --cut: .9em;
+  --cut2: .3em;
+  --frame: #2b3a48;
+  --fill: #161d25;
+  --fill-image: var(--gun-plate);
+  --glow: inset 0 -.15em 0 rgba(255, 162, 46, .55), inset 0 .1em 0 rgba(255, 255, 255, .05);
+}
+html:root[data-color-theme="mecha"] .game-screen > .game-header { --cut: 0em; --cut2: 0em; border-width: 0 0 var(--line); }
+html:root[data-color-theme="mecha"] .game-screen > .leaderboard-mini {
+  border-bottom: .1em solid rgba(255, 162, 46, .35);
+  box-shadow: 0 .1em .8em rgba(255, 162, 46, .12);
+}
+
+/* ===== Petites découpes sans liseré ===== */
+html:root[data-color-theme="mecha"] :is(.badge, .answer-result, .arcade-tag, .rules-advanced__count, .option-card__key, .option-card__hint, .player-card__number),
+html:root[data-color-theme="mecha"] #target-score-output {
+  --cut: .35em;
+  border-radius: 0;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+}
+html:root[data-color-theme="mecha"] :is(.badge, .answer-result, .arcade-tag) {
+  font-family: var(--font-display);
+  letter-spacing: .08em;
+  box-shadow: inset 0 0 0 .1em currentColor;
+}
+html:root[data-color-theme="mecha"] .arcade-tag { color: var(--accent-contrast); box-shadow: none; }
+html:root[data-color-theme="mecha"] .arcade-tag--resume { background: var(--led-yellow); }
+html:root[data-color-theme="mecha"] .answer-board .option-card__key,
+html:root[data-color-theme="mecha"] .option-card__key {
+  --cut: .3em;
+  font-family: var(--font-display);
+  background: var(--lit-plate);
+  color: var(--accent-contrast);
+  border: 0;
+  box-shadow: inset 0 0 .6em rgba(255, 240, 210, .5);
+}
+html:root[data-color-theme="mecha"] .option-card--correct .option-card__key { background: var(--led-green); color: var(--on-success); }
+html:root[data-color-theme="mecha"] .option-card--funny .option-card__key { background: var(--color-accent-pink); color: var(--on-pink); }
+
+/* Chiffres LED : chrono, scores, raccourcis, numéros de joueur */
+html:root[data-color-theme="mecha"] :is(.timer, .leaderboard-mini__score, .option-card__hint, .player-card__number, .podium__row .answer-card__score),
+html:root[data-color-theme="mecha"] #target-score-output {
+  font-family: var(--font-led);
+  font-variant-numeric: tabular-nums;
+}
+html:root[data-color-theme="mecha"] :is(.option-card__hint, .player-card__number),
+html:root[data-color-theme="mecha"] #target-score-output {
+  background: #05080b;
+  color: var(--led-cyan);
+  text-shadow: 0 0 .4em rgba(63, 220, 255, .7);
+  border: 0;
+}
+html:root[data-color-theme="mecha"] #target-score-output { color: var(--led-amber); text-shadow: 0 0 .4em rgba(255, 162, 46, .8); }
+html:root[data-color-theme="mecha"] .timer {
+  --cut: .4em;
+  --cut2: 0em;
+  --frame: rgba(255, 162, 46, .5);
+  --fill: #05080b;
+  --glow: inset 0 0 .8em rgba(255, 162, 46, .15);
+  color: var(--led-amber);
+  text-shadow: 0 0 .35em rgba(255, 162, 46, .8);
+}
+html:root[data-color-theme="mecha"] :is(.timer--urgent, .timer--over) {
+  --frame: var(--led-red);
+  --glow: inset 0 0 .9em rgba(255, 71, 87, .3);
+  color: var(--led-red);
+  text-shadow: 0 0 .35em rgba(255, 71, 87, .8);
+}
+html:root[data-color-theme="mecha"] .leaderboard-mini__score { color: var(--led-amber); text-shadow: 0 0 .35em rgba(255, 162, 46, .6); }
+html:root[data-color-theme="mecha"] .leaderboard-mini__target { font-family: var(--font-mono); }
+html:root[data-color-theme="mecha"] .podium__row .answer-card__score { color: var(--led-amber); }
+html:root[data-color-theme="mecha"] .question-theme { font-family: var(--font-mono); color: var(--led-cyan); }
+
+/* ===== Barres LED segmentées ===== */
+html:root[data-color-theme="mecha"] :is(.progress-bar, .leaderboard-mini__rail, .podium__bar) {
+  border-radius: 0;
+  background: #05080b;
+  box-shadow: inset 0 0 0 .08em #1f2a35;
+}
+/* Le masque découpe la jauge en segments. Il rogne aussi tout halo externe :
+   l'éclat vient du dégradé vertical, pas d'une ombre. */
+html:root[data-color-theme="mecha"] :is(.progress-bar span, .leaderboard-mini__fill, .podium__bar span) {
+  border-radius: 0;
+  background-color: var(--led-amber);
+  background-image: linear-gradient(180deg, #ffe0b0, var(--led-amber) 45%, #d9780a);
+  box-shadow: none;
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 .45em, transparent 0 .6em);
+  mask: repeating-linear-gradient(90deg, #000 0 .45em, transparent 0 .6em);
+  animation: none;
+}
+html:root[data-color-theme="mecha"] .leaderboard-mini__item--leader .leaderboard-mini__fill { filter: brightness(1.2); }
+html:root[data-color-theme="mecha"] .leaderboard-mini__item--out .leaderboard-mini__fill { background-color: var(--led-red); background-image: none; }
+
+/* Pastilles de manches et points de chargement : LED carrées */
+html:root[data-color-theme="mecha"] :is(.manche-pip, .loading-dots span) { border-radius: 0; }
+html:root[data-color-theme="mecha"] .manche-pip { background: #0b1117; border-color: #34495a; }
+html:root[data-color-theme="mecha"] .manche-pip--won {
+  background: var(--led-amber);
+  border-color: #ffd08a;
+  box-shadow: 0 0 .5em var(--led-amber);
+}
+
+/* ===== Champs : écrans LCD ===== */
+html:root[data-color-theme="mecha"] :is(input[type='text'], input[type='search'], input[type='password'], input:not([type]), select, .modal__input) {
+  border-radius: 0;
+  border-color: #2c3a47;
+  background-color: #05080b;
+  color: var(--color-text);
+  box-shadow: inset 0 .15em .4em rgba(0, 0, 0, .6);
+}
+html:root[data-color-theme="mecha"] :is(input[type='text'], input[type='search'], input[type='password'], input:not([type]), select, .modal__input):focus {
+  border-color: var(--led-cyan);
+  box-shadow: inset 0 .15em .4em rgba(0, 0, 0, .6), 0 0 0 .12em rgba(63, 220, 255, .3), 0 0 .8em rgba(63, 220, 255, .25);
+}
+html:root[data-color-theme="mecha"] select {
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ffa22e'/%3E%3C/svg%3E");
+}
+html:root[data-color-theme="mecha"] .player-card__name:focus { background: #05080b !important; border-color: var(--led-cyan) !important; }
+
+/* Curseur : piste LCD, poignée ambre carrée */
+html:root[data-color-theme="mecha"] input[type='range']::-webkit-slider-runnable-track { border-radius: 0; background: #05080b; box-shadow: inset 0 0 0 .08em #2c3a47; }
+html:root[data-color-theme="mecha"] input[type='range']::-moz-range-track { border-radius: 0; background: #05080b; }
+html:root[data-color-theme="mecha"] input[type='range']::-webkit-slider-thumb {
+  border-radius: 0;
+  border-color: #ffd08a;
+  background: var(--led-amber);
+  box-shadow: 0 0 .6em rgba(255, 162, 46, .7);
+}
+html:root[data-color-theme="mecha"] input[type='range']::-moz-range-thumb {
+  border-radius: 0;
+  border-color: #ffd08a;
+  background: var(--led-amber);
+  box-shadow: 0 0 .6em rgba(255, 162, 46, .7);
+}
+
+/* Interrupteur : interrupteur à glissière, LED allumée quand actif */
+html:root[data-color-theme="mecha"] .toggle-track { border-radius: 0; background: #05080b; border-color: #34495a; }
+html:root[data-color-theme="mecha"] .toggle-track::after { border-radius: 0; background: var(--alu-plate); }
+html:root[data-color-theme="mecha"] .toggle-row input:checked + .toggle-track {
+  background: #3a2406;
+  border-color: var(--led-amber);
+  box-shadow: inset 0 0 .6em rgba(255, 162, 46, .6), 0 0 .5em rgba(255, 162, 46, .35);
+}
+
+/* ===== Joueurs et avatars : réticules ===== */
+html:root[data-color-theme="mecha"] :is(.player-card__emoji, .team-avatar, .arcade-avatar, .emoji-picker__item) {
+  background: radial-gradient(circle, rgba(20, 29, 38, .95) 0 62%, rgba(63, 220, 255, .12) 63% 64%, rgba(20, 29, 38, .95) 65%);
+}
+html:root[data-color-theme="mecha"] :is(.team-avatar, .player-picker__item) {
+  box-shadow: 0 0 .45em var(--pc, var(--led-amber)), inset 0 0 .35em color-mix(in srgb, var(--pc, var(--led-amber)) 50%, transparent);
+}
+html:root[data-color-theme="mecha"] .emoji-picker__item { border-radius: 0; }
+html:root[data-color-theme="mecha"] .emoji-picker__item--on { border-color: var(--led-amber); box-shadow: inset 0 0 .6em rgba(255, 162, 46, .45); }
+html:root[data-color-theme="mecha"] .player-card__remove { border-radius: 0; }
+
+/* Menu radial : cadran de radar, aiguille de balayage */
+html:root[data-color-theme="mecha"] .player-picker__plate {
+  border-color: rgba(63, 220, 255, .55);
+  background:
+    linear-gradient(90deg, transparent calc(50% - .05em), rgba(63, 220, 255, .25) 0 calc(50% + .05em), transparent 0),
+    linear-gradient(0deg, transparent calc(50% - .05em), rgba(63, 220, 255, .25) 0 calc(50% + .05em), transparent 0),
+    conic-gradient(from var(--mecha-sweep), rgba(63, 220, 255, .28), transparent 60deg),
+    radial-gradient(circle, rgba(8, 12, 17, .96) 0 84%, transparent 84.5%),
+    repeating-conic-gradient(rgba(63, 220, 255, .55) 0 1deg, transparent 1deg 15deg),
+    rgba(8, 12, 17, .92);
+  box-shadow: 0 0 1.2em rgba(63, 220, 255, .25), var(--shadow-2);
+  animation: plate-reveal 240ms var(--ease-spring) backwards, mecha-sweep 4s linear infinite;
+}
+@keyframes mecha-sweep {
+  from { --mecha-sweep: 0deg; }
+  to { --mecha-sweep: 360deg; }
+}
+html:root[data-color-theme="mecha"] .player-picker__answer {
+  font-family: var(--font-display);
+  background: var(--lit-plate);
+  box-shadow: 0 0 1em rgba(255, 162, 46, .75), var(--shadow-3);
+}
+html:root[data-color-theme="mecha"] .player-picker__item { background: #0b1117; }
+html:root[data-color-theme="mecha"] .player-picker__item.is-active { background: var(--lit-plate); }
+html:root[data-color-theme="mecha"] :is(.player-picker__item, .player-chip)::after {
+  border-radius: 0;
+  border-color: rgba(63, 220, 255, .6);
+  background: #070b10;
+  font-family: var(--font-mono);
+  letter-spacing: .06em;
+}
+
+/* ===== Navigation d'application ===== */
+html:root[data-color-theme="mecha"] .app-nav {
+  background: var(--gun-plate);
+  border-color: rgba(255, 162, 46, .45);
+  box-shadow: 0 0 1em rgba(255, 162, 46, .15);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html:root[data-color-theme="mecha"] .app-nav__brand {
+  color: var(--led-amber);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  text-shadow: 0 0 .4em rgba(255, 162, 46, .6);
+}
+html:root[data-color-theme="mecha"] .app-nav__item {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  clip-path: polygon(.5em 0, 100% 0, 100% calc(100% - .5em), calc(100% - .5em) 100%, 0 100%, 0 .5em);
+}
+html:root[data-color-theme="mecha"] .app-nav__item:hover { background: rgba(255, 255, 255, .06); }
+/* Indicateur d'onglet : filet LED côté contenu, en haut pour la barre basse */
+html:root[data-color-theme="mecha"] .app-nav__item.is-active {
+  color: var(--led-amber);
+  text-shadow: 0 0 .5em rgba(255, 162, 46, .7);
+  box-shadow: inset 0 .2em 0 var(--led-amber);
+  background: linear-gradient(180deg, rgba(255, 162, 46, .16), transparent 70%);
+}
+@media (min-width: 56.25em) {
+  html:root[data-color-theme="mecha"] .app-nav__item.is-active {
+    box-shadow: inset 0 -.2em 0 var(--led-amber);
+    background: linear-gradient(0deg, rgba(255, 162, 46, .16), transparent 70%);
+  }
+}
+html:root[data-color-theme="mecha"] .app-nav__item.is-active svg { filter: drop-shadow(0 0 .25em rgba(255, 162, 46, .8)); }
+
+/* ===== Divers ===== */
+html:root[data-color-theme="mecha"] .modal::backdrop {
+  background:
+    repeating-linear-gradient(0deg, rgba(63, 220, 255, .04) 0 .077em, transparent .077em .231em),
+    var(--color-overlay);
+}
+html:root[data-color-theme="mecha"] :is(.rules-advanced__summary, .llm-panel summary) { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .08em; }
+html:root[data-color-theme="mecha"] .rules-advanced { border-top-color: rgba(255, 162, 46, .25); }
+html:root[data-color-theme="mecha"] .wiki-results {
+  border-radius: 0;
+  border-color: rgba(63, 220, 255, .55);
+  background: #070b10;
+}
+html:root[data-color-theme="mecha"] .wiki-results li { border-radius: 0; }
+html:root[data-color-theme="mecha"] .wiki-results li:is(:hover, :focus-visible) { background: rgba(255, 162, 46, .14); }
+html:root[data-color-theme="mecha"] .arcade__version { color: var(--led-green); text-shadow: 0 0 .4em rgba(61, 255, 138, .5); opacity: 1; }
+html:root[data-color-theme="mecha"] .loading-dots span { background: var(--led-amber); }
+html:root[data-color-theme="mecha"] .option-card__team { border-top-color: rgba(52, 73, 90, .8); }
+
+/* ===== Mobile : on épargne le processeur graphique ===== */
+@media (max-width: 47.938em) {
+  html:root[data-color-theme="mecha"] :is(.panel, .question-card, .modal__card, .arcade-card, .arcade-plaque)::before {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  html:root[data-color-theme="mecha"] {
+    --bg-surface: rgba(12, 18, 25, .9);
+  }
+}
+
+/* ===== Transparence réduite : panneaux opaques ===== */
+@media (prefers-reduced-transparency: reduce) {
+  html:root[data-color-theme="mecha"] {
+    --bg-surface: #0c1219;
+    --bg-surface-raised: #141d26;
+    --bg-surface-soft: #263442;
+  }
+  html:root[data-color-theme="mecha"] :is(.panel, .question-card, .modal__card, .arcade-card, .arcade-plaque)::before {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 /* ===== Polices d'affichage par thème (Google Fonts, licences OFL) =====
  * Hébergées localement comme les autres. Un @font-face ne déclenche aucun
  * téléchargement tant qu'aucun élément rendu n'utilise la famille : seule la
@@ -1562,4 +2364,35 @@ h2 {
     font-display: swap;
     src: url('/fonts/baloo2-700.woff2') format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Mecha — Chakra Petch (Cadson Demak) pour les titres et les boutons : sans
+ * serif carrée aux angles biseautés, écho direct des plaques chanfreinées.
+ * DSEG7 Classic (keshikan) pour les chiffres LED en 7 segments. Deux licences
+ * OFL 1.1. La plage de DSEG7 est volontairement réduite aux chiffres, aux
+ * deux-points, au point et au tiret : les lettres d'un libellé mixte (« 45 s »)
+ * retombent sur la fonte suivante au lieu de s'afficher en 7 segments. */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/chakra-petch-600-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/chakra-petch-700-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'DSEG7 Classic';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/dseg7-classic-700.woff2') format('woff2');
+  unicode-range: U+002D-002E, U+0030-003A;
 }

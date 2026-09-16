@@ -16,9 +16,12 @@ import { renderSettings, unmountSettings } from './screens/settings.js';
 import { initColorTheme, setColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
+import { initMechaBackdrop } from './mechaBackdrop.js';
 
 // Appliquer le thème de couleurs sauvegardé avant le premier rendu
 initColorTheme();
+// Fond animé du thème Mecha : s'allume et s'éteint seul selon le thème actif
+initMechaBackdrop();
 
 const app = document.getElementById('app');
 
