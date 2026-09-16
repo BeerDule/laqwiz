@@ -17,6 +17,18 @@ import wsRelay from '../api/ws.js';
 const PORT = Number(process.env.PORT || 3000);
 
 const server = http.createServer((req, res) => {
+  // CORS : en dev, le front (Vite :5173) et le relais (:3000) sont sur des
+  // origines différentes. En prod (Vercel), même origine → ces en-têtes ne
+  // servent qu'ici.
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
+
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/api/sessions' && req.method === 'POST') {
     sessions(req, res);

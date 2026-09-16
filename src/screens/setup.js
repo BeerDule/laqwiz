@@ -16,6 +16,7 @@ import { listResumes } from '../db.js';
 import {
   loadModes, createMode, updateMode, removeMode, resetBuiltinMode, diffFromMode,
 } from '../modes.js';
+import { startHost } from '../room.js';
 
 // Le mode BYOK — chaque joueur renseigne sa propre configuration LLM — est
 // obligatoire en production par défaut, optionnel en développement.
@@ -998,6 +999,7 @@ export function renderSetup(rootEl) {
         <p id="setup-error" class="form-error" role="alert" hidden></p>
         <button id="btn-start" class="button button--primary button--large" type="submit" disabled>▶ Générer la partie</button>
       </form>
+      <button id="btn-lobby" class="button button--ghost button--large setup-lobby-btn" type="button">📡 Démarrer un lobby</button>
     </section>
   `;
 
@@ -1008,6 +1010,7 @@ export function renderSetup(rootEl) {
 
   const cleanup = new AbortController();
   wireEvents(cleanup.signal);
+  root.querySelector('#btn-lobby').addEventListener('click', startLobby, { signal: cleanup.signal });
 
   // La session et les instantanés arrivent de façon asynchrone (IndexedDB) :
   // sans ces deux suivis, le panneau restait figé sur son état de montage.
@@ -1052,6 +1055,19 @@ export function unmountSetup() {
 }
 
 
+
+async function startLobby() {
+  const btn = root.querySelector('#btn-lobby');
+  btn.disabled = true;
+  btn.textContent = 'Création du lobby…';
+  try {
+    await startHost(); // dispatche ROOM_OPENED → phase LOBBY
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '📡 Démarrer un lobby';
+    showError(err.message);
+  }
+}
 
 function showError(msg) {
   const el = root.querySelector('#setup-error');

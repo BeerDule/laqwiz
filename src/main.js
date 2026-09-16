@@ -13,6 +13,7 @@ import { renderVictory, unmountVictory } from './screens/victory.js';
 import { renderSessions, unmountSessions } from './screens/sessions.js';
 import { renderHome, unmountHome } from './screens/home.js';
 import { renderSettings, unmountSettings } from './screens/settings.js';
+import { renderLobby, unmountLobby } from './screens/lobby.js';
 import { initColorTheme, setColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
@@ -154,6 +155,7 @@ applyHealthConfig();
 const UNMOUNTERS = {
   HOME: unmountHome,
   SETUP: unmountSetup,
+  LOBBY: unmountLobby,
   LOADING: unmountGame,
   QUESTION: unmountGame,
   REVEAL: unmountGame,
@@ -165,6 +167,7 @@ const UNMOUNTERS = {
 const MOUNTERS = {
   HOME: renderHome,
   SETUP: renderSetup,
+  LOBBY: renderLobby,
   LOADING: renderGame,
   QUESTION: renderGame,
   REVEAL: renderGame,

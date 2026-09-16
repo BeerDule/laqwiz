@@ -3,7 +3,7 @@ import { normalizeQuestionText } from './validation.js';
 import { fetchQuestionBatch, toUiError } from './api.js';
 import { saveStats, clearAll, saveActiveSessionId } from './storage.js';
 import { putSession, putPartie, putResume, deleteResume } from './db.js';
-import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS, MODE_RULE_KEYS } from './constants.js';
+import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS, MODE_RULE_KEYS, PLAYER_COLORS } from './constants.js';
 import { fetchArticle, sectionWindow } from './wikipedia.js';
 
 const isOnline = () => (typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -63,6 +63,9 @@ const INITIAL_STATE = Object.freeze({
   // === Partie en cours : best-of de manches ===
   partie: null,  // { id, startedAt, manchesTarget, mancheIndex, manchesWon, manches[] }
 
+  // === Lobby en ligne (relais WebSocket, WS.md §18) ===
+  room: null, // { sessionId, shareUrl, hostPlayerId, connected }
+
   // === Source Wikipédia (mode « article ») ===
   // Volontairement HORS de `settings` : celui-ci est réécrit dans localStorage
   // à chaque dispatch, et l'article pèse plusieurs kilo-octets.
@@ -78,7 +81,7 @@ const INITIAL_STATE = Object.freeze({
   isBonusRound: false,
 
   // === Phase courante ===
-  phase: 'HOME', // 'HOME' | 'SETUP' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'VICTORY'
+  phase: 'HOME', // 'HOME' | 'SETUP' | 'LOBBY' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'MANCHE_END' | 'VICTORY'
 
   // === File de préchargement ===
   prefetchQueue: [],
@@ -354,6 +357,13 @@ export function computePartieWinner(s) {
   return id ? s.players.find(p => p.id === id) || null : null;
 }
 
+/** Couleur suivante pour un joueur qui rejoint un lobby (rotation auto). */
+function nextRoomColor(players) {
+  const used = new Set(players.map(p => p.color));
+  return PLAYER_COLORS.find(c => !used.has(c))
+    || PLAYER_COLORS[players.length % PLAYER_COLORS.length];
+}
+
 function reducer(s, action) {
   switch (action.type) {
     case 'SET_PLAYERS':
@@ -368,6 +378,40 @@ function reducer(s, action) {
 
     case 'REMOVE_PLAYER':
       s.players = s.players.filter(p => p.id !== action.id);
+      break;
+
+    case 'ROOM_OPENED':
+      s.room = {
+        sessionId: action.sessionId,
+        shareUrl: action.shareUrl,
+        hostPlayerId: action.hostPlayerId,
+        connected: true,
+      };
+      // En ligne, le roster vient des joins : on repart de zéro (MJ = animateur).
+      s.players = [];
+      s.phase = 'LOBBY';
+      break;
+
+    case 'ROOM_JOIN': {
+      if (!s.players.some(p => p.id === action.id)) {
+        s.players.push({
+          id: action.id,
+          name: action.name,
+          emoji: action.emoji,
+          color: nextRoomColor(s.players),
+          score: 0,
+        });
+      }
+      break;
+    }
+
+    case 'ROOM_LEAVE':
+      s.players = s.players.filter(p => p.id !== action.id);
+      break;
+
+    case 'ROOM_CLOSED':
+      s.room = null;
+      s.players = [];
       break;
 
     case 'SET_LLM':

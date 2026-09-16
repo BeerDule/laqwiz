@@ -1,0 +1,119 @@
+// screens/lobby.js — écran LOBBY (multijoueur en ligne, WS.md §18).
+//
+// Le host y partage le lien d'invitation et voit les joueurs rejoindre. La
+// diffusion des questions aux joueurs (phase suivante) n'est pas encore branchée.
+
+import { getState, dispatch, subscribe } from '../state.js';
+import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+import { playerChips } from '../components/playerChip.js';
+import { closeRoom } from '../room.js';
+import { MAX_PLAYERS } from '../constants.js';
+
+let teardown = null;
+let root = null;
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+function lobbyHtml(s) {
+  const shareUrl = s.room?.shareUrl || '';
+  const count = s.players.length;
+  const roster = count
+    ? playerChips(s.players, { className: 'arcade-avatar' })
+    : '<span class="lobby-empty">En attente de joueurs…</span>';
+
+  return `
+    <section class="arcade arcade--lobby screen" data-screen="lobby">
+      <div class="arcade__topbar">${renderThemeSelect()}</div>
+
+      <header class="arcade__title">
+        <h1>Lobby</h1>
+        <p>Partagez le lien, les joueurs rejoignent la partie.</p>
+      </header>
+
+      <div class="lobby-card">
+        <span class="lobby-card__label">Lien d'invitation</span>
+        <div class="lobby-link">
+          <input id="lobby-link" type="text" readonly value="${escapeHtml(shareUrl)}" />
+          <button id="btn-copy" class="arcade-btn arcade-btn--small" type="button">Copier</button>
+        </div>
+      </div>
+
+      <div class="arcade-plaque">
+        <span class="arcade-plaque__label">Joueurs connectés</span>
+        <strong class="arcade-plaque__name">${count} / ${MAX_PLAYERS}</strong>
+        <div class="arcade-plaque__roster">${roster}</div>
+      </div>
+
+      <p class="lobby-hint">La diffusion des questions aux joueurs arrive à l'étape suivante.</p>
+
+      <nav class="arcade__menu" aria-label="Lobby">
+        <button id="btn-quit" class="arcade-btn">Quitter le lobby</button>
+      </nav>
+    </section>
+  `;
+}
+
+function quit() {
+  closeRoom();
+  dispatch({ type: 'ROOM_CLOSED' });
+  dispatch({ type: 'GOTO_HOME' });
+}
+
+function copyLink() {
+  const link = getState().room?.shareUrl;
+  if (!link) return;
+  navigator.clipboard?.writeText(link).then(() => {
+    document.dispatchEvent(new CustomEvent('qc:toast', { detail: { message: 'Lien copié.', kind: 'info' } }));
+  }).catch(() => {});
+}
+
+function signature() {
+  const s = getState();
+  return `${s.room?.shareUrl || ''}|${(s.players || []).map(p => p.id).join(',')}`;
+}
+
+export function renderLobby(rootEl) {
+  unmountLobby();
+  root = rootEl;
+
+  let lastSig = '';
+  let abort = () => {};
+
+  function render() {
+    root.innerHTML = lobbyHtml(getState());
+    const cleanup = new AbortController();
+    const { signal } = cleanup;
+    wireThemeSelect(root);
+    root.querySelector('#btn-quit').addEventListener('click', quit, { signal });
+    root.querySelector('#btn-copy').addEventListener('click', copyLink, { signal });
+    abort = () => cleanup.abort();
+  }
+
+  render();
+  lastSig = signature();
+
+  const unsub = subscribe(() => {
+    if (!root) return;
+    const sig = signature();
+    if (sig !== lastSig) {
+      lastSig = sig;
+      abort();
+      render();
+    }
+  });
+
+  teardown = () => {
+    unsub();
+    abort();
+    root = null;
+  };
+}
+
+export function unmountLobby() {
+  if (teardown) { teardown(); teardown = null; }
+  root = null;
+}
