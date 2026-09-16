@@ -1,5 +1,4 @@
 # Matière première graphique : seuls les sprites découpés (public/) sont servis
-craft/
 iimport/
 
 # Outils et documentation : inutiles au build

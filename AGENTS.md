@@ -170,13 +170,13 @@ src/
   components/
     playerChip.js     # jeton de joueur avec info-bulle de nom (partagé par 3 écrans)
   styles/
-    theme.css         # jetons + 11 thèmes de couleurs
+    theme.css         # jetons + 10 thèmes de couleurs
     layout.css        # mise en page
     components.css    # composants
     arcade.css      # coquille « jeu vidéo » des écrans de menu (structure + jetons)
 public/
-  bubble-island/      # 15 PNG (1,4 Mo) découpés du pack craft/ — voir « Assets »
-craft/                # pack d'assets brut (8,6 Mo) — matière première, non servie
+  paper-ui/           # sprites du thème Paper Quest
+  fonts/              # polices hébergées localement (licences OFL)
 demo/
   mock-llm.mjs        # faux LLM OpenAI-compatible en Node stdlib, zéro dep
 ```
@@ -369,10 +369,11 @@ Il vise une **échéance** (`Date.now() + durée`) et non un compteur décrémen
 dérive et se fait brider quand l'onglet passe en arrière-plan.
 
 ### `border-image` ne réserve pas d'espace
-Les cadres 9-slice (thème Bubble Island, `arcade.css`) peignent vers l'intérieur **par-dessus**
-le padding. Tout élément encadré doit avoir `padding ≥ border-image-width`, sinon le cadre
-recouvre le texte. Les rayons de coin ont été mesurés sur l'alpha des PNG, pas estimés :
-pilules `slice 350`, cadres `slice 110`, boutons ronds `slice 348` + `border-image-width: 50%`.
+Les cadres 9-slice (thème Paper Quest) peignent vers l'intérieur **par-dessus** le padding.
+Tout élément encadré doit avoir `padding ≥ border-image-width`, sinon le cadre recouvre le
+texte. Les découpes ont été mesurées sur l'alpha des PNG, pas estimées : parchemin lacé
+`frame.png` en `slice 110`, feuille froissée `paper.png` en `slice 60`, plaques `bar-*.png`
+en `slice 0 40`.
 
 ### `db.js` avale ses erreurs, et c'est voulu
 L'archive est un confort, pas une dépendance. Un navigateur en navigation privée qui refuse
@@ -384,10 +385,10 @@ erreurs remontées à l'UI.
 qui lance une partie avant que la lecture réponde se ferait renvoyer aux réglages.
 
 ### `arcade.css` ne porte plus aucune couleur
-Ce fichier a longtemps figé l'identité Bubble Island sur les écrans de menu, quel que soit le
-thème. **Ce n'est plus le cas** : il ne contient que de la structure et des jetons, zéro
-couleur en dur, zéro sprite. Chaque thème est désormais purement lui-même, menus compris ;
-les sprites propres à Paper Quest et Bubble Island vivent dans leurs blocs de `theme.css`.
+Ce fichier a longtemps figé l'identité d'un seul thème sur les écrans de menu, quel que soit
+le thème choisi. **Ce n'est plus le cas** : il ne contient que de la structure et des jetons,
+zéro couleur en dur, zéro sprite. Chaque thème est désormais purement lui-même, menus
+compris ; les sprites propres à Paper Quest vivent dans son bloc de `theme.css`.
 
 ### L'attribut `hidden` perd contre toute règle `display`
 `[hidden] { display: none }` vient de la feuille du **navigateur**. N'importe quelle règle
@@ -404,8 +405,8 @@ ressusciter un élément déclaré masqué. Ne pas ajouter de `display: … !imp
 
 ### Thème ≠ thème
 `settings.theme` = le sujet du quiz (« Cinéma & séries »), envoyé au LLM.
-`data-color-theme` = l'apparence. **11 thèmes** : VS Code, Matrix, Girly, Windows 98,
-Jungle, Kids Friendly, Apple, Apple Glass, Bubble Island, **Paper Quest (défaut)**, Mecha.
+`data-color-theme` = l'apparence. **10 thèmes** : VS Code, Matrix, Girly, Windows 98,
+Jungle, Kids Friendly, Apple, Apple Glass, **Paper Quest (défaut)**, Mecha.
 Ajouter un thème = une entrée dans `COLOR_THEMES` + un bloc de surcharges dans `theme.css`.
 Aucun autre fichier à toucher, **sauf Mecha**, dont le fond animé vit dans `mechaBackdrop.js`
 (voir « Le thème Mecha »).
@@ -456,7 +457,7 @@ donne le nom français de chacun — sans lui, la grille de choix annonçait « 
 
 La grille (`emojiPickerHtml`) est une **rangée pleine largeur dans la grille de la carte**
 (`grid-column: 1 / -1`), pas un flottant positionné : pas de `z-index` à arbitrer entre les
-onze thèmes, rien qui déborde d'un conteneur à `overflow` caché.
+dix thèmes, rien qui déborde d'un conteneur à `overflow` caché.
 
 ### Modèles reasoning (deepseek-v4-flash, etc.)
 Ils génèrent du `reasoning_content` avant la réponse JSON : coûteux, et souvent du JSON malformé.
@@ -504,7 +505,7 @@ fond/filet dans `layout.css`, sprites de thème dans `theme.css`.
   Mecha y pose sa plaque. `::after` est déjà pris sur le jeton (`playerChip` y attache l'info-bulle
   de nom) : un thème pose son marqueur en `::before`.
 - Le nom de classe `.leaderboard-mini__item` est un **contrat de thème** (Apple, Apple Glass,
-  Bubble Island, Paper Quest, Mecha s'y accrochent) : le renommer éteint leur matière sans erreur.
+  Paper Quest, Mecha s'y accrochent) : le renommer éteint leur matière sans erreur.
 - Les pastilles `.manche-pip` sont **partagées** avec le podium de fin de manche.
 - Paper Quest pilote le rail par sprites (`bar-a.png` / `bar-d.png`), pas par le dégradé par défaut.
 

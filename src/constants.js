@@ -3,7 +3,7 @@
 /**
  * Avatars des joueurs.
  *
- * Choisis pour rester lisibles à 24 px sur les onze thèmes : aplat saturé, masse
+ * Choisis pour rester lisibles à 24 px sur les dix thèmes : aplat saturé, masse
  * sombre ou motif interne contrasté. Les pastels (panda, koala, licorne) ont été
  * écartés — leur contour se dissout sur les thèmes clairs et il ne reste que les
  * yeux. Tous sont en un seul point de code : pas de séquence ZWJ qui pourrait
@@ -308,7 +308,6 @@ export const COLOR_THEMES = {
   kids:    { label: 'Kids Friendly' },
   apple:   { label: 'Apple' },
   'apple-glass': { label: 'Apple Glass' },
-  'bubble-island': { label: 'Bubble Island' },
   paper:   { label: 'Paper Quest' },
   mecha:   { label: 'Mecha' },
 };

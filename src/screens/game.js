@@ -384,34 +384,24 @@ function openPlayerPicker(key, x, y) {
   const s = getState();
   const players = s.players;
   const n = players.length;
-  // Rayon adapté à l'écran : plus petit sur mobile pour que le cercle tienne.
-  const viewport = Math.min(window.innerWidth, window.innerHeight);
-  const maxRadius = Math.max(72, Math.min(132, (viewport - 120) / 2));
-  const radius = Math.max(72, Math.min(maxRadius, n * 26));
-  const plate = radius + 36;
-
-  // On rabat le centre dans la fenêtre pour que le cercle reste visible.
-  const pad = plate + 8;
-  const cx = Math.min(Math.max(x, pad), window.innerWidth - pad);
-  const cy = Math.min(Math.max(y, pad), window.innerHeight - pad);
+  // Rayon en diamètres d'avatar (converti en em par le CSS) : assez grand pour
+  // dégager la réponse centrale, et pour espacer les voisins de 1.3 diamètre.
+  const radius = Math.max(1.25, 1.3 / (2 * Math.sin(Math.PI / n)));
 
   const menu = document.createElement('div');
   menu.className = 'player-picker';
-  menu.style.left = `${cx}px`;
-  menu.style.top = `${cy}px`;
+  menu.style.setProperty('--pick-r', radius.toFixed(3));
   menu.innerHTML = `
-    <span class="player-picker__plate" style="width:${plate * 2}px; height:${plate * 2}px; left:${-plate}px; top:${-plate}px" aria-hidden="true"></span>
+    <span class="player-picker__plate" aria-hidden="true"></span>
     <span class="player-picker__answer" aria-hidden="true">${key}</span>
     ${players.map((p, i) => {
       const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const px = Math.cos(angle) * radius;
-      const py = Math.sin(angle) * radius;
       const active = s.roundAnswers[p.id] === key;
       const name = (p.name || '').trim() || 'Joueur';
       return `
         <button type="button" class="player-picker__item${active ? ' is-active' : ''}${p.eliminated ? ' is-out' : ''}"
           data-player="${p.id}" data-tooltip="${escapeHtml(name)}"
-          style="left:${(px - 24).toFixed(1)}px; top:${(py - 24).toFixed(1)}px; --pc:${p.color || 'var(--color-accent-primary)'}; animation-delay:${30 + i * 24}ms"
+          style="--cos:${Math.cos(angle).toFixed(4)}; --sin:${Math.sin(angle).toFixed(4)}; --pc:${p.color || 'var(--color-accent-primary)'}; animation-delay:${30 + i * 24}ms"
           ${p.eliminated ? 'disabled' : ''} aria-pressed="${active}" aria-label="${escapeHtml(name)} : réponse ${key}">
           <span aria-hidden="true">${p.emoji}</span>
         </button>
@@ -421,10 +411,19 @@ function openPlayerPicker(key, x, y) {
 
   document.body.appendChild(menu);
 
+  // On rabat le centre dans la fenêtre pour que le cercle reste visible
+  // (demi-diamètre du plateau mesuré : il dépend de la taille de police).
+  const pad = menu.querySelector('.player-picker__plate').offsetWidth / 2 + 8;
+  menu.style.left = `${Math.min(Math.max(x, pad), window.innerWidth - pad)}px`;
+  menu.style.top = `${Math.min(Math.max(y, pad), window.innerHeight - pad)}px`;
+
   // Ferme sur clic extérieur, sans voile plein écran.
   const outside = (e) => {
     if (e.target.closest('.player-picker')) return;
     closePlayerPicker();
+    // Un clic sur une autre réponse ne fait que fermer : il faudra recliquer
+    // pour rouvrir le sélecteur.
+    if (e.target.closest('.option-card')) e.stopPropagation();
   };
   document.addEventListener('click', outside, true);
   picker = { menu, key, outside };
