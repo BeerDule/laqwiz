@@ -191,6 +191,16 @@ function handleMessage(msg) {
     case 'game.victory':
       renderVictory(msg.payload);
       break;
+    case 'game.state': {
+      const p = msg.payload || {};
+      if (p.targetId !== clientId) break;
+      if (p.question) renderQuestion(p.question);
+      else if (p.reveal) renderPlayerReveal(p.reveal);
+      else if (p.mancheEnd) renderMancheEnd(p.mancheEnd);
+      else if (p.victory) renderVictory(p.victory);
+      else if (p.waiting) renderWaitingForGame();
+      break;
+    }
     // game.question / game.reveal arriveront à l'étape suivante.
   }
 }
@@ -289,8 +299,8 @@ function startPlayerTimer(deadline) {
 
 function renderPlayerReveal(payload) {
   const body = document.querySelector('.join__body');
-  const answerText = lastQuestion?.options?.find(o => o.key === payload.answer)?.text || payload.answer;
-  const funnyText = lastQuestion?.options?.find(o => o.key === payload.funnyOption)?.text || '';
+  const answerText = payload.answerText || lastQuestion?.options?.find(o => o.key === payload.answer)?.text || payload.answer;
+  const funnyText = payload.funnyText || lastQuestion?.options?.find(o => o.key === payload.funnyOption)?.text || '';
   const mine = (payload.results || []).find(r => r.id === clientId);
   const correct = mine && mine.answered === payload.answer;
   const penalty = mine?.penalty || 0;
@@ -327,6 +337,15 @@ function renderVictory(payload) {
     <p class="join-waiting">${winner ? `${escapeHtml(winner.name)} gagne la partie&nbsp;!` : 'Partie terminée'}</p>
     <ul class="player-leaderboard">${leaderboardHtml(payload.players || [], 'manchesWon')}</ul>
     <p class="join-waiting-hint">Merci d'avoir joué&nbsp;!</p>
+  `;
+}
+
+function renderWaitingForGame() {
+  const body = document.querySelector('.join__body');
+  body.innerHTML = `
+    <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
+    <p class="join-waiting">Reconnecté·e&nbsp;!</p>
+    <p class="join-waiting-hint">En attente de la prochaine question…</p>
   `;
 }
 

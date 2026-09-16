@@ -123,11 +123,15 @@ function handle(msg) {
       const players = getState().players;
 
       // Rechargement : le même appareil se reconnecte avec son clientId. On
-      // ré-associe la nouvelle connexion sans toucher au roster (nom/avatar
-      // inchangés), puis on renvoie l'état courant au rejoignant.
+      // ré-associe la nouvelle connexion sans créer de doublon, puis on renvoie
+      // l'état courant (roster en lobby, projection ciblée en pleine partie).
       if (players.some(p => p.id === clientId)) {
         remapSender(clientId, senderId);
-        broadcastRoster();
+        if (getState().phase === 'LOBBY') {
+          broadcastRoster();
+        } else {
+          sendGameState(clientId);
+        }
         break;
       }
 
@@ -186,11 +190,11 @@ function remapSender(clientId, senderId) {
   senderToClient.set(senderId, clientId);
 }
 
-/** Diffuse la question courante, sans la réponse (WS.md §18.4). */
-function broadcastQuestion(state) {
+/** Projection de la question courante (sans la réponse, WS.md §18.4). */
+function questionPayload(state) {
   const q = state.questions[state.currentIndex];
-  if (!q) return;
-  send('game.question', {
+  if (!q) return null;
+  return {
     question: q.question,
     options: q.options.map(o => ({ key: o.key, text: o.text })),
     difficulty: q.difficulty,
@@ -198,16 +202,20 @@ function broadcastQuestion(state) {
     deadline: state.settings.timerEnabled
       ? Date.now() + (state.settings.timePerQuestion || 60) * 1000
       : null,
-  });
+  };
 }
 
-/** Diffuse la révélation : réponse + explication + résultats de chacun. */
-function broadcastReveal(state) {
+/** Projection de la révélation (réponse + textes + résultats de chacun). */
+function revealPayload(state) {
   const q = state.questions[state.currentIndex];
-  if (!q) return;
-  send('game.reveal', {
+  if (!q) return null;
+  const answerOption = q.options.find(o => o.key === q.answer);
+  const funnyOption = q.options.find(o => o.key === q.funnyOption);
+  return {
     answer: q.answer,
+    answerText: answerOption?.text || q.answer,
     funnyOption: q.funnyOption,
+    funnyText: funnyOption?.text || '',
     explanation: q.explanation,
     results: state.players.map(p => ({
       id: p.id,
@@ -218,15 +226,15 @@ function broadcastReveal(state) {
       penalty: state.roundPenalties[p.id] || 0,
       eliminated: !!p.eliminated,
     })),
-  });
+  };
 }
 
-/** Diffuse la fin de manche : vainqueur + scores de la manche. */
-function broadcastMancheEnd(state) {
+/** Projection de la fin de manche. */
+function mancheEndPayload(state) {
   const manches = state.partie?.manches || [];
   const last = manches[manches.length - 1];
   const won = state.partie?.manchesWon || {};
-  send('game.manche_end', {
+  return {
     winnerId: last?.winnerId || null,
     manchesTarget: state.partie?.manchesTarget ?? 1,
     players: state.players.map(p => ({
@@ -236,11 +244,11 @@ function broadcastMancheEnd(state) {
       score: last?.scores?.[p.id] ?? p.score,
       manchesWon: won[p.id] || 0,
     })),
-  });
+  };
 }
 
-/** Diffuse la victoire : vainqueur + nombre de manches gagnées. */
-function broadcastVictory(state) {
+/** Projection de la victoire. */
+function victoryPayload(state) {
   const won = state.partie?.manchesWon || {};
   let winnerId = null;
   let best = -1;
@@ -248,7 +256,7 @@ function broadcastVictory(state) {
     const w = won[p.id] || 0;
     if (w > best) { best = w; winnerId = p.id; }
   }
-  send('game.victory', {
+  return {
     winnerId,
     players: state.players.map(p => ({
       id: p.id,
@@ -257,7 +265,44 @@ function broadcastVictory(state) {
       score: p.score,
       manchesWon: won[p.id] || 0,
     })),
-  });
+  };
+}
+
+function broadcastQuestion(state) {
+  const p = questionPayload(state);
+  if (p) send('game.question', p);
+}
+
+function broadcastReveal(state) {
+  const p = revealPayload(state);
+  if (p) send('game.reveal', p);
+}
+
+function broadcastMancheEnd(state) {
+  send('game.manche_end', mancheEndPayload(state));
+}
+
+function broadcastVictory(state) {
+  send('game.victory', victoryPayload(state));
+}
+
+/** Rejoin en pleine partie : renvoie l'état courant, ciblé sur ce joueur. */
+function sendGameState(targetId) {
+  const s = getState();
+  if (s.phase === 'QUESTION') {
+    const question = questionPayload(s);
+    if (question) send('game.state', { targetId, question });
+  } else if (s.phase === 'REVEAL') {
+    const reveal = revealPayload(s);
+    if (reveal) send('game.state', { targetId, reveal });
+  } else if (s.phase === 'MANCHE_END') {
+    send('game.state', { targetId, mancheEnd: mancheEndPayload(s) });
+  } else if (s.phase === 'VICTORY') {
+    send('game.state', { targetId, victory: victoryPayload(s) });
+  } else {
+    // LOADING : la prochaine question arrivera d'elle-même.
+    send('game.state', { targetId, waiting: true });
+  }
 }
 
 /**
