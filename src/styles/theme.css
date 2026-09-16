@@ -955,6 +955,9 @@ h2 {
     --radius-md: .615em;
     --radius-lg: .923em;
     --radius-xl: 1.231em;
+    /* Matière : trait d'encre et ombre franche, sans flou, comme les sprites */
+    --material-edge: .154em solid var(--color-border);
+    --material-depth: 0 .231em 0 rgba(86, 14, 18, .22);
 }
 
 [data-color-theme="paper"] ::selection {
@@ -1213,11 +1216,13 @@ h2 {
     background: center / contain no-repeat url('/paper-ui/star-gold.png');
 }
 
+/* Décompte de victoires d'une session : la TUILE trophée. L'objet trophy.png
+   reste réservé à la première marche du podium. */
 [data-color-theme="paper"] .arcade-trophy::before {
     content: '';
-    width: 1.375em;
-    height: 1.625em;
-    background: center / contain no-repeat url('/paper-ui/trophy.png');
+    width: 1.5em;
+    height: 1.375em;
+    background: center / contain no-repeat url('/paper-ui/ico-trophy.png');
 }
 
 [data-color-theme="paper"] .arcade--setup #btn-start {
@@ -1233,6 +1238,181 @@ h2 {
     box-shadow: none;
     color: #3a1408;
     font-size: 1.4em;
+}
+
+/* ===================================================================
+ * PAPER QUEST — le kit sur les écrans de jeu
+ * ===================================================================
+ * Deux contraintes décident de tout :
+ *   1. `border-image` ne réserve pas d'espace : padding ≥ border-image-width,
+ *      sinon le cadre recouvre le texte ;
+ *   2. les plaques peintes (bar-*.png) sont de luminance moyenne : aucune encre
+ *      n'y atteint 4,5:1. Elles ne portent que du grand texte, ou rien.
+ * Les longueurs sont en em de l'élément lui-même (1em du body = 13 px de maquette).
+ * =================================================================== */
+
+/* Question et réponses : la feuille froissée. PAS de `fill` : le centre du
+   sprite porte l'ombre du froissé, qui s'étire en traînée diagonale. On ne
+   garde que le bord déchiré, sur la teinte exacte du papier (#fdfdeb). */
+[data-color-theme="paper"] .question-card,
+[data-color-theme="paper"] .answer-card {
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/paper.png');
+    border-image-slice: 60;
+    border-image-width: 1.385em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    background: #fdfdeb;
+    box-shadow: none;
+}
+
+[data-color-theme="paper"] .question-card {
+    padding: clamp(1.846em, 2.5vw, 3.077em);
+}
+
+[data-color-theme="paper"] .answer-card {
+    padding: var(--space-6);
+}
+
+/* Panneaux de réglages : le même parchemin lacé que les menus */
+[data-color-theme="paper"] .panel {
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/frame.png');
+    border-image-slice: 110 fill;
+    border-image-width: 2em;
+    border-image-repeat: round;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    padding: var(--space-8);
+}
+
+/* Pastille A/B/C/D : parchemin cerné d'encre, pas de plaque peinte (la lettre
+   est sous le seuil « grand texte »). Les variantes bonne réponse / option
+   drôle de components.css passent après et gardent leur aplat. */
+[data-color-theme="paper"] .option-card__key {
+    border: .133em solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--color-text);
+}
+
+/* CTA de l'écran de jeu : même plaque orange que #btn-start, même libellé
+   agrandi pour rester en « grand texte ». */
+[data-color-theme="paper"] #btn-reveal {
+    border: 0;
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/bar-a.png');
+    border-image-slice: 0 40 fill;
+    border-image-width: 0 .857em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #3a1408;
+    font-size: 1.4em;
+}
+
+/* Chrono : rectangle cerné, plus une pilule */
+[data-color-theme="paper"] .timer {
+    border: .125em solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+/* Verrouillage : un joueur éliminé et un avatar déjà pris sont le même état.
+   Le cadenas se pose EN COIN : on doit toujours savoir de qui il s'agit. */
+[data-color-theme="paper"] .player-picker__item:disabled,
+[data-color-theme="paper"] .emoji-picker__item:disabled {
+    opacity: 1;
+    background-color: var(--bg-surface-soft);
+}
+
+/* .player-picker__item est déjà en position absolue : ne pas l'écraser */
+[data-color-theme="paper"] .emoji-picker__item:disabled {
+    position: relative;
+}
+
+[data-color-theme="paper"] .player-picker__item:disabled::before,
+[data-color-theme="paper"] .emoji-picker__item:disabled::before {
+    content: '';
+    position: absolute;
+    background: center / contain no-repeat url('/paper-ui/lock.png');
+}
+
+[data-color-theme="paper"] .player-picker__item:disabled::before {
+    right: -.136em;
+    bottom: -.136em;
+    width: .818em;
+    height: .818em;
+}
+
+[data-color-theme="paper"] .emoji-picker__item:disabled::before {
+    right: -.158em;
+    bottom: -.158em;
+    width: .947em;
+    height: .947em;
+}
+
+/* Suppression d'un joueur : la tuile ✕ remplace le glyphe, masqué par la
+   couleur (font-size: 0 effondrerait les dimensions en em). */
+[data-color-theme="paper"] .player-card__remove,
+[data-color-theme="paper"] .player-card__remove:hover {
+    border: 0;
+    color: transparent;
+    background: center / contain no-repeat url('/paper-ui/ico-close.png');
+}
+
+[data-color-theme="paper"] .add-player-btn::before {
+    content: '';
+    width: 1.571em;
+    height: 1.429em;
+    margin-right: .571em;
+    background: center / contain no-repeat url('/paper-ui/ico-plus.png');
+}
+
+/* Ce bouton ramène au menu principal : c'est une maison, pas une flèche. */
+[data-color-theme="paper"] #btn-home {
+    background-image: url('/paper-ui/ico-home.png');
+}
+
+/* Tuiles devant les entrées de menu : elles annoncent, le libellé reste sur
+   la plaque. */
+[data-color-theme="paper"] #btn-sessions::before,
+[data-color-theme="paper"] #btn-app-settings::before {
+    content: '';
+    width: 1.765em;
+    height: 1.629em;
+    margin-right: .679em;
+    flex: none;
+    background: center / contain no-repeat;
+}
+
+[data-color-theme="paper"] #btn-sessions::before {
+    background-image: url('/paper-ui/ico-list.png');
+}
+
+[data-color-theme="paper"] #btn-app-settings::before {
+    background-image: url('/paper-ui/ico-gear.png');
+}
+
+/* Mode sélectionné : sa bordure d'accent a la teinte de TOUTES les bordures
+   de ce thème, donc invisible. L'étoile le dit sans dépendre de la couleur. */
+[data-color-theme="paper"] .mode-card--on {
+    background: var(--bg-surface-soft);
+    box-shadow: 0 .231em 0 rgba(86, 14, 18, .3);
+}
+
+[data-color-theme="paper"] .mode-card--on .mode-card__name::after {
+    content: '';
+    display: inline-block;
+    width: 1.143em;
+    height: 1.22em;
+    margin-left: .381em;
+    vertical-align: -.229em;
+    background: center / contain no-repeat url('/paper-ui/star-gold.png');
 }
 
 /* Bubble Island — mêmes surfaces et boutons que ses écrans de jeu. */
