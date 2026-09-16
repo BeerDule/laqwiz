@@ -35,11 +35,13 @@ document.addEventListener('qc:toast', (e) => {
   showToast(e.detail?.message || '', e.detail?.kind || 'info');
 });
 
-// --- Routage d'entrée : /game/<sessionId> ouvre le mode JOUEUR ---
-const PLAYER_MATCH = /^\/game\/([a-f0-9]{16,64})\/?$/i.exec(location.pathname);
-if (PLAYER_MATCH) {
+// --- Routage d'entrée : #join=<sessionId> ouvre le mode JOUEUR ---
+// Le hash (et non un chemin /game/<id>) : la page reste servie à la racine,
+// donc les assets relatifs (base: './') se résolvent correctement.
+const joinId = new URLSearchParams(location.hash.replace(/^#/, '')).get('join');
+if (joinId) {
   import('./player.js').then(({ mountPlayer }) => {
-    mountPlayer(document.getElementById('app'), PLAYER_MATCH[1]);
+    mountPlayer(document.getElementById('app'), joinId);
   });
 } else {
   bootstrapHost();

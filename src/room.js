@@ -60,9 +60,10 @@ export async function startHost() {
   lastQuestionSig = -1;
   lastRevealSig = -1;
   lastPhase = null;
-  // Lien construit côté client : en dev, le relais (:3000) n'a pas l'origine
-  // du front (:5173). En prod, même origine, donc équivalent.
-  const shareUrl = new URL(`/game/${created.sessionId}`, location.origin).href;
+  // Lien construit côté client. On passe l'identifiant par HASH (et non un
+  // chemin /game/<id>) : avec `base: './'`, une route imbriquée casserait la
+  // résolution des assets (→ /game/assets/*.css qui n'existent pas).
+  const shareUrl = `${location.origin}${location.pathname}#join=${created.sessionId}`;
   dispatch({
     type: 'ROOM_OPENED',
     sessionId: created.sessionId,

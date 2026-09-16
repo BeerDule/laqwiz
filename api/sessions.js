@@ -50,6 +50,6 @@ export default async function handler(req, res) {
   }
 
   const host = req.headers.host || 'example.com';
-  const shareUrl = `https://${host}/game/${sessionId}`;
+  const shareUrl = `https://${host}/#join=${sessionId}`;
   sendJson(res, 201, { sessionId, shareUrl });
 }
