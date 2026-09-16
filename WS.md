@@ -859,6 +859,8 @@ Deux sens coexistent dans le dépôt :
 
 On nomme la seconde **room** ; son `sessionId` devient **`roomId`**. Une room correspond à **une partie** en ligne, pas à la session persistante.
 
+L'URL de partage est `https://host/#join=<roomId>` (identifiant en **hash**, pas un chemin `/game/<roomId>`) : le front étant compilé en `base: './'` (assets relatifs), une route imbriquée casserait la résolution des assets (`/game/assets/*.css` introuvables → le fallback SPA renverrait du HTML).
+
 ## 18.3 Rôles et autorité
 
 - **Host (MJ)** : créateur de la room, seul émetteur des messages d'état (`game.*`), source de vérité (`state.js`), **seul à appeler le LLM** — la clé API ne quitte jamais sa machine / son serveur.
