@@ -7,10 +7,32 @@
 import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH } from './constants.js';
 import { relayWsUrl } from './relay.js';
 
+const PLAYER_STORAGE_KEY = 'quizz-canape:player';
+
 let socket = null;
-let myPlayerId = null;
+let clientId = null;
 let myName = '';
 let myEmoji = '';
+
+function loadPlayerIdentity() {
+  try {
+    const raw = localStorage.getItem(PLAYER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function savePlayerIdentity() {
+  try {
+    localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify({ clientId, name: myName, emoji: myEmoji }));
+  } catch { /* quota / navigation privée */ }
+}
+
+function newClientId() {
+  // crypto.randomUUID exige un contexte sécurisé (https/localhost) — absent en
+  // LAN http://192.168.x.x. On retombe sur un identifiant suffisant pour un jeu.
+  if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+  return `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -23,7 +45,11 @@ function dispatchToast(message, kind = 'info') {
 }
 
 export function mountPlayer(rootEl, sessionId) {
-  let selectedEmoji = PLAYER_EMOJIS[0];
+  const identity = loadPlayerIdentity();
+  clientId = identity?.clientId || newClientId();
+  let selectedEmoji = (identity?.emoji && PLAYER_EMOJIS.includes(identity.emoji))
+    ? identity.emoji
+    : PLAYER_EMOJIS[0];
 
   rootEl.innerHTML = `
     <section class="arcade arcade--join screen" data-screen="join">
@@ -65,6 +91,10 @@ export function mountPlayer(rootEl, sessionId) {
     btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   });
 
+  if (identity?.name) {
+    rootEl.querySelector('#player-name').value = identity.name;
+  }
+
   rootEl.querySelector('#player-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const name = rootEl.querySelector('#player-name').value.trim();
@@ -81,11 +111,9 @@ export function mountPlayer(rootEl, sessionId) {
   socket.addEventListener('message', (e) => {
     let msg;
     try { msg = JSON.parse(e.data); } catch { return; }
-    if (msg.type === 'session.connected') {
-      myPlayerId = msg.payload.playerId;
-    } else {
-      handleMessage(msg);
-    }
+    // session.connected : l'identité du relais ne nous sert pas — notre
+    // identité stable est notre clientId local.
+    if (msg.type !== 'session.connected') handleMessage(msg);
   });
   socket.addEventListener('error', () => {
     showError('Impossible de rejoindre la partie (session inexistante ou expirée ?).');
@@ -99,6 +127,11 @@ export function mountPlayer(rootEl, sessionId) {
       dispatchToast('Connexion perdue.', 'error');
     }
   });
+
+  // Rechargement : on rejoint automatiquement avec l'identité persistée.
+  if (identity?.name && identity.emoji) {
+    submitJoin(identity.name, selectedEmoji);
+  }
 }
 
 function showError(msg) {
@@ -115,7 +148,7 @@ function submitJoin(name, emoji) {
   btn.disabled = true;
   btn.textContent = 'Connexion…';
 
-  const send = () => socket.send(JSON.stringify({ type: 'lobby.join', payload: { name, emoji } }));
+  const send = () => socket.send(JSON.stringify({ type: 'lobby.join', payload: { name, emoji, clientId } }));
   if (socket?.readyState === WebSocket.OPEN) {
     send();
   } else {
@@ -126,17 +159,20 @@ function submitJoin(name, emoji) {
 function handleMessage(msg) {
   switch (msg.type) {
     case 'lobby.join.rejected':
-      if (msg.payload?.targetId === myPlayerId) {
+      if (msg.payload?.targetId === clientId) {
         showError(reasonMessage(msg.payload.reason));
         resetSubmit();
       }
       break;
     case 'lobby.roster': {
       const players = msg.payload?.players || [];
-      // On n'est « connecté » que si NOTRE identité (id du relais) figure dans
-      // le roster : les broadcasts liés aux autres joueurs ne doivent pas nous
+      // On n'est « connecté » que si NOTRE identité (clientId) figure dans le
+      // roster : les broadcasts liés aux autres joueurs ne doivent pas nous
       // faire quitter le formulaire avant notre propre acceptation.
-      if (players.some(p => p.id === myPlayerId)) renderWaiting(players);
+      if (players.some(p => p.id === clientId)) {
+        savePlayerIdentity();
+        renderWaiting(players);
+      }
       break;
     }
     case 'game.start':

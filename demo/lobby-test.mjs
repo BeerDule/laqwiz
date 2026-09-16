@@ -147,28 +147,28 @@ async function main() {
   assert(joined.type === 'player.joined', 'host voit player.joined', `reçu : ${joined.type}`);
   assert(joined.payload?.playersCount === 2, 'playersCount = 2', `reçu : ${joined.payload?.playersCount}`);
 
-  // 6) Le joueur annonce son identité (lobby.join).
-  player.ws.send(JSON.stringify({ type: 'lobby.join', payload: { name: 'Alice', emoji: '🦊' } }));
+  // 6) Le joueur annonce son identité (lobby.join + clientId stable).
+  player.ws.send(JSON.stringify({ type: 'lobby.join', payload: { clientId: 'client-alice', name: 'Alice', emoji: '🦊' } }));
   const join = await host.next();
   assert(join.type === 'lobby.join', 'host reçoit lobby.join', `reçu : ${join.type}`);
   assert(join.senderId === playerId, 'senderId = id du joueur', `reçu : ${join.senderId}`);
   assert(
-    join.payload?.name === 'Alice' && join.payload?.emoji === '🦊',
-    'payload nom + avatar corrects',
+    join.payload?.name === 'Alice' && join.payload?.emoji === '🦊' && join.payload?.clientId === 'client-alice',
+    'payload nom + avatar + clientId corrects',
     `reçu : ${JSON.stringify(join.payload)}`,
   );
 
   // 6 bis) Broadcasts host → joueur : roster (acceptation), rejet ciblé, démarrage.
-  host.ws.send(JSON.stringify({ type: 'lobby.roster', payload: { players: [{ id: playerId, name: 'Alice', emoji: '🦊' }] } }));
+  host.ws.send(JSON.stringify({ type: 'lobby.roster', payload: { players: [{ id: 'client-alice', name: 'Alice', emoji: '🦊' }] } }));
   const roster = await player.next();
   assert(roster.type === 'lobby.roster', 'joueur reçoit lobby.roster', `reçu : ${roster.type}`);
-  assert(roster.payload?.players?.[0]?.id === playerId, "roster porte l'id du joueur");
+  assert(roster.payload?.players?.[0]?.id === 'client-alice', 'roster porte le clientId du joueur');
 
-  host.ws.send(JSON.stringify({ type: 'lobby.join.rejected', payload: { targetId: playerId, reason: 'name-taken' } }));
+  host.ws.send(JSON.stringify({ type: 'lobby.join.rejected', payload: { targetId: 'client-alice', reason: 'name-taken' } }));
   const rejected = await player.next();
   assert(rejected.type === 'lobby.join.rejected', 'joueur reçoit lobby.join.rejected', `reçu : ${rejected.type}`);
   assert(
-    rejected.payload?.targetId === playerId && rejected.payload?.reason === 'name-taken',
+    rejected.payload?.targetId === 'client-alice' && rejected.payload?.reason === 'name-taken',
     'rejet ciblé + raison corrects',
     `reçu : ${JSON.stringify(rejected.payload)}`,
   );

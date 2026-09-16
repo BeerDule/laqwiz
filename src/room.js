@@ -12,6 +12,13 @@ let ws = null;
 let hostPlayerId = null;
 let deliberateClose = false;
 
+// Correspondance identité stable (clientId, généré côté client et persisté en
+// localStorage) ↔ connexion éphémère (senderId, attribué par le relais). Sert à
+// survivre au rechargement : un joueur qui revient réutilise son clientId, le
+// host ré-associe la nouvelle connexion sans créer de doublon.
+const clientToSender = new Map();
+const senderToClient = new Map();
+
 /**
  * Crée la room puis ouvre la connexion WS du host.
  * Résout { sessionId, shareUrl } une fois `session.connected` reçu.
@@ -77,39 +84,69 @@ function connect(sessionId) {
 function handle(msg) {
   switch (msg.type) {
     case 'lobby.join': {
-      // Le serveur ajoute `senderId` (identité attribuée par le relais).
-      const targetId = msg.senderId;
+      const senderId = msg.senderId;
+      const clientId = typeof msg.payload?.clientId === 'string' ? msg.payload.clientId : '';
       const name = String(msg.payload?.name ?? '').trim().slice(0, NAME_MAX_LENGTH);
       const emoji = typeof msg.payload?.emoji === 'string' ? msg.payload.emoji : '';
 
+      if (!clientId) {
+        send('lobby.join.rejected', { targetId: senderId, reason: 'invalid' });
+        break;
+      }
+
+      const players = getState().players;
+
+      // Rechargement : le même appareil se reconnecte avec son clientId. On
+      // ré-associe la nouvelle connexion sans toucher au roster (nom/avatar
+      // inchangés), puis on renvoie l'état courant au rejoignant.
+      if (players.some(p => p.id === clientId)) {
+        remapSender(clientId, senderId);
+        broadcastRoster();
+        break;
+      }
+
       // La partie est déjà lancée : plus personne ne rejoint.
       if (getState().phase !== 'LOBBY') {
-        send('lobby.join.rejected', { targetId, reason: 'started' });
+        send('lobby.join.rejected', { targetId: clientId, reason: 'started' });
         break;
       }
 
       // Checks d'unicité côté host (le client ne fait pas foi) : nom
       // insensible à la casse, avatar unique, avatar dans la liste autorisée.
-      const players = getState().players;
       if (!name || !PLAYER_EMOJIS.includes(emoji)) {
-        send('lobby.join.rejected', { targetId, reason: 'invalid' });
+        send('lobby.join.rejected', { targetId: clientId, reason: 'invalid' });
       } else if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-        send('lobby.join.rejected', { targetId, reason: 'name-taken' });
+        send('lobby.join.rejected', { targetId: clientId, reason: 'name-taken' });
       } else if (players.some(p => p.emoji === emoji)) {
-        send('lobby.join.rejected', { targetId, reason: 'emoji-taken' });
+        send('lobby.join.rejected', { targetId: clientId, reason: 'emoji-taken' });
       } else {
-        dispatch({ type: 'ROOM_JOIN', id: targetId, name, emoji });
+        remapSender(clientId, senderId);
+        dispatch({ type: 'ROOM_JOIN', id: clientId, name, emoji });
         broadcastRoster();
       }
       break;
     }
     case 'lobby.leave':
-    case 'player.left':
-      dispatch({ type: 'ROOM_LEAVE', id: msg.senderId });
-      broadcastRoster();
+    case 'player.left': {
+      const clientId = senderToClient.get(msg.senderId);
+      if (clientId) {
+        senderToClient.delete(msg.senderId);
+        clientToSender.delete(clientId);
+        dispatch({ type: 'ROOM_LEAVE', id: clientId });
+        broadcastRoster();
+      }
       break;
+    }
     // game.answer arrivera à l'étape suivante (réponses des joueurs).
   }
+}
+
+/** Ré-associe un clientId à une (nouvelle) connexion du relais. */
+function remapSender(clientId, senderId) {
+  const old = clientToSender.get(clientId);
+  if (old) senderToClient.delete(old);
+  clientToSender.set(clientId, senderId);
+  senderToClient.set(senderId, clientId);
 }
 
 /**
