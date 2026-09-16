@@ -340,3 +340,58 @@
   margin: var(--space-3) auto 0;
 }
 
+/* ===== Écran joueur (mode en ligne) ===== */
+.arcade--player { gap: var(--space-4); }
+.player-card {
+  width: min(30em, 100%);
+  margin-inline: auto;
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-card), var(--shadow-1);
+}
+.player-card__label {
+  color: var(--color-muted);
+  font-size: .8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.player-card input[type="text"] {
+  padding: .588em .765em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-void);
+  color: var(--color-text);
+  font-size: 1.067em;
+}
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.6em, 1fr));
+  gap: var(--space-2);
+}
+.emoji-grid button {
+  aspect-ratio: 1;
+  font-size: 1.4em;
+  line-height: 1;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  cursor: pointer;
+}
+.emoji-grid button.is-selected {
+  border-color: var(--color-accent-primary);
+  background-color: var(--bg-surface-soft);
+  box-shadow: var(--shadow-pop);
+}
+.player-waiting {
+  margin: 0;
+  text-align: center;
+  font-size: 1.133em;
+  font-weight: 600;
+}
+

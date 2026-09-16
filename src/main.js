@@ -21,6 +21,31 @@ import { loadModes } from './modes.js';
 // Appliquer le thème de couleurs sauvegardé avant le premier rendu
 initColorTheme();
 
+// --- Toast (non bloquant, dans #toast-region) — partagé host / joueur ---
+function showToast(message, kind = 'info') {
+  const region = document.getElementById('toast-region');
+  if (!region) return;
+  const el = document.createElement('div');
+  el.className = `toast toast--${kind}`;
+  el.textContent = message;
+  region.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+document.addEventListener('qc:toast', (e) => {
+  showToast(e.detail?.message || '', e.detail?.kind || 'info');
+});
+
+// --- Routage d'entrée : /game/<sessionId> ouvre le mode JOUEUR ---
+const PLAYER_MATCH = /^\/game\/([a-f0-9]{16,64})\/?$/i.exec(location.pathname);
+if (PLAYER_MATCH) {
+  import('./player.js').then(({ mountPlayer }) => {
+    mountPlayer(document.getElementById('app'), PLAYER_MATCH[1]);
+  });
+} else {
+  bootstrapHost();
+}
+
+function bootstrapHost() {
 const app = document.getElementById('app');
 
 // --- Navigation persistante (coquille d'app) ---
@@ -55,20 +80,6 @@ appNav?.addEventListener('click', (e) => {
   if (action) dispatch({ type: action });
 });
 syncAppNav(getState().phase);
-
-// --- Toast (non bloquant, dans #toast-region) ---
-function showToast(message, kind = 'info') {
-  const region = document.getElementById('toast-region');
-  if (!region) return;
-  const el = document.createElement('div');
-  el.className = `toast toast--${kind}`;
-  el.textContent = message;
-  region.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
-}
-document.addEventListener('qc:toast', (e) => {
-  showToast(e.detail?.message || '', e.detail?.kind || 'info');
-});
 
 // --- Hydratation depuis localStorage ---
 const persistedPlayers = loadPlayers();
@@ -209,3 +220,4 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('[app] unhandledrejection', e.reason);
   showToast('Une erreur est survenue. Réessayez ou rechargez.', 'error');
 });
+}

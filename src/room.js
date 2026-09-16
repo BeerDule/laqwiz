@@ -5,20 +5,11 @@
 // du store et expose `send()` pour diffuser. La logique de jeu reste en state.js.
 
 import { dispatch } from './state.js';
-
-// En dev, le relais tourne sur un serveur séparé (:3000, lancé par
-// `npm run dev-ws`). En prod, même origine que le front (Vercel).
-const RELAY_ORIGIN = import.meta.env.DEV ? 'http://localhost:3000' : location.origin;
+import { RELAY_ORIGIN, relayWsUrl } from './relay.js';
 
 let ws = null;
 let hostPlayerId = null;
 let deliberateClose = false;
-
-function wsUrl(sessionId) {
-  const url = new URL('/api/ws', RELAY_ORIGIN.replace(/^http/, 'ws'));
-  url.searchParams.set('sessionId', sessionId);
-  return url;
-}
 
 /**
  * Crée la room puis ouvre la connexion WS du host.
@@ -50,7 +41,7 @@ export async function startHost() {
 
 function connect(sessionId) {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(wsUrl(sessionId));
+    const socket = new WebSocket(relayWsUrl(sessionId));
     ws = socket;
 
     socket.addEventListener('message', (e) => {
