@@ -180,7 +180,8 @@ demo/
   mock-llm.mjs        # faux LLM OpenAI-compatible en Node stdlib, zéro dep
 ```
 
-(`.githooks/` contient le hook de versionnage, voir « Versionnage ».)
+(`.githooks/` contient le hook de versionnage et le garde-fou d'unités CSS,
+voir « Versionnage ».)
 
 ## Stockage : la répartition est volontaire
 
@@ -313,7 +314,51 @@ Le hook s'abstient dans cinq cas :
 pas de moyen fiable de détecter un amend depuis un hook. Utiliser
 `SKIP_VERSION_BUMP=1 git commit --amend`.
 
+### Garde-fou d'unités (`check-css-units.mjs`)
+
+Le même `pre-commit` refuse tout commit contenant une longueur en `px` dans
+`src/styles/*.css` — voir « Toutes les longueurs sont en `em` ». Il s'exécute **avant** le
+versionnage et sur **toutes** les branches : c'est une règle de design system, pas de
+publication, et un commit refusé ne doit pas laisser derrière lui un `package.json` déjà
+incrémenté.
+
+Il lit le contenu **mis en scène** (`git show :fichier`) et non le fichier de travail : ce qui
+part dans le commit est seul en cause. Les `px` cités dans un commentaire sont neutralisés
+avant l'analyse.
+
+Échappatoire explicite : `SKIP_CSS_UNITS=1 git commit`.
+
 ## Gotchas
+
+### Toutes les longueurs sont en `em` — aucune en `px`
+
+**Règle du design system : `src/styles/` ne contient pas une seule longueur en `px`.**
+Espacements, rayons, ombres, flous, largeurs, filets, points de rupture : tout est en `em`.
+Un garde-fou de `pre-commit` refuse le commit sinon (voir « Garde-fou d'unités »).
+
+Le choix est délibéré et ce n'est **pas** `rem` : `em` se résout contre le corps de texte du
+**conteneur**, donc changer le `font-size` d'un bloc redimensionne tout son contenu d'un seul
+geste. C'est ce qui permet un responsive **par composant** au lieu d'un unique levier à la
+racine. `.arcade` porte `font-size: 1.154em` et agrandit à lui seul tous les menus.
+
+Trois conséquences à connaître avant de toucher une valeur :
+
+- **Une valeur se convertit contre le `font-size` effectif de SON élément**, pas contre les
+  13 px du `body`. Si la règle déclare son propre `font-size`, c'est celui-là qui sert de base,
+  y compris pour les propriétés écrites **au-dessus** de lui dans le bloc. Exemple :
+  `.arcade-btn--icon` est à `font-size: 1.6em` (24 px), donc ses 44 px de haut s'écrivent
+  `1.833em`, pas `3.385em`.
+- **Un filet de 1 ou 2 px s'écrit `.1em`**, pas sa valeur calculée. En-dessous, le trait se
+  dissout sur les écrans à faible densité.
+- **`font-size: 0` est interdit dans une règle qui porte des longueurs en `em`** : elles se
+  résoudraient toutes contre zéro. Pour masquer un libellé, `color: transparent`. Le bouton
+  retour de Paper Quest est passé par là, sa largeur s'effondrait.
+
+Les jetons globaux (`--space-*`, `--radius-*`, `--shadow-*`) sont **eux aussi** en `em`, donc
+relatifs à l'endroit où ils sont **consommés** et non là où ils sont déclarés. Un même
+`--space-4` est plus large dans un menu que dans une carte de jeu. C'est voulu.
+
+Les `px` restants dans les commentaires sont de la documentation, le garde-fou les ignore.
 
 ### Le chrono ne doit jamais passer par `dispatch()`
 Le souscripteur de `main.js` appelle `savePlayers` + `saveSettings` à **chaque** dispatch.

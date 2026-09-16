@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# .githooks/pre-commit — avance la version sur `dev`.
+# .githooks/pre-commit — refuse les px dans le CSS, puis avance la version sur `dev`.
 #
 # Actif seulement via `git config core.hooksPath .githooks` (voir AGENTS.md) :
 # .git/hooks n'est pas versionné, ce répertoire-ci l'est.
 set -euo pipefail
+
+racine="$(git rev-parse --show-toplevel)"
+
+# Garde-fou d'unités : vaut sur TOUTES les branches, contrairement au versionnage
+# qui ne concerne que `dev`. Placé avant, pour ne pas mettre en scène un bump de
+# version sur un commit qui va être refusé.
+node "$racine/.githooks/check-css-units.mjs"
 
 if [ "${SKIP_VERSION_BUMP:-}" = "1" ]; then
   exit 0

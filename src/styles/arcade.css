@@ -25,12 +25,12 @@
   position: relative;
   min-height: 100dvh;
   padding: var(--space-5);
-  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0em));
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   color: var(--color-text);
-  font-size: 15px;
+  font-size: 1.154em;
   background-color: var(--bg-void);
   background-image: var(--texture), var(--gradient-bg);
   background-attachment: fixed;
@@ -46,7 +46,7 @@
 .arcade__title h1 {
   font-family: var(--font-display, var(--font-sans));
   font-weight: 400;
-  font-size: clamp(2.4rem, 8vw, 4.2rem);
+  font-size: clamp(2.56em, 8vw, 4.48em);
   letter-spacing: 0;
   line-height: 1;
   color: var(--color-text);
@@ -56,7 +56,7 @@
   margin-top: var(--space-2);
   color: var(--color-muted);
   font-weight: 600;
-  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+  font-size: clamp(1.013em, 2.5vw, 1.227em);
 }
 
 /* ===== Menu principal ===== */
@@ -65,7 +65,7 @@
   gap: var(--space-3);
   justify-content: center;
   align-content: start;
-  width: min(360px, 100%);
+  width: min(24em, 100%);
   margin-inline: auto;
 }
 .arcade__menu .arcade-btn { width: 100%; }
@@ -73,7 +73,7 @@
   margin: 0;
   text-align: center;
   color: var(--color-muted);
-  font-size: 0.82rem;
+  font-size: .875em;
 }
 
 /* ===== Boutons de menu ===== */
@@ -81,17 +81,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 6px 22px;
-  border: 1px solid var(--color-border);
+  gap: .471em;
+  min-height: 2.824em;
+  padding: .353em 1.294em;
+  border: .1em solid var(--color-border);
   border-radius: var(--radius-md);
   background-color: var(--bg-surface-raised);
   background-image: var(--gradient-surface);
   box-shadow: var(--shadow-card), var(--shadow-1);
   color: var(--color-text);
   font-family: var(--font-button);
-  font-size: 17px;
+  font-size: 1.133em;
   font-weight: 700;
   letter-spacing: .01em;
   cursor: pointer;
@@ -103,10 +103,10 @@
 }
 .arcade-btn:hover:not(:disabled) {
   background-color: var(--bg-surface-soft);
-  transform: translateY(-1px);
+  transform: translateY(-.059em);
   box-shadow: var(--shadow-card), var(--shadow-2);
 }
-.arcade-btn:active:not(:disabled) { transform: translateY(1px); }
+.arcade-btn:active:not(:disabled) { transform: translateY(.059em); }
 .arcade-btn:disabled { opacity: .45; cursor: default; }
 
 .arcade-btn--primary {
@@ -117,9 +117,9 @@
   border-color: var(--color-accent-primary);
   box-shadow: var(--shadow-pop), var(--shadow-2);
   color: var(--accent-contrast);
-  font-size: 19px;
-  min-height: 56px;
-  padding-inline: 30px;
+  font-size: 1.267em;
+  min-height: 2.947em;
+  padding-inline: 1.579em;
 }
 .arcade-btn--primary:hover:not(:disabled) { filter: brightness(1.08); }
 .arcade-btn--primary::after {
@@ -133,17 +133,17 @@
 }
 .arcade-btn--primary:hover::after { transform: translateX(120%); }
 
-.arcade-btn--small { min-height: 40px; font-size: 15px; padding-inline: 16px; }
+.arcade-btn--small { min-height: 2.667em; font-size: 1em; padding-inline: 1.067em; }
 .arcade-btn--danger { color: var(--color-error); }
-.arcade-btn--icon { min-height: 44px; width: 44px; padding: 0; font-size: 24px; line-height: 1; }
+.arcade-btn--icon { min-height: 1.833em; width: 1.833em; padding: 0; font-size: 1.6em; line-height: 1; }
 
 /* ===== Plaque de session ===== */
 .arcade-plaque {
-  width: min(420px, 100%);
+  width: min(28em, 100%);
   margin-inline: auto;
   padding: var(--space-5) var(--space-6);
   text-align: center;
-  border: 1px solid var(--color-border);
+  border: .1em solid var(--color-border);
   border-radius: var(--radius-lg);
   background-color: var(--bg-surface);
   background-image: var(--gradient-surface);
@@ -152,19 +152,19 @@
 }
 .arcade-plaque__label {
   display: block;
-  font-size: 11px;
+  font-size: .733em;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .1em;
   color: var(--color-muted);
 }
-.arcade-plaque__name { display: block; font-size: 19px; margin-top: 2px; font-weight: 700; }
-.arcade-plaque__roster { display: flex; gap: 6px; justify-content: center; margin-top: var(--space-3); }
+.arcade-plaque__name { display: block; font-size: 1.267em; margin-top: .105em; font-weight: 700; }
+.arcade-plaque__roster { display: flex; gap: .4em; justify-content: center; margin-top: var(--space-3); }
 
 /* ===== Grille de sessions (level select) ===== */
 .arcade-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(18.667em, 1fr));
   gap: var(--space-4);
   align-content: start;
   overflow-y: auto;
@@ -183,7 +183,7 @@
   gap: var(--space-3);
   align-content: start;
   padding: var(--space-5);
-  border: 1px solid var(--color-border);
+  border: .1em solid var(--color-border);
   border-radius: var(--radius-lg);
   background-color: var(--bg-surface);
   background-image: var(--gradient-surface);
@@ -194,7 +194,7 @@
     box-shadow var(--dur-fast) var(--ease-out);
 }
 .arcade-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-.133em);
   box-shadow: var(--shadow-card), var(--shadow-2);
 }
 .arcade-card--active {
@@ -202,22 +202,22 @@
   box-shadow: var(--shadow-pop), var(--shadow-2);
 }
 .arcade-card__head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.arcade-card__name { font-size: 18px; line-height: 1.2; margin: 0; }
-.arcade-card__date { font-size: 12px; color: var(--color-muted); }
-.arcade-card__muted { font-size: 12px; color: var(--color-muted); }
-.arcade-card__roster { display: flex; gap: 4px; flex-wrap: wrap; }
-.arcade-card__stat { font-size: 13px; font-weight: 600; }
-.arcade-card__trophies { display: flex; gap: var(--space-4); flex-wrap: wrap; min-height: 28px; }
+.arcade-card__name { font-size: 1.2em; line-height: 1.2; margin: 0; }
+.arcade-card__date { font-size: .8em; color: var(--color-muted); }
+.arcade-card__muted { font-size: .8em; color: var(--color-muted); }
+.arcade-card__roster { display: flex; gap: .267em; flex-wrap: wrap; }
+.arcade-card__stat { font-size: .867em; font-weight: 600; }
+.arcade-card__trophies { display: flex; gap: var(--space-4); flex-wrap: wrap; min-height: 1.867em; }
 .arcade-card__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
-.arcade-card__resume { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; flex-wrap: wrap; margin: 0; }
+.arcade-card__resume { display: flex; align-items: center; gap: var(--space-2); font-size: .8em; flex-wrap: wrap; margin: 0; }
 
 /* ===== Badge & avatars ===== */
 .arcade-tag {
-  padding: 2px 10px;
+  padding: .182em .909em;
   border-radius: var(--radius-pill);
   background: var(--color-accent-primary);
   color: var(--accent-contrast);
-  font-size: 11px;
+  font-size: .733em;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -228,18 +228,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  font-size: 18px;
+  width: 1.889em;
+  height: 1.889em;
+  font-size: 1.2em;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
+  border: .1em solid var(--color-border);
   background: var(--bg-surface-raised);
 }
 
 /* Décompte de parties gagnées. Le pictogramme est fourni par les thèmes qui en
    ont un (Paper Quest / Bubble Island) ; sinon un emoji tient lieu. */
-.arcade-trophy { display: inline-flex; align-items: center; gap: 4px; }
-.arcade-trophy::before { content: '🏆'; font-size: 16px; line-height: 1; }
+.arcade-trophy { display: inline-flex; align-items: center; gap: .308em; }
+.arcade-trophy::before { content: '🏆'; font-size: 1.067em; line-height: 1; }
 .arcade-trophy__count { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ===== Réglages (arcade--setup) ===== */
@@ -252,7 +252,7 @@
   text-align: left;
   font-weight: 700;
 }
-.arcade--setup #btn-start { min-height: 54px; font-size: 19px; }
+.arcade--setup #btn-start { min-height: 2.842em; font-size: 1.267em; }
 
 /* ===== Pied de menu ===== */
 .arcade__footer {
@@ -260,7 +260,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: .267em;
 }
 .arcade__credits {
   list-style: none;
@@ -269,11 +269,11 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px var(--space-3);
+  gap: .313em var(--space-3);
   color: var(--color-muted);
-  font-size: 0.8rem;
+  font-size: .853em;
 }
-.arcade__credit { display: inline-flex; align-items: center; gap: 4px; }
+.arcade__credit { display: inline-flex; align-items: center; gap: .267em; }
 .arcade__credit strong { color: var(--color-text); font-weight: 600; }
 
 /* Version de l'application, discrète en pied de menu */
@@ -281,7 +281,7 @@
   margin-top: auto;
   padding-top: var(--space-4);
   text-align: center;
-  font-size: 11px;
+  font-size: .733em;
   font-family: var(--font-mono);
   color: var(--color-muted);
   opacity: .75;
