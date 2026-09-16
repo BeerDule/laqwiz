@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "dev-ws": "node demo/dev-ws.mjs",
+    "test:lobby": "node demo/lobby-test.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

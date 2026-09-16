@@ -355,80 +355,107 @@
   margin: var(--space-3) auto 0;
 }
 
-/* ===== Écran joueur (mode en ligne) =====
- * Le body est à 22px (lisibilité TV) : sur un téléphone, on resserre
- * volontairement cet écran de connexion — titre compact, grille d'avatars
- * dense, champ prénom large, bouton Rejoindre proéminent. */
-.arcade--player { gap: var(--space-3); }
-.arcade--player .arcade__title {
-  margin-block: var(--space-3) var(--space-1);
+/* ===== Écran joueur « Rejoindre » (mode en ligne) =====
+ * Conçu mobile d'abord : le body est à 22px (lisibilité TV), on resserre ici.
+ * Une frise d'avatars défilante remplace l'ancienne grille de 30 emojis. */
+.arcade--join {
+  gap: var(--space-3);
+  justify-content: center;
 }
-.arcade--player .arcade__title h1 {
-  font-size: clamp(1.8em, 6vw, 2.6em);
+.join__header {
+  text-align: center;
 }
-.arcade--player .arcade__title p {
-  font-size: .95em;
-  margin-top: var(--space-1);
+.join__eyebrow {
+  margin: 0;
+  color: var(--color-accent-primary);
+  font-size: .8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
 }
-.player-card {
-  width: min(22em, 100%);
+.join__title {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-display, var(--font-sans));
+  font-weight: 400;
+  font-size: clamp(1.8em, 6vw, 2.4em);
+  line-height: 1.1;
+  color: var(--color-text);
+  text-shadow: var(--text-glow);
+}
+.join__body {
+  width: min(24em, 100%);
   margin-inline: auto;
-  padding: var(--space-4);
   display: grid;
   gap: var(--space-3);
-  border: .1em solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--bg-surface-raised);
-  background-image: var(--gradient-surface);
-  box-shadow: var(--shadow-card), var(--shadow-1);
 }
-.player-card__label {
+.join__label {
   color: var(--color-muted);
   font-size: .8em;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
 }
-.player-card input[type="text"] {
+.join__name {
   padding: .647em .765em;
   border: .1em solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--bg-void);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-raised);
   color: var(--color-text);
-  font-size: 1.15em;
+  font-size: 1.2em;
 }
-.emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(2.2em, 1fr));
+.avatar-strip {
+  display: flex;
   gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-1) 0 var(--space-2);
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
-.emoji-grid button {
-  aspect-ratio: 1;
-  font-size: 1.15em;
+.avatar-strip button {
+  flex: 0 0 auto;
+  width: 2.75em;
+  height: 2.75em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5em;
   line-height: 1;
   border: .1em solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   background-color: var(--bg-surface);
   cursor: pointer;
+  scroll-snap-align: center;
 }
-.emoji-grid button.is-selected {
+.avatar-strip button.is-selected {
   border-color: var(--color-accent-primary);
   background-color: var(--bg-surface-soft);
   box-shadow: var(--shadow-pop);
+  transform: scale(1.12);
 }
-.player-waiting {
+.join__submit {
+  width: 100%;
+}
+.join-waiting__emoji {
+  margin: var(--space-4) 0 0;
+  text-align: center;
+  font-size: 3em;
+  line-height: 1;
+}
+.join-waiting {
   margin: 0;
   text-align: center;
-  font-size: 1.133em;
+  font-size: 1.2em;
   font-weight: 600;
 }
+.join-waiting-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
+}
 
-/* Mobile : grille d'avatars dense (6 colonnes) et carte resserrée. */
+/* Mobile : un peu plus serré, la frise tient sur une ligne. */
 @media (max-width: 47.938em) {
-  .arcade--player { padding: var(--space-3); gap: var(--space-2); }
-  .arcade--player .arcade__title { margin-block: var(--space-2) 0; }
-  .player-card { padding: var(--space-3); gap: var(--space-2); }
-  .emoji-grid { grid-template-columns: repeat(6, 1fr); gap: var(--space-1); }
-  .emoji-grid button { font-size: 1.1em; }
+  .arcade--join { padding: var(--space-3); gap: var(--space-2); }
+  .join__body { gap: var(--space-2); }
 }
 
