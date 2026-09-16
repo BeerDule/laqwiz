@@ -6,6 +6,7 @@
 
 import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH } from './constants.js';
 import { relayWsUrl } from './relay.js';
+import { renderThemeSelect, wireThemeSelect } from './themeSwitcher.js';
 
 const PLAYER_STORAGE_KEY = 'quizz-canape:player';
 
@@ -54,6 +55,7 @@ export function mountPlayer(rootEl, sessionId) {
 
   rootEl.innerHTML = `
     <section class="arcade arcade--join screen" data-screen="join">
+      <div class="arcade__topbar">${renderThemeSelect()}</div>
       <header class="join__header">
         <p class="join__eyebrow">Canap' QuiZZ</p>
         <h1 class="join__title">Rejoindre la partie</h1>
@@ -109,6 +111,7 @@ export function mountPlayer(rootEl, sessionId) {
   });
 
   rootEl.querySelector('#btn-disconnect').addEventListener('click', leave);
+  wireThemeSelect(rootEl);
 
   // Connexion au relais, une seule fois pour tout l'écran.
   socket = new WebSocket(relayWsUrl(sessionId));
