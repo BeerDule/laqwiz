@@ -333,6 +333,21 @@
   color: var(--color-muted);
   font-size: .933em;
 }
+.lobby-qr {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-3);
+}
+.lobby-qr svg {
+  width: min(12em, 100%);
+  height: auto;
+}
+.lobby-qr-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: .8em;
+}
 
 /* Bouton « Démarrer un lobby » (écran de réglages) */
 .setup-lobby-btn {

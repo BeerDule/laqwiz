@@ -40,6 +40,8 @@ function lobbyHtml(s) {
           <input id="lobby-link" type="text" readonly value="${escapeHtml(shareUrl)}" />
           <button id="btn-copy" class="arcade-btn arcade-btn--small" type="button">Copier</button>
         </div>
+        <div id="lobby-qr" class="lobby-qr"></div>
+        <p class="lobby-qr-hint">Scannez avec un téléphone pour rejoindre.</p>
       </div>
 
       <div class="arcade-plaque">
@@ -76,6 +78,23 @@ function signature() {
   return `${s.room?.shareUrl || ''}|${(s.players || []).map(p => p.id).join(',')}`;
 }
 
+async function renderQr(shareUrl) {
+  const container = root.querySelector('#lobby-qr');
+  if (!container || !shareUrl) return;
+  // Générateur vendu (MIT) chargé à la demande : zéro dépendance npm runtime.
+  const mod = await import('../vendor/qrcode.js');
+  const qrcode = mod.default;
+  const qr = qrcode(0, 'M');
+  qr.addData(shareUrl);
+  qr.make();
+  container.innerHTML = qr.createSvgTag({
+    cellSize: 4,
+    margin: 2,
+    scalable: true,
+    alt: "QR code du lien d'invitation",
+  });
+}
+
 export function renderLobby(rootEl) {
   unmountLobby();
   root = rootEl;
@@ -91,6 +110,7 @@ export function renderLobby(rootEl) {
     root.querySelector('#btn-quit').addEventListener('click', quit, { signal });
     root.querySelector('#btn-copy').addEventListener('click', copyLink, { signal });
     abort = () => cleanup.abort();
+    renderQr(getState().room?.shareUrl);
   }
 
   render();
