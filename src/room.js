@@ -159,12 +159,19 @@ function handle(msg) {
     case 'lobby.leave':
     case 'player.left': {
       const clientId = senderToClient.get(msg.senderId);
-      if (clientId) {
-        senderToClient.delete(msg.senderId);
-        clientToSender.delete(clientId);
+      if (!clientId) break;
+      senderToClient.delete(msg.senderId);
+      clientToSender.delete(clientId);
+      const inLobby = getState().phase === 'LOBBY';
+      // Départ explicite (« Se déconnecter ») ou en lobby : on retire le siège.
+      // En pleine partie, une déconnexion réseau (rechargement) garde le siège
+      // pour permettre le rejoin (§18.7) — le joueur re-associe sa connexion.
+      if (msg.type === 'lobby.leave' || inLobby) {
         dispatch({ type: 'ROOM_LEAVE', id: clientId });
-        broadcastRoster();
       }
+      // On ne re-diffuse le roster qu'en lobby : en pleine partie, le broadcast
+      // ferait retomber les autres joueurs sur l'écran d'attente.
+      if (inLobby) broadcastRoster();
       break;
     }
     case 'game.answer': {

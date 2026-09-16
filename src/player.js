@@ -57,6 +57,7 @@ export function mountPlayer(rootEl, sessionId) {
       <header class="join__header">
         <p class="join__eyebrow">Canap' QuiZZ</p>
         <h1 class="join__title">Rejoindre la partie</h1>
+        <button id="btn-disconnect" class="player-change" type="button" hidden>Se déconnecter</button>
       </header>
 
       <form id="player-form" class="join__body" novalidate>
@@ -106,6 +107,8 @@ export function mountPlayer(rootEl, sessionId) {
     showError('');
     submitJoin(name, selectedEmoji);
   });
+
+  rootEl.querySelector('#btn-disconnect').addEventListener('click', leave);
 
   // Connexion au relais, une seule fois pour tout l'écran.
   socket = new WebSocket(relayWsUrl(sessionId));
@@ -234,13 +237,23 @@ function renderWaiting(players) {
     <p class="join-waiting-hint">En attente du début de la partie…</p>
     <button id="btn-change-identity" class="player-change" type="button">Changer de nom / avatar</button>
   `;
-  body.querySelector('#btn-change-identity').addEventListener('click', resetIdentity);
+  body.querySelector('#btn-change-identity').addEventListener('click', leave);
+  const disconnectBtn = document.querySelector('#btn-disconnect');
+  if (disconnectBtn) disconnectBtn.hidden = false;
 }
 
-function resetIdentity() {
-  // On oublie l'identité persistée puis on recharge : l'écran de connexion
-  // réapparaît (nouveau clientId).
+function leave() {
+  // Départ : on prévient l'hôte (libère le siège), on oublie l'identité
+  // persistée, on coupe, puis on recharge — l'écran de connexion réapparaît
+  // avec une identité neuve.
+  if (socket?.readyState === WebSocket.OPEN) {
+    try { socket.send(JSON.stringify({ type: 'lobby.leave', payload: {} })); } catch { /* ignore */ }
+  }
   try { localStorage.removeItem(PLAYER_STORAGE_KEY); } catch { /* ignore */ }
+  if (socket) {
+    try { socket.close(); } catch { /* ignore */ }
+    socket = null;
+  }
   location.reload();
 }
 
