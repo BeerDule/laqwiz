@@ -6,7 +6,7 @@
 import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChips } from '../components/playerChip.js';
-import { closeRoom, send } from '../room.js';
+import { leaveRoomIfOnline, send } from '../room.js';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../constants.js';
 
 let teardown = null;
@@ -59,8 +59,7 @@ function lobbyHtml(s) {
 }
 
 function quit() {
-  closeRoom();
-  dispatch({ type: 'ROOM_CLOSED' });
+  leaveRoomIfOnline();
   dispatch({ type: 'GOTO_HOME' });
 }
 

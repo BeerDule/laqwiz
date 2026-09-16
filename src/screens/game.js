@@ -4,6 +4,7 @@ import { DIFFICULTY_LABELS } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
 import { confirmDialog } from '../components/dialog.js';
+import { leaveRoomIfOnline } from '../room.js';
 
 let teardown = null;
 let root = null;
@@ -492,6 +493,8 @@ async function confirmQuit() {
     message: 'Quitter la partie et revenir aux réglages ?',
     confirmLabel: 'Quitter',
   })) {
+    // En ligne, quitter la partie ferme la room et prévient les joueurs.
+    leaveRoomIfOnline();
     dispatch({ type: 'NEW_GAME' });
   }
 }

@@ -3,6 +3,7 @@ import { getState, dispatch, computePartieWinner } from '../state.js';
 import { launchConfetti, stopConfetti } from '../confetti.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { confirmDialog } from '../components/dialog.js';
+import { leaveRoomIfOnline } from '../room.js';
 
 let teardown = null;
 let root = null;
@@ -93,6 +94,8 @@ export function renderVictory(rootEl) {
       message: 'Terminer cette session ? Les parties restent consultables dans l\'historique.',
       confirmLabel: 'Terminer',
     })) {
+      // En ligne, terminer la session ferme la room et prévient les joueurs.
+      leaveRoomIfOnline();
       dispatch({ type: 'CLOSE_SESSION' });
     }
   }, { signal });

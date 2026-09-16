@@ -201,6 +201,9 @@ function handleMessage(msg) {
       else if (p.waiting) renderWaitingForGame();
       break;
     }
+    case 'room.closed':
+      renderRoomClosed();
+      break;
     // game.question / game.reveal arriveront à l'étape suivante.
   }
 }
@@ -346,6 +349,15 @@ function renderWaitingForGame() {
     <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
     <p class="join-waiting">Reconnecté·e&nbsp;!</p>
     <p class="join-waiting-hint">En attente de la prochaine question…</p>
+  `;
+}
+
+function renderRoomClosed() {
+  const body = document.querySelector('.join__body');
+  body.innerHTML = `
+    <p class="join-waiting__emoji" aria-hidden="true">👋</p>
+    <p class="join-waiting">La partie est terminée.</p>
+    <p class="join-waiting-hint">L'hôte a fermé la partie. Merci d'avoir joué&nbsp;!</p>
   `;
 }
 

@@ -324,10 +324,21 @@ export function send(type, payload) {
 }
 
 export function closeRoom() {
+  // Prévenir les joueurs avant de couper (le relais relaie ce message).
+  if (ws?.readyState === WebSocket.OPEN) {
+    try { ws.send(JSON.stringify({ type: 'room.closed', payload: {} })); } catch { /* ignore */ }
+  }
   deliberateClose = true;
   if (ws) {
     try { ws.close(); } catch { /* déjà fermé */ }
     ws = null;
   }
   hostPlayerId = null;
+}
+
+/** Ferme la room si on est en ligne, et remet l'état à zéro (no-op sinon). */
+export function leaveRoomIfOnline() {
+  if (!getState().room) return;
+  closeRoom();
+  dispatch({ type: 'ROOM_CLOSED' });
 }
