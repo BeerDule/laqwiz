@@ -6,44 +6,47 @@
  * Sous-ensemble `latin` seulement : Mukta embarque aussi le devanagari, inutile
  * ici. Quatre graisses, celles réellement employées par les feuilles du projet. */
 @font-face {
-  font-family: 'Mukta';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/mukta-400-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Mukta';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/mukta-400-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Mukta';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/mukta-500-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Mukta';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/mukta-500-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Mukta';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/mukta-600-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Mukta';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/mukta-600-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Mukta';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/mukta-700-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Mukta';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/mukta-700-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 /* Nerko One (Google Fonts, licence OFL) — hébergée localement comme les autres.
@@ -51,114 +54,129 @@
  * bouton produit donc un gras SYNTHÉTIQUE. Il est conservé volontairement, voir
  * le commentaire de la règle `button` plus bas. */
 @font-face {
-  font-family: 'Nerko One';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/nerko-one-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Nerko One';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/nerko-one-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 :root {
-  color-scheme: dark;
-  --font-sans: 'Mukta', 'Segoe UI', 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-button: var(--font-display);
-  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    color-scheme: dark;
+    --font-sans: 'Mukta', 'Segoe UI', 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-button: var(--font-display);
+    --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 
-  /* VS Code dark palette */
-  --bg-void: #1e1e1e;
-  --bg-surface: #252526;
-  --bg-surface-raised: #2d2d30;
-  --bg-surface-soft: #3e3e42;
-  --color-accent-primary: #007acc;
-  --color-accent-cyan: #0098ff;
-  --color-accent-pink: #c586c0;
-  --color-accent-lime: #6a9955;
-  --color-success: #4ec9b0;
-  --color-error: #f44747;
-  --color-warning: #cca700;
-  --color-text: #cccccc;
-  --color-muted: #858585;
-  --color-border: #3e3e42;
-  --color-overlay: rgba(0, 0, 0, .65);
+    /* VS Code dark palette */
+    --bg-void: #1e1e1e;
+    --bg-surface: #252526;
+    --bg-surface-raised: #2d2d30;
+    --bg-surface-soft: #3e3e42;
+    --color-accent-primary: #007acc;
+    --color-accent-cyan: #0098ff;
+    --color-accent-pink: #c586c0;
+    --color-accent-lime: #6a9955;
+    --color-success: #4ec9b0;
+    --color-error: #f44747;
+    --color-warning: #cca700;
+    --color-text: #cccccc;
+    --color-muted: #858585;
+    --color-border: #3e3e42;
+    --color-overlay: rgba(0, 0, 0, .65);
 
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
-  --shadow-card: 0 2px 10px rgba(0, 0, 0, .45);
-  --transition-fast: 60ms ease;
-  --transition-base: 120ms ease;
+    --radius-sm: .154em;
+    --radius-md: .308em;
+    --radius-lg: .462em;
+    --radius-xl: .615em;
+    --shadow-card: 0 .154em .769em rgba(0, 0, 0, .45);
+    --transition-fast: 60ms ease;
+    --transition-base: 120ms ease;
 
-  --space-1: 4px;
-  --space-2: 6px;
-  --space-3: 8px;
-  --space-4: 12px;
-  --space-5: 16px;
-  --space-6: 20px;
-  --space-8: 28px;
-  --space-10: 36px;
-  --space-12: 48px;
-  --content-max: none;
+    --space-1: .308em;
+    --space-2: .462em;
+    --space-3: .615em;
+    --space-4: .923em;
+    --space-5: 1.231em;
+    --space-6: 1.538em;
+    --space-8: 2.154em;
+    --space-10: 2.769em;
+    --space-12: 3.692em;
+    --content-max: none;
 
-  /* Theme polish — defaults preserve the flat VS Code look */
-  --gradient-bg: none;
-  --gradient-surface: none;
-  --gradient-accent: none;
-  --accent-contrast: #ffffff;
-  --on-success: #113328;
-  --on-pink: #2d1b2b;
-  --shadow-pop: 0 6px 20px rgba(0, 0, 0, .55);
-  --glow-accent: none;
-  --text-glow: none;
-  --texture: none;
-  --font-display: 'JetBrains Mono', var(--font-mono);
-  /* Nerko One reste le défaut du jeton ci-dessus ; les thèmes qui suivent
+    /* Theme polish — defaults preserve the flat VS Code look */
+    --gradient-bg: none;
+    --gradient-surface: none;
+    --gradient-accent: none;
+    --accent-contrast: #ffffff;
+    --on-success: #113328;
+    --on-pink: #2d1b2b;
+    --shadow-pop: 0 .462em 1.538em rgba(0, 0, 0, .55);
+    --glow-accent: none;
+    --text-glow: none;
+    --texture: none;
+    --font-display: 'JetBrains Mono', var(--font-mono);
+    /* Nerko One reste le défaut du jeton ci-dessus ; les thèmes qui suivent
      le redirigent vers leur propre fonte. Paper Quest ne le redéfinit pas et
      conserve donc Nerko One. */
 
-  /* Typographie utilitaire + matière : consommés par les composants (dont la
+    /* Typographie utilitaire + matière : consommés par les composants (dont la
      piste #leaderboard-mini). Ajoutés avec la refonte — jamais redéfinis par
      les thèmes, donc pas de conflit de cascade. */
-  --text-player: clamp(1rem, 1.3vw, 1.25rem);
-  --text-meta: .8125rem;
-  --material-edge: 1px solid var(--color-border);
-  --material-depth: var(--shadow-card);
+    --text-player: clamp(1.231em, 1.3vw, 1.538em);
+    --text-meta: 1em;
+    --material-edge: .1em solid var(--color-border);
+    --material-depth: var(--shadow-card);
 
-  /* Élévation, focus, motion, rayons — refonte « vraie app » (jetons ajoutés,
+    /* Élévation, focus, motion, rayons — refonte « vraie app » (jetons ajoutés,
      jamais redéfinis par les thèmes : aucun conflit de cascade). */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, .10), 0 2px 8px rgba(0, 0, 0, .08);
-  --shadow-2: 0 6px 18px rgba(0, 0, 0, .14), 0 12px 32px rgba(0, 0, 0, .10);
-  --shadow-3: 0 18px 48px rgba(0, 0, 0, .20);
-  --focus-ring: 3px solid var(--color-accent-primary);
-  --focus-ring-offset: 2px;
-  --ease-out: cubic-bezier(.22, 1, .36, 1);
-  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
-  --dur-fast: 130ms;
-  --dur-base: 220ms;
-  --dur-slow: 420ms;
-  --radius-pill: 999px;
-  --app-max: 1100px;
+    --shadow-1: 0 .077em .154em rgba(0, 0, 0, .10), 0 .154em .615em rgba(0, 0, 0, .08);
+    --shadow-2: 0 .462em 1.385em rgba(0, 0, 0, .14), 0 .923em 2.462em rgba(0, 0, 0, .10);
+    --shadow-3: 0 1.385em 3.692em rgba(0, 0, 0, .20);
+    --focus-ring: .231em solid var(--color-accent-primary);
+    --focus-ring-offset: .154em;
+    --ease-out: cubic-bezier(.22, 1, .36, 1);
+    --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+    --dur-fast: 130ms;
+    --dur-base: 220ms;
+    --dur-slow: 420ms;
+    --radius-pill: 100em;
+    --app-max: 84.615em;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
-html { min-width: 320px; background: var(--bg-void); }
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    min-width: 20em;
+    background: var(--bg-void);
+}
+
 body {
-  margin: 0;
-  min-height: 100dvh;
-  background-color: var(--bg-void);
-  background-image: var(--texture), var(--gradient-bg);
-  background-attachment: fixed;
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--bg-void);
+    background-image: var(--texture), var(--gradient-bg);
+    background-attachment: fixed;
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 22px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
 }
 
-button, input, select, textarea { font: inherit; color: inherit; }
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
 
 /* Tous les boutons en Nerko One. Cible l'élément `button` plutôt qu'une classe :
  * les pastilles joueur et les boutons d'icône n'en portent aucune.
@@ -168,157 +186,248 @@ button, input, select, textarea { font: inherit; color: inherit; }
  * les libellés de menu au-dessus du seuil « grand texte » de WCAG (18,66px gras).
  * En repassant à 400, le critère applicable redeviendrait 4,5:1, que les plaques
  * peintes du thème Paper Quest n'atteignent pas (3,69 à 4,79:1). */
-button { font-family: var(--font-button); }
-button { cursor: pointer; }
-button:disabled { cursor: default; opacity: .4; }
-:focus-visible { outline: 1px solid var(--color-accent-primary); outline-offset: -1px; }
-::selection { background: #264f78; color: #ffffff; }
+button {
+    font-family: var(--font-button);
+}
 
-h1, h2, h3 { margin: 0; line-height: 1.15; font-weight: 600; }
-p { margin: 0; }
+button {
+    cursor: pointer;
+}
 
-h1 { font-size: 1.5rem; letter-spacing: -.01em; }
-h2 { font-size: 1.2rem; }
-h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--color-muted); }
+button:disabled {
+    cursor: default;
+    opacity: .4;
+}
+
+:focus-visible {
+    outline: .1em solid var(--color-accent-primary);
+    outline-offset: -.1em;
+}
+
+::selection {
+    background: #264f78;
+    color: #ffffff;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    line-height: 1.15;
+    font-weight: 600;
+}
+
+p {
+    margin: 0;
+}
+
+h1 {
+    font-size: 1.846em;
+    letter-spacing: -.01em;
+}
+
+h2 {
+    font-size: 1.477em;
+}
+
+h3 {
+    font-size: 1.046em;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--color-muted);
+}
 
 /* Theme display font + glow on primary headings */
-h1, h2, .app-name strong { font-family: var(--font-display); }
-h1, h2 { text-shadow: var(--text-glow); }
+h1,
+h2,
+.app-name strong {
+    font-family: var(--font-display);
+}
+
+h1,
+h2 {
+    text-shadow: var(--text-glow);
+}
 
 /* ===== Mobile-friendly ===== */
-@media (max-width: 767px) {
-  body {
-    font-size: 16px;
-  }
-  h1 { font-size: 1.35rem; }
-  h2 { font-size: 1.1rem; }
-  h3 { font-size: .8rem; }
+@media (max-width: 47.938em) {
+    body {
+        font-size: 100%;
+    }
+
+    h1 {
+        font-size: 1.662em;
+    }
+
+    h2 {
+        font-size: 1.354em;
+    }
+
+    h3 {
+        font-size: .985em;
+    }
 }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(121, 121, 121, .4); border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(100, 100, 100, .6); }
-::-webkit-scrollbar-corner { background: transparent; }
+
+::-webkit-scrollbar {
+    width: .769em;
+    height: .769em;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(121, 121, 121, .4);
+    border-radius: .385em;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 100, .6);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
 @-moz-document url-prefix() {
-  * { scrollbar-color: rgba(121, 121, 121, .4) transparent; scrollbar-width: thin; }
+    * {
+        scrollbar-color: rgba(121, 121, 121, .4) transparent;
+        scrollbar-width: thin;
+    }
 }
 
 /* ===== Color themes (data-color-theme) ===== */
 
 /* Matrix — green-on-black terminal */
 [data-color-theme="matrix"] {
-  color-scheme: dark;
-  --font-display: 'Share Tech Mono', var(--font-mono);
-  --font-button: var(--font-display);
-  --bg-void: #020604;
-  --bg-surface: #061a09;
-  --bg-surface-raised: #0a240d;
-  --bg-surface-soft: #123c18;
-  --color-accent-primary: #00ff41;
-  --color-accent-cyan: #00e05a;
-  --color-accent-pink: #00cc66;
-  --color-accent-lime: #00ff41;
-  --color-success: #00ff41;
-  --color-error: #ff3b3b;
-  --color-warning: #ffe14d;
-  --color-text: #d8ffe0;
-  --color-muted: #3aa150;
-  --color-border: #124d1d;
-  --color-overlay: rgba(0, 0, 0, .85);
+    color-scheme: dark;
+    --font-display: 'Share Tech Mono', var(--font-mono);
+    --font-button: var(--font-display);
+    --bg-void: #020604;
+    --bg-surface: #061a09;
+    --bg-surface-raised: #0a240d;
+    --bg-surface-soft: #123c18;
+    --color-accent-primary: #00ff41;
+    --color-accent-cyan: #00e05a;
+    --color-accent-pink: #00cc66;
+    --color-accent-lime: #00ff41;
+    --color-success: #00ff41;
+    --color-error: #ff3b3b;
+    --color-warning: #ffe14d;
+    --color-text: #d8ffe0;
+    --color-muted: #3aa150;
+    --color-border: #124d1d;
+    --color-overlay: rgba(0, 0, 0, .85);
 
-  --gradient-bg: radial-gradient(120% 90% at 50% 0%, #0a2a0e 0%, #051108 55%, #010502 100%);
-  --gradient-surface: linear-gradient(180deg, #0a240d, #061a09);
-  --gradient-accent: linear-gradient(180deg, #00ff41, #00c235);
-  --accent-contrast: #00160a;
-  --on-success: #00160a;
-  --on-pink: #00160a;
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, .55);
-  --shadow-pop: 0 0 14px rgba(0, 255, 65, .4);
-  --glow-accent: 0 0 10px rgba(0, 255, 65, .55);
-  --text-glow: 0 0 8px rgba(0, 255, 65, .35);
-  --texture: repeating-linear-gradient(0deg, rgba(0, 255, 65, .045) 0 1px, transparent 1px 3px);
+    --gradient-bg: radial-gradient(120% 90% at 50% 0%, #0a2a0e 0%, #051108 55%, #010502 100%);
+    --gradient-surface: linear-gradient(180deg, #0a240d, #061a09);
+    --gradient-accent: linear-gradient(180deg, #00ff41, #00c235);
+    --accent-contrast: #00160a;
+    --on-success: #00160a;
+    --on-pink: #00160a;
+    --shadow-card: 0 .154em .923em rgba(0, 0, 0, .55);
+    --shadow-pop: 0 0 1.077em rgba(0, 255, 65, .4);
+    --glow-accent: 0 0 .769em rgba(0, 255, 65, .55);
+    --text-glow: 0 0 .615em rgba(0, 255, 65, .35);
+    --texture: repeating-linear-gradient(0deg, rgba(0, 255, 65, .045) 0 .077em, transparent .077em .231em);
 }
-[data-color-theme="matrix"] ::selection { background: #004d10; color: #00ff41; }
+
+[data-color-theme="matrix"] ::selection {
+    background: #004d10;
+    color: #00ff41;
+}
 
 /* Girly — pink / purple dreamy */
 [data-color-theme="girly"] {
-  color-scheme: dark;
-  --font-display: 'Comfortaa', var(--font-sans);
-  --font-button: var(--font-display);
-  --bg-void: #170a18;
-  --bg-surface: #2a1630;
-  --bg-surface-raised: #37203d;
-  --bg-surface-soft: #4a2e52;
-  --color-accent-primary: #ff6fb5;
-  --color-accent-cyan: #d18cff;
-  --color-accent-pink: #ff4fa0;
-  --color-accent-lime: #ffc1e0;
-  --color-success: #7ce38b;
-  --color-error: #ff7b7b;
-  --color-warning: #ffd166;
-  --color-text: #ffe9f6;
-  --color-muted: #cf9fc9;
-  --color-border: #55304e;
-  --color-overlay: rgba(20, 4, 24, .82);
+    color-scheme: dark;
+    --font-display: 'Comfortaa', var(--font-sans);
+    --font-button: var(--font-display);
+    --bg-void: #170a18;
+    --bg-surface: #2a1630;
+    --bg-surface-raised: #37203d;
+    --bg-surface-soft: #4a2e52;
+    --color-accent-primary: #ff6fb5;
+    --color-accent-cyan: #d18cff;
+    --color-accent-pink: #ff4fa0;
+    --color-accent-lime: #ffc1e0;
+    --color-success: #7ce38b;
+    --color-error: #ff7b7b;
+    --color-warning: #ffd166;
+    --color-text: #ffe9f6;
+    --color-muted: #cf9fc9;
+    --color-border: #55304e;
+    --color-overlay: rgba(20, 4, 24, .82);
 
-  --gradient-bg: linear-gradient(160deg, #2a1033 0%, #1a0f24 55%, #241029 100%);
-  --gradient-surface: linear-gradient(160deg, #37203d, #2a1630);
-  --gradient-accent: linear-gradient(135deg, #ff8ac4, #d06bff);
-  --accent-contrast: #3a0a2a;
-  --on-success: #0c2a12;
-  --on-pink: #3a0a2a;
-  --shadow-card: 0 4px 18px rgba(0, 0, 0, .35);
-  --shadow-pop: 0 6px 18px rgba(255, 105, 180, .35);
-  --glow-accent: 0 0 12px rgba(255, 111, 181, .45);
-  --text-glow: 0 0 10px rgba(255, 143, 200, .3);
-  --texture: none;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+    --gradient-bg: linear-gradient(160deg, #2a1033 0%, #1a0f24 55%, #241029 100%);
+    --gradient-surface: linear-gradient(160deg, #37203d, #2a1630);
+    --gradient-accent: linear-gradient(135deg, #ff8ac4, #d06bff);
+    --accent-contrast: #3a0a2a;
+    --on-success: #0c2a12;
+    --on-pink: #3a0a2a;
+    --shadow-card: 0 .308em 1.385em rgba(0, 0, 0, .35);
+    --shadow-pop: 0 .462em 1.385em rgba(255, 105, 180, .35);
+    --glow-accent: 0 0 .923em rgba(255, 111, 181, .45);
+    --text-glow: 0 0 .769em rgba(255, 143, 200, .3);
+    --texture: none;
+    --radius-sm: .615em;
+    --radius-md: .923em;
+    --radius-lg: 1.231em;
+    --radius-xl: 1.538em;
 }
-[data-color-theme="girly"] ::selection { background: #802060; color: #fff; }
+
+[data-color-theme="girly"] ::selection {
+    background: #802060;
+    color: #fff;
+}
 
 /* Windows 98 — retro light with bevels */
 [data-color-theme="win98"] {
-  color-scheme: light;
-  --font-display: 'Silkscreen', var(--font-sans);
-  --font-button: var(--font-display);
-  --bg-void: #c0c0c0;
-  --bg-surface: #c0c0c0;
-  --bg-surface-raised: #d4d0c8;
-  --bg-surface-soft: #e8e8e8;
-  --color-accent-primary: #000080;
-  --color-accent-cyan: #0000ff;
-  --color-accent-pink: #800080;
-  --color-accent-lime: #008000;
-  --color-success: #008000;
-  --color-error: #ff0000;
-  --color-warning: #808000;
-  --color-text: #000000;
-  --color-muted: #404040;
-  --color-border: #808080;
-  --color-overlay: rgba(0, 0, 0, .35);
+    color-scheme: light;
+    --font-display: 'Silkscreen', var(--font-sans);
+    --font-button: var(--font-display);
+    --bg-void: #c0c0c0;
+    --bg-surface: #c0c0c0;
+    --bg-surface-raised: #d4d0c8;
+    --bg-surface-soft: #e8e8e8;
+    --color-accent-primary: #000080;
+    --color-accent-cyan: #0000ff;
+    --color-accent-pink: #800080;
+    --color-accent-lime: #008000;
+    --color-success: #008000;
+    --color-error: #ff0000;
+    --color-warning: #808000;
+    --color-text: #000000;
+    --color-muted: #404040;
+    --color-border: #808080;
+    --color-overlay: rgba(0, 0, 0, .35);
 
-  --gradient-bg: none;
-  --gradient-surface: none;
-  --gradient-accent: linear-gradient(180deg, #1010a8, #000080);
-  --accent-contrast: #ffffff;
-  --on-success: #ffffff;
-  --on-pink: #ffffff;
-  --shadow-card: inset -1px -1px 0 #808080, inset 1px 1px 0 #ffffff;
-  --shadow-pop: inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #ffffff, inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf;
-  --glow-accent: none;
-  --text-glow: none;
-  --texture: none;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
+    --gradient-bg: none;
+    --gradient-surface: none;
+    --gradient-accent: linear-gradient(180deg, #1010a8, #000080);
+    --accent-contrast: #ffffff;
+    --on-success: #ffffff;
+    --on-pink: #ffffff;
+    --shadow-card: inset -.077em -.077em 0 #808080, inset .077em .077em 0 #ffffff;
+    --shadow-pop: inset -.077em -.077em 0 #0a0a0a, inset .077em .077em 0 #ffffff, inset -.154em -.154em 0 #808080, inset .154em .154em 0 #dfdfdf;
+    --glow-accent: none;
+    --text-glow: none;
+    --texture: none;
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
 }
-[data-color-theme="win98"] ::selection { background: #000080; color: #fff; }
+
+[data-color-theme="win98"] ::selection {
+    background: #000080;
+    color: #fff;
+}
+
 /* Win98 — the app window is gray; teal desktop peeks on overscroll */
-[data-color-theme="win98"] html { background: #008080; }
+[data-color-theme="win98"] html {
+    background: #008080;
+}
 
 /* Win98 — inset fields & key chips are white, like classic controls */
 [data-color-theme="win98"] input[type='text'],
@@ -327,121 +436,133 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="win98"] select,
 [data-color-theme="win98"] .option-card__key,
 [data-color-theme="win98"] .player-card__emoji {
-  background: #ffffff;
+    background: #ffffff;
 }
 
 /* Jungle — earth / green / brown */
 [data-color-theme="jungle"] {
-  color-scheme: dark;
-  --font-display: 'Alfa Slab One', var(--font-sans);
-  --font-button: var(--font-display);
-  --bg-void: #10140a;
-  --bg-surface: #1c2410;
-  --bg-surface-raised: #273317;
-  --bg-surface-soft: #36481f;
-  --color-accent-primary: #8bc34a;
-  --color-accent-cyan: #6ac28c;
-  --color-accent-pink: #e07b4f;
-  --color-accent-lime: #a8d34a;
-  --color-success: #66bb6a;
-  --color-error: #e5503a;
-  --color-warning: #e6a83e;
-  --color-text: #e8dcc0;
-  --color-muted: #9b8c63;
-  --color-border: #3c4a24;
-  --color-overlay: rgba(8, 10, 2, .82);
+    color-scheme: dark;
+    --font-display: 'Alfa Slab One', var(--font-sans);
+    --font-button: var(--font-display);
+    --bg-void: #10140a;
+    --bg-surface: #1c2410;
+    --bg-surface-raised: #273317;
+    --bg-surface-soft: #36481f;
+    --color-accent-primary: #8bc34a;
+    --color-accent-cyan: #6ac28c;
+    --color-accent-pink: #e07b4f;
+    --color-accent-lime: #a8d34a;
+    --color-success: #66bb6a;
+    --color-error: #e5503a;
+    --color-warning: #e6a83e;
+    --color-text: #e8dcc0;
+    --color-muted: #9b8c63;
+    --color-border: #3c4a24;
+    --color-overlay: rgba(8, 10, 2, .82);
 
-  --gradient-bg: linear-gradient(180deg, #1c2410 0%, #10140a 60%, #0a0d05 100%);
-  --gradient-surface: linear-gradient(180deg, #273317, #1c2410);
-  --gradient-accent: linear-gradient(135deg, #a3d45c, #5e9a2f);
-  --accent-contrast: #132005;
-  --on-success: #0c2a12;
-  --on-pink: #3a1206;
-  --shadow-card: 0 3px 14px rgba(0, 0, 0, .45);
-  --shadow-pop: 0 6px 16px rgba(139, 195, 74, .3);
-  --glow-accent: 0 0 10px rgba(139, 195, 74, .4);
-  --text-glow: 0 0 8px rgba(170, 200, 90, .2);
-  --texture: repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 2px, transparent 2px 6px);
+    --gradient-bg: linear-gradient(180deg, #1c2410 0%, #10140a 60%, #0a0d05 100%);
+    --gradient-surface: linear-gradient(180deg, #273317, #1c2410);
+    --gradient-accent: linear-gradient(135deg, #a3d45c, #5e9a2f);
+    --accent-contrast: #132005;
+    --on-success: #0c2a12;
+    --on-pink: #3a1206;
+    --shadow-card: 0 .231em 1.077em rgba(0, 0, 0, .45);
+    --shadow-pop: 0 .462em 1.231em rgba(139, 195, 74, .3);
+    --glow-accent: 0 0 .769em rgba(139, 195, 74, .4);
+    --text-glow: 0 0 .615em rgba(170, 200, 90, .2);
+    --texture: repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 .154em, transparent .154em .462em);
 }
-[data-color-theme="jungle"] ::selection { background: #33691e; color: #e8dcc0; }
+
+[data-color-theme="jungle"] ::selection {
+    background: #33691e;
+    color: #e8dcc0;
+}
 
 /* Kids Friendly — bright deep blue + orange */
 [data-color-theme="kids"] {
-  color-scheme: dark;
-  --font-display: 'Fredoka', var(--font-sans);
-  --font-button: var(--font-display);
-  --bg-void: #101b66;
-  --bg-surface: #1e2f8a;
-  --bg-surface-raised: #2c40b0;
-  --bg-surface-soft: #3f57d4;
-  --color-accent-primary: #ff8f00;
-  --color-accent-cyan: #26d4ec;
-  --color-accent-pink: #ff4f9a;
-  --color-accent-lime: #8bdc4a;
-  --color-success: #46d15e;
-  --color-error: #ff4f4f;
-  --color-warning: #ffe14d;
-  --color-text: #ffffff;
-  --color-muted: #b9c6ff;
-  --color-border: #3d53cc;
-  --color-overlay: rgba(4, 6, 44, .78);
+    color-scheme: dark;
+    --font-display: 'Fredoka', var(--font-sans);
+    --font-button: var(--font-display);
+    --bg-void: #101b66;
+    --bg-surface: #1e2f8a;
+    --bg-surface-raised: #2c40b0;
+    --bg-surface-soft: #3f57d4;
+    --color-accent-primary: #ff8f00;
+    --color-accent-cyan: #26d4ec;
+    --color-accent-pink: #ff4f9a;
+    --color-accent-lime: #8bdc4a;
+    --color-success: #46d15e;
+    --color-error: #ff4f4f;
+    --color-warning: #ffe14d;
+    --color-text: #ffffff;
+    --color-muted: #b9c6ff;
+    --color-border: #3d53cc;
+    --color-overlay: rgba(4, 6, 44, .78);
 
-  --gradient-bg: linear-gradient(150deg, #1a237e 0%, #0d3bb5 50%, #1a237e 100%);
-  --gradient-surface: linear-gradient(160deg, #2c40b0, #1e2f8a);
-  --gradient-accent: linear-gradient(135deg, #ffb300, #ff6f00);
-  --accent-contrast: #3a1c00;
-  --on-success: #04350d;
-  --on-pink: #3a0230;
-  --shadow-card: 0 3px 14px rgba(0, 0, 0, .30);
-  --shadow-pop: 0 6px 16px rgba(255, 143, 0, .4);
-  --glow-accent: 0 0 12px rgba(255, 179, 0, .5);
-  --text-glow: none;
-  --texture: none;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 26px;
+    --gradient-bg: linear-gradient(150deg, #1a237e 0%, #0d3bb5 50%, #1a237e 100%);
+    --gradient-surface: linear-gradient(160deg, #2c40b0, #1e2f8a);
+    --gradient-accent: linear-gradient(135deg, #ffb300, #ff6f00);
+    --accent-contrast: #3a1c00;
+    --on-success: #04350d;
+    --on-pink: #3a0230;
+    --shadow-card: 0 .231em 1.077em rgba(0, 0, 0, .30);
+    --shadow-pop: 0 .462em 1.231em rgba(255, 143, 0, .4);
+    --glow-accent: 0 0 .923em rgba(255, 179, 0, .5);
+    --text-glow: none;
+    --texture: none;
+    --radius-sm: .769em;
+    --radius-md: 1.077em;
+    --radius-lg: 1.538em;
+    --radius-xl: 2em;
 }
-[data-color-theme="kids"] ::selection { background: #ff6f00; color: #fff; }
+
+[data-color-theme="kids"] ::selection {
+    background: #ff6f00;
+    color: #fff;
+}
 
 /* Apple — glossy glass / light */
 [data-color-theme="apple"] {
-  color-scheme: light;
-  --font-display: 'Inter', var(--font-sans);
-  --font-button: var(--font-display);
-  --bg-void: #f5f5f7;
-  --bg-surface: rgba(255, 255, 255, .8);
-  --bg-surface-raised: rgba(255, 255, 255, .94);
-  --bg-surface-soft: #eceef3;
-  --color-accent-primary: #007aff;
-  --color-accent-cyan: #32ade6;
-  --color-accent-pink: #ff2d55;
-  --color-accent-lime: #34c759;
-  --color-success: #1f9d44;
-  --color-error: #ff3b30;
-  --color-warning: #e08a00;
-  --color-text: #1d1d1f;
-  --color-muted: #6e6e73;
-  --color-border: rgba(60, 60, 67, .2);
-  --color-overlay: rgba(0, 0, 0, .32);
+    color-scheme: light;
+    --font-display: 'Inter', var(--font-sans);
+    --font-button: var(--font-display);
+    --bg-void: #f5f5f7;
+    --bg-surface: rgba(255, 255, 255, .8);
+    --bg-surface-raised: rgba(255, 255, 255, .94);
+    --bg-surface-soft: #eceef3;
+    --color-accent-primary: #007aff;
+    --color-accent-cyan: #32ade6;
+    --color-accent-pink: #ff2d55;
+    --color-accent-lime: #34c759;
+    --color-success: #1f9d44;
+    --color-error: #ff3b30;
+    --color-warning: #e08a00;
+    --color-text: #1d1d1f;
+    --color-muted: #6e6e73;
+    --color-border: rgba(60, 60, 67, .2);
+    --color-overlay: rgba(0, 0, 0, .32);
 
-  --gradient-bg: linear-gradient(160deg, #e7ebf4 0%, #f5f5f7 45%, #e5eaf3 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(255, 255, 255, .78));
-  --gradient-accent: linear-gradient(180deg, #55aaff 0%, #007aff 46%, #0060d0 100%);
-  --accent-contrast: #ffffff;
-  --on-success: #ffffff;
-  --on-pink: #ffffff;
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, .07);
-  --shadow-pop: 0 8px 24px rgba(0, 122, 255, .28);
-  --glow-accent: 0 0 12px rgba(0, 122, 255, .28);
-  --text-glow: none;
-  --texture: none;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+    --gradient-bg: linear-gradient(160deg, #e7ebf4 0%, #f5f5f7 45%, #e5eaf3 100%);
+    --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(255, 255, 255, .78));
+    --gradient-accent: linear-gradient(180deg, #55aaff 0%, #007aff 46%, #0060d0 100%);
+    --accent-contrast: #ffffff;
+    --on-success: #ffffff;
+    --on-pink: #ffffff;
+    --shadow-card: 0 .154em .923em rgba(0, 0, 0, .07);
+    --shadow-pop: 0 .615em 1.846em rgba(0, 122, 255, .28);
+    --glow-accent: 0 0 .923em rgba(0, 122, 255, .28);
+    --text-glow: none;
+    --texture: none;
+    --radius-sm: .615em;
+    --radius-md: .923em;
+    --radius-lg: 1.231em;
+    --radius-xl: 1.538em;
 }
-[data-color-theme="apple"] ::selection { background: #007aff; color: #fff; }
+
+[data-color-theme="apple"] ::selection {
+    background: #007aff;
+    color: #fff;
+}
 
 /* Apple — frosted glass surfaces */
 [data-color-theme="apple"] .panel,
@@ -451,53 +572,57 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="apple"] .podium__row,
 [data-color-theme="apple"] .player-card,
 [data-color-theme="apple"] .leaderboard-mini__item {
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    backdrop-filter: blur(1.231em) saturate(1.5);
+    -webkit-backdrop-filter: blur(1.231em) saturate(1.5);
 }
 
 /* Apple — glossy highlight on primary buttons */
 [data-color-theme="apple"] .button--primary {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), var(--shadow-pop);
+    box-shadow: inset 0 .071em 0 rgba(255, 255, 255, .4), var(--shadow-pop);
 }
 
 /* Apple Glass — frosted glassmorphism over a pastel wallpaper */
 [data-color-theme="apple-glass"] {
-  color-scheme: light;
-  --font-display: 'Inter', var(--font-sans);
-  --font-button: var(--font-display);
-  --bg-void: #eef2f8;
-  --bg-surface: rgba(255, 255, 255, .58);
-  --bg-surface-raised: rgba(255, 255, 255, .74);
-  --bg-surface-soft: rgba(255, 255, 255, .88);
-  --color-accent-primary: #007aff;
-  --color-accent-cyan: #32ade6;
-  --color-accent-pink: #ff2d55;
-  --color-accent-lime: #34c759;
-  --color-success: #1f9d44;
-  --color-error: #ff3b30;
-  --color-warning: #e08a00;
-  --color-text: #1d1d1f;
-  --color-muted: #5b5b63;
-  --color-border: rgba(255, 255, 255, .6);
-  --color-overlay: rgba(30, 40, 80, .42);
+    color-scheme: light;
+    --font-display: 'Inter', var(--font-sans);
+    --font-button: var(--font-display);
+    --bg-void: #eef2f8;
+    --bg-surface: rgba(255, 255, 255, .58);
+    --bg-surface-raised: rgba(255, 255, 255, .74);
+    --bg-surface-soft: rgba(255, 255, 255, .88);
+    --color-accent-primary: #007aff;
+    --color-accent-cyan: #32ade6;
+    --color-accent-pink: #ff2d55;
+    --color-accent-lime: #34c759;
+    --color-success: #1f9d44;
+    --color-error: #ff3b30;
+    --color-warning: #e08a00;
+    --color-text: #1d1d1f;
+    --color-muted: #5b5b63;
+    --color-border: rgba(255, 255, 255, .6);
+    --color-overlay: rgba(30, 40, 80, .42);
 
-  --gradient-bg: linear-gradient(140deg, #dbeafe 0%, #e9d5ff 25%, #fbcfe8 50%, #bfdbfe 75%, #d1fae5 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .82), rgba(255, 255, 255, .48));
-  --gradient-accent: linear-gradient(180deg, #55aaff 0%, #007aff 46%, #0060d0 100%);
-  --accent-contrast: #ffffff;
-  --on-success: #ffffff;
-  --on-pink: #ffffff;
-  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, .75), 0 8px 32px rgba(31, 38, 135, .14);
-  --shadow-pop: 0 12px 32px rgba(0, 122, 255, .32);
-  --glow-accent: 0 0 14px rgba(0, 122, 255, .32);
-  --text-glow: none;
-  --texture: none;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+    --gradient-bg: linear-gradient(140deg, #dbeafe 0%, #e9d5ff 25%, #fbcfe8 50%, #bfdbfe 75%, #d1fae5 100%);
+    --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .82), rgba(255, 255, 255, .48));
+    --gradient-accent: linear-gradient(180deg, #55aaff 0%, #007aff 46%, #0060d0 100%);
+    --accent-contrast: #ffffff;
+    --on-success: #ffffff;
+    --on-pink: #ffffff;
+    --shadow-card: inset 0 .077em 0 rgba(255, 255, 255, .75), 0 .615em 2.462em rgba(31, 38, 135, .14);
+    --shadow-pop: 0 .923em 2.462em rgba(0, 122, 255, .32);
+    --glow-accent: 0 0 1.077em rgba(0, 122, 255, .32);
+    --text-glow: none;
+    --texture: none;
+    --radius-sm: .769em;
+    --radius-md: 1.077em;
+    --radius-lg: 1.385em;
+    --radius-xl: 1.846em;
 }
-[data-color-theme="apple-glass"] ::selection { background: #007aff; color: #fff; }
+
+[data-color-theme="apple-glass"] ::selection {
+    background: #007aff;
+    color: #fff;
+}
 
 /* Apple Glass — frosted surfaces, heavy blur */
 [data-color-theme="apple-glass"] .panel,
@@ -508,8 +633,8 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="apple-glass"] .player-card,
 [data-color-theme="apple-glass"] .leaderboard-mini__item,
 [data-color-theme="apple-glass"] .leaderboard-mini {
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(1.846em) saturate(1.8);
+    -webkit-backdrop-filter: blur(1.846em) saturate(1.8);
 }
 
 /* Bubble Island — pastel frosted glass over a cartoon island.
@@ -518,64 +643,68 @@ h1, h2 { text-shadow: var(--text-glow); }
    darkest pixel of the backdrop (a palm frond, rgb 41,82,0): body text 5.4:1
    on the bare wash, 8.6:1 on glass. */
 [data-color-theme="bubble-island"] {
-  color-scheme: light;
-  --font-display: 'Baloo 2', var(--font-sans);
-  --font-button: var(--font-display);
-  --bg-void: #cfe6f5;
-  --bg-surface: rgba(255, 255, 255, .55);
-  --bg-surface-raised: rgba(255, 255, 255, .72);
-  --bg-surface-soft: rgba(255, 255, 255, .86);
-  --color-accent-primary: #116482;
-  --color-accent-cyan: #0a6a8d;
-  --color-accent-pink: #983d61;
-  --color-accent-lime: #3a6a1f;
-  --color-success: #186c3b;
-  --color-error: #ad2f26;
-  --color-warning: #7e5500;
-  --color-text: #0d3b4f;
-  --color-muted: #1f4152;
-  --color-border: rgba(255, 255, 255, .65);
-  --color-overlay: rgba(20, 60, 85, .38);
+    color-scheme: light;
+    --font-display: 'Baloo 2', var(--font-sans);
+    --font-button: var(--font-display);
+    --bg-void: #cfe6f5;
+    --bg-surface: rgba(255, 255, 255, .55);
+    --bg-surface-raised: rgba(255, 255, 255, .72);
+    --bg-surface-soft: rgba(255, 255, 255, .86);
+    --color-accent-primary: #116482;
+    --color-accent-cyan: #0a6a8d;
+    --color-accent-pink: #983d61;
+    --color-accent-lime: #3a6a1f;
+    --color-success: #186c3b;
+    --color-error: #ad2f26;
+    --color-warning: #7e5500;
+    --color-text: #0d3b4f;
+    --color-muted: #1f4152;
+    --color-border: rgba(255, 255, 255, .65);
+    --color-overlay: rgba(20, 60, 85, .38);
 
-  /* island photo underneath, pastel wash painted on top */
-  --gradient-bg: url('/bubble-island/bg.png');
-  --texture: linear-gradient(140deg,
-    rgba(219, 234, 254, .72) 0%, rgba(233, 213, 255, .72) 25%,
-    rgba(251, 207, 232, .72) 50%, rgba(191, 219, 254, .72) 75%,
-    rgba(209, 250, 229, .72) 100%);
-  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .25));
-  --gradient-accent: none;
-  --accent-contrast: #06364b;
-  --on-success: #ffffff;
-  --on-pink: #ffffff;
-  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, .75), 0 8px 32px rgba(31, 78, 120, .16);
-  --shadow-pop: 0 8px 24px rgba(28, 167, 216, .3);
-  --glow-accent: 0 0 14px rgba(28, 167, 216, .35);
-  --text-glow: none;
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 28px;
+    /* island photo underneath, pastel wash painted on top */
+    --gradient-bg: url('/bubble-island/bg.png');
+    --texture: linear-gradient(140deg,
+            rgba(219, 234, 254, .72) 0%, rgba(233, 213, 255, .72) 25%,
+            rgba(251, 207, 232, .72) 50%, rgba(191, 219, 254, .72) 75%,
+            rgba(209, 250, 229, .72) 100%);
+    --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .25));
+    --gradient-accent: none;
+    --accent-contrast: #06364b;
+    --on-success: #ffffff;
+    --on-pink: #ffffff;
+    --shadow-card: inset 0 .077em 0 rgba(255, 255, 255, .75), 0 .615em 2.462em rgba(31, 78, 120, .16);
+    --shadow-pop: 0 .615em 1.846em rgba(28, 167, 216, .3);
+    --glow-accent: 0 0 1.077em rgba(28, 167, 216, .35);
+    --text-glow: none;
+    --radius-sm: .769em;
+    --radius-md: 1.231em;
+    --radius-lg: 1.692em;
+    --radius-xl: 2.154em;
 }
-[data-color-theme="bubble-island"] ::selection { background: #1ca7d8; color: #ffffff; }
+
+[data-color-theme="bubble-island"] ::selection {
+    background: #1ca7d8;
+    color: #ffffff;
+}
 
 [data-color-theme="bubble-island"] body {
-  background-size: cover;
-  background-position: center center;
+    background-size: cover;
+    background-position: center center;
 }
 
 /* Preload every button state so the first hover doesn't flash */
 [data-color-theme="bubble-island"] body::after {
-  content: '';
-  position: fixed;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-  background-image:
-    url('/bubble-island/btn-hover.png'), url('/bubble-island/btn-click.png'),
-    url('/bubble-island/btn-lock.png'), url('/bubble-island/btn-round-hover.png'),
-    url('/bubble-island/btn-round-click.png'), url('/bubble-island/btn-round-lock.png');
+    content: '';
+    position: fixed;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+    background-image:
+        url('/bubble-island/btn-hover.png'), url('/bubble-island/btn-click.png'),
+        url('/bubble-island/btn-lock.png'), url('/bubble-island/btn-round-hover.png'),
+        url('/bubble-island/btn-round-click.png'), url('/bubble-island/btn-round-lock.png');
 }
 
 /* Frosted surfaces ringed by the sand frame (no `fill` — the glass shows through) */
@@ -586,125 +715,154 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="bubble-island"] .podium__row,
 [data-color-theme="bubble-island"] .player-card,
 [data-color-theme="bubble-island"] .leaderboard-mini__item {
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/bubble-island/panel.png');
-  border-image-slice: 110;
-  border-image-width: 12px;
-  border-image-repeat: stretch;
-  background-color: var(--bg-surface);
-  background-image: var(--gradient-surface);
-  backdrop-filter: blur(20px) saturate(1.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7);
-  box-shadow: var(--shadow-card);
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/bubble-island/panel.png');
+    border-image-slice: 110;
+    border-image-width: .923em;
+    border-image-repeat: stretch;
+    background-color: var(--bg-surface);
+    background-image: var(--gradient-surface);
+    backdrop-filter: blur(1.538em) saturate(1.7);
+    -webkit-backdrop-filter: blur(1.538em) saturate(1.7);
+    box-shadow: var(--shadow-card);
 }
+
 /* border-image paints inward without reserving space — keep content clear of the ring */
-[data-color-theme="bubble-island"] .panel { padding: var(--space-6); }
-[data-color-theme="bubble-island"] .question-card { padding: var(--space-8); }
+[data-color-theme="bubble-island"] .panel {
+    padding: var(--space-6);
+}
+
+[data-color-theme="bubble-island"] .question-card {
+    padding: var(--space-8);
+}
+
 [data-color-theme="bubble-island"] .option-card,
-[data-color-theme="bubble-island"] .answer-card { padding: 16px 18px; }
+[data-color-theme="bubble-island"] .answer-card {
+    padding: 1.231em 1.385em;
+}
+
 [data-color-theme="bubble-island"] .podium__row,
 [data-color-theme="bubble-island"] .player-card,
 [data-color-theme="bubble-island"] .leaderboard-mini__item {
-  border-image-width: 9px;
-  padding: 12px 14px;
+    border-image-width: .692em;
+    padding: .923em 1.077em;
 }
-[data-color-theme="bubble-island"] .game-screen > .leaderboard-mini {
-  backdrop-filter: blur(20px) saturate(1.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+
+[data-color-theme="bubble-island"] .game-screen>.leaderboard-mini {
+    backdrop-filter: blur(1.538em) saturate(1.7);
+    -webkit-backdrop-filter: blur(1.538em) saturate(1.7);
 }
 
 /* Blur is the expensive part — ease off where there are many surfaces on screen */
-@media (max-width: 767px) {
-  [data-color-theme="bubble-island"] .panel,
-  [data-color-theme="bubble-island"] .question-card,
-  [data-color-theme="bubble-island"] .option-card,
-  [data-color-theme="bubble-island"] .answer-card,
-  [data-color-theme="bubble-island"] .podium__row,
-  [data-color-theme="bubble-island"] .player-card,
-  [data-color-theme="bubble-island"] .leaderboard-mini__item,
-  [data-color-theme="bubble-island"] .game-screen > .leaderboard-mini {
-    backdrop-filter: blur(8px) saturate(1.3);
-    -webkit-backdrop-filter: blur(8px) saturate(1.3);
-  }
+@media (max-width: 47.938em) {
+
+    [data-color-theme="bubble-island"] .panel,
+    [data-color-theme="bubble-island"] .question-card,
+    [data-color-theme="bubble-island"] .option-card,
+    [data-color-theme="bubble-island"] .answer-card,
+    [data-color-theme="bubble-island"] .podium__row,
+    [data-color-theme="bubble-island"] .player-card,
+    [data-color-theme="bubble-island"] .leaderboard-mini__item,
+    [data-color-theme="bubble-island"] .game-screen>.leaderboard-mini {
+        backdrop-filter: blur(.5em) saturate(1.3);
+        -webkit-backdrop-filter: blur(.5em) saturate(1.3);
+    }
 }
 
 /* Firefox < 103 and friends: fall back to an opaque surface rather than
    transparent text over the island */
-@supports not (backdrop-filter: blur(1px)) {
-  [data-color-theme="bubble-island"] .panel,
-  [data-color-theme="bubble-island"] .question-card,
-  [data-color-theme="bubble-island"] .option-card,
-  [data-color-theme="bubble-island"] .answer-card,
-  [data-color-theme="bubble-island"] .podium__row,
-  [data-color-theme="bubble-island"] .player-card,
-  [data-color-theme="bubble-island"] .leaderboard-mini__item {
-    background-color: rgba(248, 252, 255, .93);
-  }
+@supports not (backdrop-filter: blur(1em)) {
+
+    [data-color-theme="bubble-island"] .panel,
+    [data-color-theme="bubble-island"] .question-card,
+    [data-color-theme="bubble-island"] .option-card,
+    [data-color-theme="bubble-island"] .answer-card,
+    [data-color-theme="bubble-island"] .podium__row,
+    [data-color-theme="bubble-island"] .player-card,
+    [data-color-theme="bubble-island"] .leaderboard-mini__item {
+        background-color: rgba(248, 252, 255, .93);
+    }
 }
 
 /* Bubble buttons — one pill PNG per interaction state */
 [data-color-theme="bubble-island"] .button {
-	border-style: solid;
-	border-width: 0;
-	border-image-source: url('/bubble-island/btn-normal.png');
-	border-image-slice: 350 fill;
-	border-image-width: 14px;
-	border-image-repeat: stretch;
-	background: #01d1f959;
-	backdrop-filter: blur(15px);
-	-webkit-backdrop-filter: none;
-	box-shadow: none;
-	color: var(--accent-contrast);
-	font-weight: 700;
-	padding-inline: 18px;
-	color: white;
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/bubble-island/btn-normal.png');
+    border-image-slice: 350 fill;
+    border-image-width: 1em;
+    border-image-repeat: stretch;
+    background: #01d1f959;
+    backdrop-filter: blur(1.071em);
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    color: var(--accent-contrast);
+    font-weight: 700;
+    padding-inline: 1.286em;
+    color: white;
 }
-[data-color-theme="bubble-island"] .button--large { border-image-width: 16px; padding-inline: 24px; }
+
+[data-color-theme="bubble-island"] .button--large {
+    border-image-width: 1em;
+    padding-inline: 1.5em;
+}
+
 [data-color-theme="bubble-island"] .button:hover:not(:disabled) {
-  border-image-source: url('/bubble-island/btn-hover.png');
-  background: none;
-  filter: none;
+    border-image-source: url('/bubble-island/btn-hover.png');
+    background: none;
+    filter: none;
 }
+
 [data-color-theme="bubble-island"] .button:active:not(:disabled) {
-  border-image-source: url('/bubble-island/btn-click.png');
-  background: none;
+    border-image-source: url('/bubble-island/btn-click.png');
+    background: none;
 }
+
 [data-color-theme="bubble-island"] .button:disabled {
-  border-image-source: url('/bubble-island/btn-lock.png');
-  opacity: 1;
-  color: rgba(6, 54, 75, .45);
+    border-image-source: url('/bubble-island/btn-lock.png');
+    opacity: 1;
+    color: rgba(6, 54, 75, .45);
 }
-[data-color-theme="bubble-island"] .button--danger:not(:disabled) { color: #8c1d10; }
+
+[data-color-theme="bubble-island"] .button--danger:not(:disabled) {
+    color: #8c1d10;
+}
 
 /* Round bubble for the icon buttons that carry no .button class */
 [data-color-theme="bubble-island"] .player-card__emoji,
 [data-color-theme="bubble-island"] .player-card__remove {
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/bubble-island/btn-round-normal.png');
-  border-image-slice: 348 fill;
-  border-image-width: 50%;
-  border-image-repeat: stretch;
-  background: none;
-  color: var(--accent-contrast);
-  font-weight: 700;
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/bubble-island/btn-round-normal.png');
+    border-image-slice: 348 fill;
+    border-image-width: 50%;
+    border-image-repeat: stretch;
+    background: none;
+    color: var(--accent-contrast);
+    font-weight: 700;
 }
+
 [data-color-theme="bubble-island"] .player-card__emoji:hover,
 [data-color-theme="bubble-island"] .player-card__remove:hover {
-  border-image-source: url('/bubble-island/btn-round-hover.png');
-  background: none;
+    border-image-source: url('/bubble-island/btn-round-hover.png');
+    background: none;
 }
+
 [data-color-theme="bubble-island"] .player-card__emoji:active,
 [data-color-theme="bubble-island"] .player-card__remove:active {
-  border-image-source: url('/bubble-island/btn-round-click.png');
-  background: none;
+    border-image-source: url('/bubble-island/btn-round-click.png');
+    background: none;
 }
+
 [data-color-theme="bubble-island"] .player-card__remove:disabled {
-  border-image-source: url('/bubble-island/btn-round-lock.png');
-  opacity: 1;
+    border-image-source: url('/bubble-island/btn-round-lock.png');
+    opacity: 1;
 }
-[data-color-theme="bubble-island"] .player-card__remove:hover { color: #8c1d10; }
+
+[data-color-theme="bubble-island"] .player-card__remove:hover {
+    color: #8c1d10;
+}
 
 /* Inputs stay glassy rather than falling back to a flat fill */
 [data-color-theme="bubble-island"] input[type='text'],
@@ -713,82 +871,99 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="bubble-island"] input[type='number'],
 [data-color-theme="bubble-island"] select,
 [data-color-theme="bubble-island"] textarea {
-  background: rgba(255, 255, 255, .7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, .8);
-  color: var(--color-text);
+    background: rgba(255, 255, 255, .7);
+    backdrop-filter: blur(.615em);
+    -webkit-backdrop-filter: blur(.615em);
+    border: .1em solid rgba(255, 255, 255, .8);
+    color: var(--color-text);
 }
 
 /* Podium medals replace the emoji ranks */
 [data-color-theme="bubble-island"] .podium__rank {
-  color: transparent;
-  background: center / contain no-repeat;
-  min-width: 26px;
-  min-height: 28px;
+    color: transparent;
+    background: center / contain no-repeat;
+    min-width: 1.733em;
+    min-height: 1.867em;
 }
-[data-color-theme="bubble-island"] .podium__row:nth-child(1) .podium__rank { background-image: url('/bubble-island/medal-gold.png'); }
-[data-color-theme="bubble-island"] .podium__row:nth-child(2) .podium__rank { background-image: url('/bubble-island/medal-silver.png'); }
-[data-color-theme="bubble-island"] .podium__row:nth-child(3) .podium__rank { background-image: url('/bubble-island/medal-bronze.png'); }
+
+[data-color-theme="bubble-island"] .podium__row:nth-child(1) .podium__rank {
+    background-image: url('/bubble-island/medal-gold.png');
+}
+
+[data-color-theme="bubble-island"] .podium__row:nth-child(2) .podium__rank {
+    background-image: url('/bubble-island/medal-silver.png');
+}
+
+[data-color-theme="bubble-island"] .podium__row:nth-child(3) .podium__rank {
+    background-image: url('/bubble-island/medal-bronze.png');
+}
 
 /* Star on the bonus badge, coin next to every score */
 [data-color-theme="bubble-island"] .badge--bonus::before {
-  content: '';
-  width: 14px;
-  height: 14px;
-  margin-right: 4px;
-  background: center / contain no-repeat url('/bubble-island/star.png');
+    content: '';
+    width: 1.167em;
+    height: 1.167em;
+    margin-right: .333em;
+    background: center / contain no-repeat url('/bubble-island/star.png');
 }
+
 [data-color-theme="bubble-island"] .answer-card__score::before {
-  content: '';
-  display: inline-block;
-  width: 13px;
-  height: 13px;
-  margin-right: 4px;
-  vertical-align: -2px;
-  background: center / contain no-repeat url('/bubble-island/coin.png');
+    content: '';
+    display: inline-block;
+    width: .929em;
+    height: .929em;
+    margin-right: .286em;
+    vertical-align: -.143em;
+    background: center / contain no-repeat url('/bubble-island/coin.png');
 }
 
 /* Paper Quest — parchemin et plaques peintes, découpés du kit public/paper-ui/.
    Palette échantillonnée sur les sprites : parchemin #f8c8a8 cerné de #560e12,
    papier #f8f8e8, bandeaux orange/olive/rouge/bleu. */
 [data-color-theme="paper"] {
-  color-scheme: light;
-  --font-button: 'Nerko One', var(--font-sans);
-  --bg-void: #e9d5b2;
-  --bg-surface: #fdf8ea;
-  --bg-surface-raised: #fffdf3;
-  --bg-surface-soft: #f0e2c4;
-  --color-accent-primary: #563307;
-  --color-accent-cyan: #16607f;
-  --color-accent-pink: #a8283c;
-  --color-accent-lime: #5e6a0c;
-  --color-success: #4f6b0e;
-  --color-error: #a8202c;
-  --color-warning: #8a5600;
-  --color-text: #4a1f14;
-  --color-muted: #6d4534;
-  --color-border: #560e12;
-  --color-overlay: rgba(52, 20, 12, .62);
+    color-scheme: light;
+    --font-button: 'Nerko One', var(--font-sans);
+    --bg-void: #e9d5b2;
+    --bg-surface: #fdf8ea;
+    --bg-surface-raised: #fffdf3;
+    --bg-surface-soft: #f0e2c4;
+    --color-accent-primary: #563307;
+    --color-accent-cyan: #16607f;
+    --color-accent-pink: #a8283c;
+    --color-accent-lime: #5e6a0c;
+    --color-success: #4f6b0e;
+    --color-error: #a8202c;
+    --color-warning: #8a5600;
+    --color-text: #4a1f14;
+    --color-muted: #6d4534;
+    --color-border: #560e12;
+    --color-overlay: rgba(52, 20, 12, .62);
 
-  --gradient-bg: linear-gradient(170deg, #f6e8ce 0%, #e9d5b2 55%, #ddc49c 100%);
-  --texture: radial-gradient(120% 80% at 50% 0%, rgba(255, 252, 240, .9) 0%, rgba(240, 222, 190, 0) 60%);
-  --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0));
-  --gradient-accent: none;
-  --accent-contrast: #fff7e2;
-  --on-success: #fff7e2;
-  --on-pink: #fff7e2;
-  --shadow-card: 0 3px 0 rgba(86, 14, 18, .22);
-  --shadow-pop: 0 4px 0 rgba(86, 14, 18, .3);
-  --glow-accent: none;
-  --text-glow: none;
-  --font-display: var(--font-sans);
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+    --gradient-bg: linear-gradient(170deg, #f6e8ce 0%, #e9d5b2 55%, #ddc49c 100%);
+    --texture: radial-gradient(120% 80% at 50% 0%, rgba(255, 252, 240, .9) 0%, rgba(240, 222, 190, 0) 60%);
+    --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0));
+    --gradient-accent: none;
+    --accent-contrast: #fff7e2;
+    --on-success: #fff7e2;
+    --on-pink: #fff7e2;
+    --shadow-card: 0 .231em 0 rgba(86, 14, 18, .22);
+    --shadow-pop: 0 .308em 0 rgba(86, 14, 18, .3);
+    --glow-accent: none;
+    --text-glow: none;
+    --font-display: var(--font-sans);
+    --radius-sm: .462em;
+    --radius-md: .615em;
+    --radius-lg: .923em;
+    --radius-xl: 1.231em;
+    /* Matière : trait d'encre et ombre franche, sans flou, comme les sprites */
+    --material-edge: .154em solid var(--color-border);
+    --material-depth: 0 .231em 0 rgba(86, 14, 18, .22);
 }
-[data-color-theme="paper"] ::selection { background: #e69912; color: #4a1f14; }
+
+[data-color-theme="paper"] ::selection {
+    background: #e69912;
+    color: #4a1f14;
+}
 
 /* Tout est cerné d'un trait sombre, comme les sprites du kit */
 [data-color-theme="paper"] .panel,
@@ -798,7 +973,7 @@ h1, h2 { text-shadow: var(--text-glow); }
 [data-color-theme="paper"] .podium__row,
 [data-color-theme="paper"] .player-card,
 [data-color-theme="paper"] .leaderboard-mini__item {
-  border: 2px solid var(--color-border);
+    border: .15em solid var(--color-border);
 }
 
 /* Boutons : parchemin cerné, PAS les plaques peintes du kit.
@@ -807,248 +982,492 @@ h1, h2 { text-shadow: var(--text-glow); }
    grands boutons de menu, où le seuil « grand texte » (3:1) s'applique.
    Ici on garde la couleur sur le liseré, et le texte sur du parchemin. */
 [data-color-theme="paper"] .button {
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  box-shadow: 0 2px 0 rgba(86, 14, 18, .25);
-  color: var(--color-text);
-  font-weight: 700;
-  min-height: 32px;
+    border: .15em solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    box-shadow: 0 .143em 0 rgba(86, 14, 18, .25);
+    color: var(--color-text);
+    font-weight: 700;
+    min-height: 2.286em;
 }
-[data-color-theme="paper"] .button:hover:not(:disabled) { background: var(--bg-surface-soft); }
+
+[data-color-theme="paper"] .button:hover:not(:disabled) {
+    background: var(--bg-surface-soft);
+}
+
 [data-color-theme="paper"] .button:active:not(:disabled) {
-  background: var(--bg-surface-soft);
-  transform: translateY(2px);
-  box-shadow: none;
+    background: var(--bg-surface-soft);
+    transform: translateY(.143em);
+    box-shadow: none;
 }
-[data-color-theme="paper"] .button:disabled { opacity: .5; box-shadow: none; }
+
+[data-color-theme="paper"] .button:disabled {
+    opacity: .5;
+    box-shadow: none;
+}
 
 /* Orange sur encre sombre : 4,79:1, la seule teinte du kit qui passe AA en petit */
 [data-color-theme="paper"] .button--primary {
-  background: #f8a818;
-  color: #3a1408;
+    background: #f8a818;
+    color: #3a1408;
 }
-[data-color-theme="paper"] .button--danger { color: var(--color-error); }
+
+[data-color-theme="paper"] .button--danger {
+    color: var(--color-error);
+}
+
 [data-color-theme="paper"] .button--ghost {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
 }
 
 /* Étoile dorée du kit sur la question bonus, pièce sur les scores */
 [data-color-theme="paper"] .badge--bonus::before {
-  content: '';
-  width: 15px;
-  height: 16px;
-  margin-right: 4px;
-  background: center / contain no-repeat url('/paper-ui/star-gold.png');
+    content: '';
+    width: 1.25em;
+    height: 1.333em;
+    margin-right: .333em;
+    background: center / contain no-repeat url('/paper-ui/star-gold.png');
 }
+
 [data-color-theme="paper"] .answer-card__score::before {
-  content: '';
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-right: 4px;
-  vertical-align: -2px;
-  background: center / contain no-repeat url('/paper-ui/coin.png');
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: .286em;
+    vertical-align: -.143em;
+    background: center / contain no-repeat url('/paper-ui/coin.png');
 }
 
 /* Podium : trophée et étoiles du kit à la place des émojis de rang */
 [data-color-theme="paper"] .podium__rank {
-  color: transparent;
-  background: center / contain no-repeat;
-  min-width: 26px;
-  min-height: 28px;
+    color: transparent;
+    background: center / contain no-repeat;
+    min-width: 1.733em;
+    min-height: 1.867em;
 }
-[data-color-theme="paper"] .podium__row:nth-child(1) .podium__rank { background-image: url('/paper-ui/trophy.png'); }
-[data-color-theme="paper"] .podium__row:nth-child(2) .podium__rank { background-image: url('/paper-ui/star-silver.png'); }
-[data-color-theme="paper"] .podium__row:nth-child(3) .podium__rank { background-image: url('/paper-ui/star-gold.png'); }
+
+[data-color-theme="paper"] .podium__row:nth-child(1) .podium__rank {
+    background-image: url('/paper-ui/trophy.png');
+}
+
+[data-color-theme="paper"] .podium__row:nth-child(2) .podium__rank {
+    background-image: url('/paper-ui/star-silver.png');
+}
+
+[data-color-theme="paper"] .podium__row:nth-child(3) .podium__rank {
+    background-image: url('/paper-ui/star-gold.png');
+}
 
 /* Pastilles de manches gagnées : étoile pleine / étoile terne */
 [data-color-theme="paper"] .manche-pip {
-  width: 14px;
-  height: 14px;
-  border: 0;
-  border-radius: 0;
-  background: center / contain no-repeat url('/paper-ui/star-silver.png');
-  opacity: .55;
+    width: 1em;
+    height: 1em;
+    border: 0;
+    border-radius: 0;
+    background: center / contain no-repeat url('/paper-ui/star-silver.png');
+    opacity: .55;
 }
+
 [data-color-theme="paper"] .manche-pip--won {
-  background-image: url('/paper-ui/star-gold.png');
-  opacity: 1;
+    background-image: url('/paper-ui/star-gold.png');
+    opacity: 1;
 }
 
 /* La piste : le rail est piloté par les plaques du kit, pas par le dégradé.
    La plaque orange du meneur redouble le liseré, elle ne le remplace pas :
    l'étoile porte la même information sans dépendre de la couleur. */
 [data-color-theme="paper"] .leaderboard-mini__rail {
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface-soft);
-  height: 14px;                              /* 8px -> 14px : le sprite a besoin de corps */
+    border: .15em solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface-soft);
+    height: 1.077em;
+    /* 8px -> 14px : le sprite a besoin de corps */
 }
+
 [data-color-theme="paper"] .leaderboard-mini__fill {
-  background-color: transparent;
-  background-image: url('/paper-ui/bar-d.png');   /* plaque bleue */
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  box-shadow: none;
+    background-color: transparent;
+    background-image: url('/paper-ui/bar-d.png');
+    /* plaque bleue */
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    box-shadow: none;
 }
+
 [data-color-theme="paper"] .leaderboard-mini__item--leader .leaderboard-mini__fill {
-  background-image: url('/paper-ui/bar-a.png');   /* plaque orange */
+    background-image: url('/paper-ui/bar-a.png');
+    /* plaque orange */
 }
+
 [data-color-theme="paper"] .leaderboard-mini__item--leader .leaderboard-mini__token::before {
-  content: '';
-  width: 16px; height: 15px; margin-right: 3px; flex: none;
-  background: center / contain no-repeat url('/paper-ui/ico-star.png');
+    content: '';
+    width: 1.231em;
+    height: 1.154em;
+    margin-right: .231em;
+    flex: none;
+    background: center / contain no-repeat url('/paper-ui/ico-star.png');
 }
 
 /* Paper Quest — habillage des menus. Les sprites du kit papier ne s'appliquent
    qu'ici : sous un autre thème, arcade.css laisse les menus en jetons purs. */
 [data-color-theme="paper"] .arcade__title h1,
 [data-color-theme="paper"] .arcade__bar h1 {
-  font-family: 'Irish Grover', var(--font-sans);
-  color: #fff7e2;
-  -webkit-text-stroke: 3px var(--color-border);
-  paint-order: stroke fill;
+    font-family: 'Irish Grover', var(--font-sans);
+    color: #fff7e2;
+    -webkit-text-stroke: .139em var(--color-border);
+    paint-order: stroke fill;
 }
-[data-color-theme="paper"] .arcade__title h1 { text-shadow: 0 5px 0 rgba(86, 14, 18, .35); }
+
+[data-color-theme="paper"] .arcade__title h1 {
+    text-shadow: 0 .078em 0 rgba(86, 14, 18, .35);
+}
 
 [data-color-theme="paper"] .arcade-btn {
-  border: 0;
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/paper-ui/bar-b.png');
-  border-image-slice: 0 40 fill;
-  border-image-width: 0 18px;
-  border-image-repeat: stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: #3a1408;
-  text-shadow: 0 1px 0 rgba(255, 247, 226, .45);
+    border: 0;
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/bar-b.png');
+    border-image-slice: 0 40 fill;
+    border-image-width: 0 1.059em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #3a1408;
+    text-shadow: 0 .059em 0 rgba(255, 247, 226, .45);
 }
-[data-color-theme="paper"] .arcade-btn:hover:not(:disabled) { background: none; filter: brightness(1.07); }
-[data-color-theme="paper"] .arcade-btn:active:not(:disabled) { background: none; filter: brightness(.94); }
+
+[data-color-theme="paper"] .arcade-btn:hover:not(:disabled) {
+    background: none;
+    filter: brightness(1.07);
+}
+
+[data-color-theme="paper"] .arcade-btn:active:not(:disabled) {
+    background: none;
+    filter: brightness(.94);
+}
+
 [data-color-theme="paper"] .arcade-btn:disabled {
-  border-image-source: url('/paper-ui/bar-e.png');
-  opacity: 1;
-  color: rgba(58, 20, 8, .55);
+    border-image-source: url('/paper-ui/bar-e.png');
+    opacity: 1;
+    color: rgba(58, 20, 8, .55);
 }
+
 [data-color-theme="paper"] .arcade-btn--primary {
-  border-image-source: url('/paper-ui/bar-a.png');
-  background: none;
-  color: #3a1408;
+    border-image-source: url('/paper-ui/bar-a.png');
+    background: none;
+    color: #3a1408;
 }
+
 [data-color-theme="paper"] .arcade-btn--danger {
-  border-image-source: url('/paper-ui/bar-c.png');
-  color: #fff7e2;
-  text-shadow: 0 1px 0 rgba(83, 13, 17, .6);
+    border-image-source: url('/paper-ui/bar-c.png');
+    color: #fff7e2;
+    text-shadow: 0 .059em 0 rgba(83, 13, 17, .6);
 }
+
 [data-color-theme="paper"] .arcade-btn--icon {
-  border-image: none;
-  border: 0;
-  font-size: 0;
-  width: 54px;
-  background: center / contain no-repeat url('/paper-ui/ico-left.png');
+    border-image: none;
+    border: 0;
+    /* Le libellé « ‹ » est masqué par la couleur, pas par `font-size: 0` : toute
+     longueur en em de cette règle se résoudrait alors contre 0 et la largeur
+     ci-dessous s'effondrerait. */
+    color: transparent;
+    width: 2.25em;
+    background: center / contain no-repeat url('/paper-ui/ico-left.png');
 }
 
 [data-color-theme="paper"] .arcade-plaque,
 [data-color-theme="paper"] .arcade-card {
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/paper-ui/frame.png');
-  border-image-slice: 110 fill;
-  border-image-width: 26px;
-  border-image-repeat: round; /* les coutures se répètent au lieu de s'étirer */
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/frame.png');
+    border-image-slice: 110 fill;
+    border-image-width: 1.733em;
+    border-image-repeat: round;
+    /* les coutures se répètent au lieu de s'étirer */
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
 }
-[data-color-theme="paper"] .arcade-card { padding: var(--space-8) var(--space-6); }
-[data-color-theme="paper"] .arcade-plaque--slim { padding: var(--space-4) var(--space-6); }
+
+[data-color-theme="paper"] .arcade-card {
+    padding: var(--space-8) var(--space-6);
+}
+
+[data-color-theme="paper"] .arcade-plaque--slim {
+    padding: var(--space-4) var(--space-6);
+}
+
 [data-color-theme="paper"] .arcade-card--active {
-  border-color: transparent;
-  box-shadow: none;
-  filter: drop-shadow(0 4px 10px rgba(86, 14, 18, .3));
+    border-color: transparent;
+    box-shadow: none;
+    filter: drop-shadow(0 .267em .667em rgba(86, 14, 18, .3));
 }
+
 [data-color-theme="paper"] .arcade-card--active .arcade-card__name::after {
-  content: '';
-  display: inline-block;
-  width: 18px;
-  height: 20px;
-  margin-left: 6px;
-  vertical-align: -3px;
-  background: center / contain no-repeat url('/paper-ui/star-gold.png');
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1.111em;
+    margin-left: .333em;
+    vertical-align: -.167em;
+    background: center / contain no-repeat url('/paper-ui/star-gold.png');
 }
+
+/* Décompte de victoires d'une session : la TUILE trophée. L'objet trophy.png
+   reste réservé à la première marche du podium. */
 [data-color-theme="paper"] .arcade-trophy::before {
-  content: '';
-  width: 22px;
-  height: 26px;
-  background: center / contain no-repeat url('/paper-ui/trophy.png');
+    content: '';
+    width: 1.5em;
+    height: 1.375em;
+    background: center / contain no-repeat url('/paper-ui/ico-trophy.png');
 }
+
 [data-color-theme="paper"] .arcade--setup #btn-start {
-  border: 0;
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/paper-ui/bar-a.png');
-  border-image-slice: 0 40 fill;
-  border-image-width: 0 18px;
-  border-image-repeat: stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: #3a1408;
-  font-size: 21px;
+    border: 0;
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/bar-a.png');
+    border-image-slice: 0 40 fill;
+    border-image-width: 0 .857em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #3a1408;
+    font-size: 1.4em;
+}
+
+/* ===================================================================
+ * PAPER QUEST — le kit sur les écrans de jeu
+ * ===================================================================
+ * Deux contraintes décident de tout :
+ *   1. `border-image` ne réserve pas d'espace : padding ≥ border-image-width,
+ *      sinon le cadre recouvre le texte ;
+ *   2. les plaques peintes (bar-*.png) sont de luminance moyenne : aucune encre
+ *      n'y atteint 4,5:1. Elles ne portent que du grand texte, ou rien.
+ * Les longueurs sont en em de l'élément lui-même (1em du body = 13 px de maquette).
+ * =================================================================== */
+
+/* Question et réponses : la feuille froissée. PAS de `fill` : le centre du
+   sprite porte l'ombre du froissé, qui s'étire en traînée diagonale. On ne
+   garde que le bord déchiré, sur la teinte exacte du papier (#fdfdeb). */
+[data-color-theme="paper"] .question-card,
+[data-color-theme="paper"] .answer-card {
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/paper.png');
+    border-image-slice: 60;
+    border-image-width: 1.385em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    background: #fdfdeb;
+    box-shadow: none;
+}
+
+[data-color-theme="paper"] .question-card {
+    padding: clamp(1.846em, 2.5vw, 3.077em);
+}
+
+[data-color-theme="paper"] .answer-card {
+    padding: var(--space-6);
+}
+
+/* Panneaux de réglages : le même parchemin lacé que les menus */
+[data-color-theme="paper"] .panel {
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/frame.png');
+    border-image-slice: 110 fill;
+    border-image-width: 2em;
+    border-image-repeat: round;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    padding: var(--space-8);
+}
+
+/* Pastille A/B/C/D : parchemin cerné d'encre, pas de plaque peinte (la lettre
+   est sous le seuil « grand texte »). Les variantes bonne réponse / option
+   drôle de components.css passent après et gardent leur aplat. */
+[data-color-theme="paper"] .option-card__key {
+    border: .133em solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--color-text);
+}
+
+/* CTA de l'écran de jeu : même plaque orange que #btn-start, même libellé
+   agrandi pour rester en « grand texte ». */
+[data-color-theme="paper"] #btn-reveal {
+    border: 0;
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/paper-ui/bar-a.png');
+    border-image-slice: 0 40 fill;
+    border-image-width: 0 .857em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #3a1408;
+    font-size: 1.4em;
+}
+
+/* Chrono : rectangle cerné, plus une pilule */
+[data-color-theme="paper"] .timer {
+    border: .125em solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+/* Verrouillage : un joueur éliminé et un avatar déjà pris sont le même état.
+   Le cadenas se pose EN COIN : on doit toujours savoir de qui il s'agit. */
+[data-color-theme="paper"] .player-picker__item:disabled,
+[data-color-theme="paper"] .emoji-picker__item:disabled {
+    opacity: 1;
+    background-color: var(--bg-surface-soft);
+}
+
+/* .player-picker__item est déjà en position absolue : ne pas l'écraser */
+[data-color-theme="paper"] .emoji-picker__item:disabled {
+    position: relative;
+}
+
+[data-color-theme="paper"] .player-picker__item:disabled::before,
+[data-color-theme="paper"] .emoji-picker__item:disabled::before {
+    content: '';
+    position: absolute;
+    background: center / contain no-repeat url('/paper-ui/lock.png');
+}
+
+[data-color-theme="paper"] .player-picker__item:disabled::before {
+    right: -.136em;
+    bottom: -.136em;
+    width: .818em;
+    height: .818em;
+}
+
+[data-color-theme="paper"] .emoji-picker__item:disabled::before {
+    right: -.158em;
+    bottom: -.158em;
+    width: .947em;
+    height: .947em;
+}
+
+/* Suppression d'un joueur : la tuile ✕ remplace le glyphe, masqué par la
+   couleur (font-size: 0 effondrerait les dimensions en em). */
+[data-color-theme="paper"] .player-card__remove,
+[data-color-theme="paper"] .player-card__remove:hover {
+    border: 0;
+    color: transparent;
+    background: center / contain no-repeat url('/paper-ui/ico-close.png');
+}
+
+[data-color-theme="paper"] .add-player-btn::before {
+    content: '';
+    width: 1.571em;
+    height: 1.429em;
+    margin-right: .571em;
+    background: center / contain no-repeat url('/paper-ui/ico-plus.png');
+}
+
+/* Ce bouton ramène au menu principal : c'est une maison, pas une flèche. */
+[data-color-theme="paper"] #btn-home {
+    background-image: url('/paper-ui/ico-home.png');
+}
+
+/* Tuiles devant les entrées de menu : elles annoncent, le libellé reste sur
+   la plaque. */
+[data-color-theme="paper"] #btn-sessions::before,
+[data-color-theme="paper"] #btn-app-settings::before {
+    content: '';
+    width: 1.765em;
+    height: 1.629em;
+    margin-right: .679em;
+    flex: none;
+    background: center / contain no-repeat;
+}
+
+[data-color-theme="paper"] #btn-sessions::before {
+    background-image: url('/paper-ui/ico-list.png');
+}
+
+[data-color-theme="paper"] #btn-app-settings::before {
+    background-image: url('/paper-ui/ico-gear.png');
+}
+
+/* Mode sélectionné : sa bordure d'accent a la teinte de TOUTES les bordures
+   de ce thème, donc invisible. L'étoile le dit sans dépendre de la couleur. */
+[data-color-theme="paper"] .mode-card--on {
+    background: var(--bg-surface-soft);
+    box-shadow: 0 .231em 0 rgba(86, 14, 18, .3);
+}
+
+[data-color-theme="paper"] .mode-card--on .mode-card__name::after {
+    content: '';
+    display: inline-block;
+    width: 1.143em;
+    height: 1.22em;
+    margin-left: .381em;
+    vertical-align: -.229em;
+    background: center / contain no-repeat url('/paper-ui/star-gold.png');
 }
 
 /* Bubble Island — mêmes surfaces et boutons que ses écrans de jeu. */
 [data-color-theme="bubble-island"] .arcade-btn {
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/bubble-island/btn-normal.png');
-  border-image-slice: 350 fill;
-  border-image-width: 22px;
-  border-image-repeat: stretch;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--accent-contrast);
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/bubble-island/btn-normal.png');
+    border-image-slice: 350 fill;
+    border-image-width: 1.294em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-contrast);
 }
+
 [data-color-theme="bubble-island"] .arcade-btn:hover:not(:disabled) {
-  border-image-source: url('/bubble-island/btn-hover.png');
-  background: none;
+    border-image-source: url('/bubble-island/btn-hover.png');
+    background: none;
 }
+
 [data-color-theme="bubble-island"] .arcade-btn:active:not(:disabled) {
-  border-image-source: url('/bubble-island/btn-click.png');
-  background: none;
+    border-image-source: url('/bubble-island/btn-click.png');
+    background: none;
 }
+
 [data-color-theme="bubble-island"] .arcade-btn:disabled {
-  border-image-source: url('/bubble-island/btn-lock.png');
-  opacity: 1;
+    border-image-source: url('/bubble-island/btn-lock.png');
+    opacity: 1;
 }
+
 [data-color-theme="bubble-island"] .arcade-btn--icon {
-  border-image-source: url('/bubble-island/btn-round-normal.png');
-  border-image-slice: 348 fill;
-  border-image-width: 50%;
+    border-image-source: url('/bubble-island/btn-round-normal.png');
+    border-image-slice: 348 fill;
+    border-image-width: 50%;
 }
+
 [data-color-theme="bubble-island"] .arcade-plaque,
 [data-color-theme="bubble-island"] .arcade-card {
-  border-style: solid;
-  border-width: 0;
-  border-image-source: url('/bubble-island/panel.png');
-  border-image-slice: 110;
-  border-image-width: 12px;
-  border-image-repeat: stretch;
-  border-radius: 0;
-  backdrop-filter: blur(20px) saturate(1.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+    border-style: solid;
+    border-width: 0;
+    border-image-source: url('/bubble-island/panel.png');
+    border-image-slice: 110;
+    border-image-width: .8em;
+    border-image-repeat: stretch;
+    border-radius: 0;
+    backdrop-filter: blur(1.333em) saturate(1.7);
+    -webkit-backdrop-filter: blur(1.333em) saturate(1.7);
 }
+
 [data-color-theme="bubble-island"] .arcade-trophy::before {
-  content: '';
-  width: 22px;
-  height: 24px;
-  background: center / contain no-repeat url('/bubble-island/medal-gold.png');
+    content: '';
+    width: 1.375em;
+    height: 1.5em;
+    background: center / contain no-repeat url('/bubble-island/medal-gold.png');
 }
 
 /* ===== Polices d'affichage par thème (Google Fonts, licences OFL) =====
@@ -1061,78 +1480,86 @@ h1, h2 { text-shadow: var(--text-glow); }
  * ne tiennent pas la lecture à 13px.
  */
 @font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/jetbrains-mono-700.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/jetbrains-mono-700.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Share Tech Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/share-tech-mono-400.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Share Tech Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/share-tech-mono-400.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Comfortaa';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/comfortaa-700.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Comfortaa';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/comfortaa-700.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Silkscreen';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/silkscreen-400.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Silkscreen';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/silkscreen-400.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Silkscreen';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/silkscreen-700.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
-    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
-    U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Silkscreen';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/silkscreen-700.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+        U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+        U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Alfa Slab One';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/alfa-slab-one-400.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Alfa Slab One';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/alfa-slab-one-400.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Fredoka';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/fredoka-600.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Fredoka';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fonts/fredoka-600.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/inter-700.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/inter-700.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
 @font-face {
-  font-family: 'Baloo 2';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/baloo2-700.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    font-family: 'Baloo 2';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/baloo2-700.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
