@@ -13,6 +13,7 @@ let socket = null;
 let clientId = null;
 let myName = '';
 let myEmoji = '';
+let lastQuestion = null;
 
 function loadPlayerIdentity() {
   try {
@@ -218,7 +219,16 @@ function renderWaiting(players) {
     <p class="join-waiting">${escapeHtml(myName)}, tu es connecté·e&nbsp;!</p>
     <p class="join-waiting-hint">Joueurs connectés : ${players.length}${list ? ` — ${list}` : ''}</p>
     <p class="join-waiting-hint">En attente du début de la partie…</p>
+    <button id="btn-change-identity" class="player-change" type="button">Changer de nom / avatar</button>
   `;
+  body.querySelector('#btn-change-identity').addEventListener('click', resetIdentity);
+}
+
+function resetIdentity() {
+  // On oublie l'identité persistée puis on recharge : l'écran de connexion
+  // réapparaît (nouveau clientId).
+  try { localStorage.removeItem(PLAYER_STORAGE_KEY); } catch { /* ignore */ }
+  location.reload();
 }
 
 function renderStarted() {
@@ -231,6 +241,7 @@ function renderStarted() {
 }
 
 function renderQuestion(payload) {
+  lastQuestion = payload;
   const body = document.querySelector('.join__body');
   const options = (payload.options || []).map(o => `
     <button type="button" class="option-card" data-key="${escapeHtml(o.key)}">
@@ -278,15 +289,22 @@ function startPlayerTimer(deadline) {
 
 function renderPlayerReveal(payload) {
   const body = document.querySelector('.join__body');
+  const answerText = lastQuestion?.options?.find(o => o.key === payload.answer)?.text || payload.answer;
+  const funnyText = lastQuestion?.options?.find(o => o.key === payload.funnyOption)?.text || '';
   const mine = (payload.results || []).find(r => r.id === clientId);
   const correct = mine && mine.answered === payload.answer;
+  const penalty = mine?.penalty || 0;
+
   body.innerHTML = `
     <div class="question-meta">
       <span class="badge badge--${correct ? 'easy' : 'hard'}">${correct ? '✔ Bonne réponse' : '✕ Raté'}</span>
+      ${penalty > 0 ? `<span class="badge badge--hard">−${penalty}</span>` : ''}
+      ${mine?.eliminated ? '<span class="badge badge--hard">☠ Éliminé</span>' : ''}
     </div>
-    <h2 class="player-question">Bonne réponse&nbsp;: ${escapeHtml(payload.answer)}</h2>
+    <h2 class="player-question">Bonne réponse&nbsp;: ${escapeHtml(answerText)}</h2>
+    ${funnyText && funnyText !== answerText ? `<p class="player-reveal">😄 L'option drôle&nbsp;: ${escapeHtml(funnyText)}</p>` : ''}
     ${payload.explanation ? `<p class="player-reveal">${escapeHtml(payload.explanation)}</p>` : ''}
-    <p class="join-waiting-hint">Ton score&nbsp;: ${mine?.score ?? 0} pt</p>
+    <ul class="player-leaderboard">${leaderboardHtml(payload.results || [], 'score')}</ul>
   `;
 }
 
@@ -296,6 +314,7 @@ function renderMancheEnd(payload) {
   body.innerHTML = `
     <p class="join-waiting__emoji" aria-hidden="true">${winner ? winner.emoji : '🏅'}</p>
     <p class="join-waiting">${winner ? `${escapeHtml(winner.name)} remporte la manche&nbsp;!` : 'Manche terminée'}</p>
+    <ul class="player-leaderboard">${leaderboardHtml(payload.players || [], 'score')}</ul>
     <p class="join-waiting-hint">Prochaine question à venir…</p>
   `;
 }
@@ -306,6 +325,26 @@ function renderVictory(payload) {
   body.innerHTML = `
     <p class="join-waiting__emoji" aria-hidden="true">🏆</p>
     <p class="join-waiting">${winner ? `${escapeHtml(winner.name)} gagne la partie&nbsp;!` : 'Partie terminée'}</p>
+    <ul class="player-leaderboard">${leaderboardHtml(payload.players || [], 'manchesWon')}</ul>
     <p class="join-waiting-hint">Merci d'avoir joué&nbsp;!</p>
   `;
+}
+
+function leaderboardHtml(players, sortBy) {
+  return [...players]
+    .sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0) || (b.score || 0) - (a.score || 0))
+    .map((p, i) => {
+      const me = p.id === clientId;
+      const manches = p.manchesWon != null ? (p.manchesWon > 0 ? '🏆'.repeat(Math.min(p.manchesWon, 5)) : '·') : '';
+      return `
+        <li class="player-row${me ? ' player-row--me' : ''}">
+          <span class="player-row__rank">${i + 1}</span>
+          <span class="player-row__emoji" aria-hidden="true">${p.emoji}</span>
+          <span class="player-row__name">${escapeHtml(p.name)}${me ? ' · toi' : ''}</span>
+          ${manches ? `<span class="player-row__manches" aria-label="${p.manchesWon} manche(s) gagnée(s)">${manches}</span>` : ''}
+          <span class="player-row__score">${p.score ?? 0} pt</span>
+        </li>
+      `;
+    })
+    .join('');
 }

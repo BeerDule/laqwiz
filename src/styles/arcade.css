@@ -483,6 +483,57 @@
   color: var(--color-muted);
 }
 
+/* Classement côté joueur */
+.player-leaderboard {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+}
+.player-row--me {
+  border-color: var(--color-accent-primary);
+  background-color: var(--bg-surface-soft);
+}
+.player-row__rank {
+  min-width: 1.2em;
+  color: var(--color-muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.player-row__emoji { font-size: 1.2em; }
+.player-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-row__score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.player-row__manches { letter-spacing: .1em; }
+.player-change {
+  margin-top: var(--space-2);
+  align-self: center;
+  font: inherit;
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 /* Mobile : un peu plus serré, la frise tient sur une ligne. */
 @media (max-width: 47.938em) {
   .arcade--join { padding: var(--space-3); gap: var(--space-2); }
