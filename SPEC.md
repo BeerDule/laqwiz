@@ -164,6 +164,7 @@ quizz-canape/
     ├── wikipedia.js              # recherche et fenêtre de sections
     ├── shareConfig.js            # config LLM encodée en URL (base64url)
     ├── themeSwitcher.js          # thème de couleurs (data-color-theme)
+    ├── mechaBackdrop.js          # fond animé <canvas> du thème Mecha
     ├── confetti.js               # animation canvas victoire
     ├── validation.js             # validateQuestion(), parseQuestions()
     ├── constants.js              # avatars, couleurs, BUILTIN_MODES, DEFAULTS, STORAGE_KEYS
@@ -177,7 +178,7 @@ quizz-canape/
     │   ├── sessions.js           # gestionnaire de sessions
     │   └── settings.js           # réglages globaux de l'appareil
     └── styles/
-        ├── theme.css             # jetons + 10 thèmes de couleurs
+        ├── theme.css             # jetons + 11 thèmes de couleurs
         ├── layout.css            # mise en page + garde [hidden]
         ├── components.css        # composants
         └── arcade.css            # coquille « jeu vidéo » (structure + jetons)
@@ -1789,7 +1790,7 @@ pas dans l'état : le formulaire reste la vérité jusqu'à la soumission.
 
 Cliquer sur l'avatar d'un joueur ouvre une grille des 30 `PLAYER_EMOJIS`, **rangée pleine
 largeur dans la grille de la carte** (`grid-column: 1 / -1`) et non flottant positionné :
-pas de `z-index` à arbitrer entre les dix thèmes, rien qui déborde d'un conteneur à
+pas de `z-index` à arbitrer entre les onze thèmes, rien qui déborde d'un conteneur à
 `overflow` caché.
 
 - Les avatars pris par un **autre** joueur sont `disabled`, pas masqués : on comprend pourquoi
