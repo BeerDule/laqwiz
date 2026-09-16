@@ -1622,9 +1622,141 @@ input[type='range']::-moz-range-thumb {
   animation: bar-shimmer 2.4s linear infinite;
 }
 
+/* ===== Vue joueur sur téléphone (/join/CODE) ===== */
+.join-screen {
+  max-width: 40em;
+  margin-inline: auto;
+  gap: var(--space-4);
+}
+.join-title { margin-block: var(--space-4) 0; }
+.join-code { font-family: var(--font-mono); letter-spacing: .12em; }
+.join-muted { margin: 0; color: var(--color-muted); }
 
+/* Choix du joueur : grandes cibles tactiles */
+.join-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8em, 1fr));
+  gap: var(--space-3);
+}
+.join-player {
+  position: relative;
+  justify-items: center;
+  gap: var(--space-2);
+  border-width: .15em;
+  border-color: var(--pc, var(--color-border));
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.join-player:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.join-player[aria-pressed='true'] { outline: .2em solid var(--color-accent-primary); outline-offset: .2em; }
+.join-player__emoji { font-size: 2.6em; line-height: 1; }
+.join-player__name { font-weight: 700; font-size: 1.1em; }
+.join-player__taken {
+  font-size: .75em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-muted);
+}
+.join-confirm { width: 100%; margin-top: auto; }
 
+/* Bandeau du joueur */
+.join-bar {
+  position: sticky;
+  top: calc(var(--space-2) + env(safe-area-inset-top, 0em));
+  z-index: 10;
+  flex-wrap: nowrap;
+}
+.join-bar__name { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.join-bar__manche { margin-left: auto; color: var(--color-muted); font-size: .85em; white-space: nowrap; }
+.join-bar__score {
+  font-family: var(--font-display, var(--font-mono));
+  font-weight: 700;
+  font-size: 1.3em;
+  color: var(--color-accent-primary);
+  white-space: nowrap;
+}
+.join-bar__score small { font-size: .6em; color: var(--color-muted); }
 
+.join-body { display: grid; gap: var(--space-4); }
+.join-question h2 { font-size: 1.35em; }
 
+/* Réponses : boutons pleine largeur */
+.join-answers { display: grid; gap: var(--space-3); }
+.join-answer {
+  width: 100%;
+  min-height: 3.6em;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.join-answer:disabled { cursor: not-allowed; opacity: .6; transform: none; }
+.join-answer--picked {
+  border-width: .15em;
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-pop), var(--shadow-2);
+}
+.join-answer--picked .option-card__key {
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  color: var(--accent-contrast);
+}
+.join-mine {
+  margin-left: auto;
+  font-size: .75em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  color: var(--color-accent-primary);
+}
+.join-status { margin: var(--space-3) 0 0; font-weight: 600; color: var(--color-muted); }
+.join-status--sent { color: var(--color-success); }
+.join-status--locked { color: var(--color-error); }
+.join-result { margin: 0 0 var(--space-3); font-size: 1.2em; }
 
+/* Attente et exclusion */
+.join-wait { display: grid; justify-items: center; gap: var(--space-3); text-align: center; }
+.join-wait h2 { margin: 0; }
+.join-roster { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
+.join-out__icon { font-size: 3em; line-height: 1; }
+.join-out h2 { color: var(--color-error); }
 
+/* Classements : la ligne du joueur ressort */
+.join-screen .podium__row {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: .4em;
+  padding-inline: .6em;
+}
+.join-screen .podium__row .answer-card__score { white-space: nowrap; }
+.join-me { outline: .15em solid var(--color-accent-primary); outline-offset: .15em; }
+.join-victory { color: var(--color-accent-primary); }
+
+/* Barre de démo (dev uniquement) */
+.join-demo {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  display: flex;
+  gap: .4em;
+  overflow-x: auto;
+  padding: .5em .75em calc(.5em + env(safe-area-inset-bottom, 0em));
+  background: rgba(0, 0, 0, .8);
+  font-size: .75em;
+}
+.join-demo__btn {
+  flex-shrink: 0;
+  padding: .35em .8em;
+  border: .1em dashed rgba(255, 255, 255, .5);
+  border-radius: 999em;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.join-demo__btn.is-active { background: #fff; color: #000; }
+.join-screen:has(~ .join-demo) { padding-bottom: 4em; }

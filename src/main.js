@@ -13,6 +13,7 @@ import { renderVictory, unmountVictory } from './screens/victory.js';
 import { renderSessions, unmountSessions } from './screens/sessions.js';
 import { renderHome, unmountHome } from './screens/home.js';
 import { renderSettings, unmountSettings } from './screens/settings.js';
+import { parseJoinCode, renderJoin } from './screens/join.js';
 import { initColorTheme, setColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
@@ -178,6 +179,11 @@ const MOUNTERS = {
 };
 let currentPhase = null;
 
+// Lien d'invitation (/join/CODE) : la vue joueur remplace les écrans du MJ,
+// sans barre de navigation.
+const joinCode = parseJoinCode(window.location.pathname);
+if (joinCode) renderJoin(app, joinCode);
+
 function mountScreen(phase) {
   if (currentPhase && UNMOUNTERS[currentPhase]) UNMOUNTERS[currentPhase]();
   app.innerHTML = '';
@@ -191,6 +197,10 @@ subscribe((state) => {
   saveSettings(state.settings);
   saveLlmConfig(state.llm);
 
+  if (joinCode) {
+    syncAppNav(null);
+    return;
+  }
   if (state.phase !== currentPhase) {
     mountScreen(state.phase);
   }
