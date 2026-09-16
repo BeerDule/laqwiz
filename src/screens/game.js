@@ -3,6 +3,7 @@ import { getState, dispatch, subscribe, hasMancheWinner, manchesNeeded, retryGen
 import { DIFFICULTY_LABELS } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
+import { confirmDialog } from '../components/dialog.js';
 
 let teardown = null;
 let root = null;
@@ -486,13 +487,21 @@ function selectAnswer(playerId, key) {
   syncBoard();
 }
 
-function confirmQuit() {
-  if (window.confirm('Quitter la partie et revenir aux réglages ?')) {
+async function confirmQuit() {
+  if (await confirmDialog({
+    title: 'Quitter la partie',
+    message: 'Quitter la partie et revenir aux réglages ?',
+    confirmLabel: 'Quitter',
+  })) {
     dispatch({ type: 'NEW_GAME' });
   }
 }
 
 function onKeydown(e) {
+  // Un dialogue modal ouvert capte le clavier : ne pas piloter la partie
+  // derrière lui (les touches 1-4 répondraient encore, Échap rouvrirait
+  // « quitter » par-dessus le dialogue).
+  if (document.querySelector('dialog.modal[open]')) return;
   if (e.key === 'Escape') {
     if (picker) { closePlayerPicker(); return; }
     confirmQuit();

@@ -8,6 +8,7 @@ import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitc
 import { buildShareUrl } from '../shareConfig.js';
 import { wipeLocalStorage } from '../storage.js';
 import { clearArchive } from '../db.js';
+import { confirmDialog } from '../components/dialog.js';
 
 let teardown = null;
 let root = null;
@@ -205,19 +206,20 @@ export function renderSettings(rootEl) {
   }, { signal });
 
   root.querySelector('#btn-cleanup').addEventListener('click', async () => {
-    // Double confirmation : l'action est irréversible et détruit des parties
-    // qu'on ne peut pas reconstituer. La seconde demande de taper un mot, pour
-    // qu'un double-clic accidentel ne suffise pas.
-    if (!window.confirm(
-      'Réinitialiser cet appareil ?\n\n'
-      + 'Sessions, parties terminées, parties en cours, statistiques, joueurs, '
-      + 'thème et configuration LLM seront effacés. Vos modes de jeu sont conservés.\n\n'
-      + 'Cette action est définitive.'
-    )) return;
-    if (window.prompt('Pour confirmer, tapez : EFFACER') !== 'EFFACER') {
-      dispatchToast('Réinitialisation annulée.', 'info');
-      return;
-    }
+    // Confirmation avec saisie : l'action est irréversible et détruit des
+    // parties qu'on ne peut pas reconstituer. Le bouton ne se débloque qu'une
+    // fois le mot « EFFACER » tapé, pour qu'un double-clic accidentel ne
+    // suffise pas.
+    if (!await confirmDialog({
+      title: 'Réinitialiser cet appareil ?',
+      message: 'Sessions, parties terminées, parties en cours, statistiques, '
+        + 'joueurs, thème et configuration LLM seront effacés. Vos modes de jeu '
+        + 'sont conservés.\n\nCette action est définitive.',
+      confirmLabel: 'Réinitialiser',
+      danger: true,
+      confirmText: 'EFFACER',
+      confirmTextHint: 'Pour confirmer, tapez : EFFACER',
+    })) return;
 
     // L'archive d'abord. Si elle résiste, on s'arrête AVANT de toucher à
     // localStorage : mieux vaut un appareil intact qu'un appareil à moitié

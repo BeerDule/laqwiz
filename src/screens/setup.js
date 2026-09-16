@@ -10,6 +10,7 @@ import {
   MODE_NAME_MAX_LENGTH,
 } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+import { confirmDialog, promptDialog } from '../components/dialog.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
 import { listResumes } from '../db.js';
 import {
@@ -541,10 +542,22 @@ function addPlayer() {
 }
 
 /** Demande nom puis emoji. Renvoie null si le MJ annule ou laisse vide. */
-function askModeIdentity(nomActuel = '', emojiActuel = '') {
-  const nom = window.prompt(`Nom du mode (${MODE_NAME_MAX_LENGTH} caractères max)`, nomActuel);
-  if (nom === null || !nom.trim()) return null;
-  const emoji = window.prompt('Emoji du mode (laissez vide pour 🎲)', emojiActuel);
+async function askModeIdentity(nomActuel = '', emojiActuel = '') {
+  const nom = await promptDialog({
+    title: 'Nom du mode',
+    label: `Nom du mode (${MODE_NAME_MAX_LENGTH} caractères max)`,
+    value: nomActuel,
+    maxLength: MODE_NAME_MAX_LENGTH,
+    confirmLabel: 'Suivant',
+  });
+  if (nom === null) return null;
+  const emoji = await promptDialog({
+    title: 'Emoji du mode',
+    label: 'Emoji du mode (laissez vide pour 🎲)',
+    value: emojiActuel,
+    required: false,
+    confirmLabel: 'Créer',
+  });
   if (emoji === null) return null;
   return { name: nom, emoji: emoji.trim() || emojiActuel || '🎲' };
 }
@@ -559,10 +572,10 @@ function refreshModes() {
 
 function wireModes(signal) {
   // Délégation : cartes et boutons sont réécrits à chaque rendu.
-  root.querySelector('#modes-list').addEventListener('click', (e) => {
+  root.querySelector('#modes-list').addEventListener('click', async (e) => {
     const neuf = e.target.closest('[data-mode-new]');
     if (neuf) {
-      const ident = askModeIdentity();
+      const ident = await askModeIdentity();
       if (!ident) return;
       createMode(ident.name, ident.emoji, readRules())
         .then(mode => refreshModes().then(() => {
@@ -584,14 +597,14 @@ function wireModes(signal) {
     updateStartButton();
   }, { signal });
 
-  root.querySelector('#mode-actions').addEventListener('click', (e) => {
+  root.querySelector('#mode-actions').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-mode-act]');
     if (!btn) return;
     const acte = btn.dataset.modeAct;
     const mode = currentMode();
 
     if (acte === 'saveas') {
-      const ident = askModeIdentity();
+      const ident = await askModeIdentity();
       if (!ident) return;
       createMode(ident.name, ident.emoji, readRules())
         .then(cree => refreshModes().then(() => {
@@ -614,7 +627,7 @@ function wireModes(signal) {
       renderModeStatus();
       updateStartButton();
     } else if (acte === 'rename') {
-      const ident = askModeIdentity(mode.name, mode.emoji);
+      const ident = await askModeIdentity(mode.name, mode.emoji);
       if (!ident) return;
       updateMode(mode, ident).then(() => refreshModes().then(renderModes));
     } else if (acte === 'reset') {
@@ -625,7 +638,12 @@ function wireModes(signal) {
         dispatchToast(`« ${frais.name} » réinitialisé.`);
       }));
     } else if (acte === 'delete') {
-      if (!window.confirm(`Supprimer le mode « ${mode.name} » ? Les règles actuelles restent en place.`)) return;
+      if (!await confirmDialog({
+        title: 'Supprimer le mode',
+        message: `Supprimer le mode « ${mode.name} » ? Les règles actuelles restent en place.`,
+        confirmLabel: 'Supprimer',
+        danger: true,
+      })) return;
       removeMode(mode).then(() => refreshModes().then(() => {
         // Les règles du formulaire ne bougent pas : on supprime une étiquette,
         // pas la partie que le MJ est en train de préparer.
@@ -735,7 +753,7 @@ function wireEvents(signal) {
 
   // Délégation : la liste est réécrite à chaque rendu, un écouteur par bouton
   // serait perdu au premier redessin.
-  root.querySelector('#resume-list').addEventListener('click', (e) => {
+  root.querySelector('#resume-list').addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-resume-action]');
     if (!btn) return;
     const partieId = btn.closest('.resume-item')?.dataset.partie;
@@ -745,7 +763,12 @@ function wireEvents(signal) {
 
     if (btn.dataset.resumeAction === 'resume') {
       dispatch({ type: 'RESUME_PARTIE', snapshot });
-    } else if (window.confirm('Supprimer définitivement cette partie interrompue ?')) {
+    } else if (await confirmDialog({
+      title: 'Supprimer la partie interrompue',
+      message: 'Supprimer définitivement cette partie interrompue ?',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })) {
       dispatch({ type: 'DISCARD_RESUME', partieId });
       renderResumeBanner();
     }

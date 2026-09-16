@@ -3,6 +3,7 @@
 import { getState, dispatch } from '../state.js';
 import { listSessions, listParties, deleteSession, listResumes } from '../db.js';
 import { playerChip, playerChips } from '../components/playerChip.js';
+import { confirmDialog } from '../components/dialog.js';
 
 let teardown = null;
 let root = null;
@@ -139,7 +140,12 @@ export function renderSessions(rootEl) {
     if (!session || !root) return;
 
     if (btn.dataset.action === 'delete') {
-      if (window.confirm(`Supprimer « ${session.name} » et ses parties ? Cette action est définitive.`)) {
+      if (await confirmDialog({
+        title: 'Supprimer la session',
+        message: `Supprimer « ${session.name} » et ses parties ? Cette action est définitive.`,
+        confirmLabel: 'Supprimer',
+        danger: true,
+      })) {
         await deleteSession(id);
         refresh();
       }

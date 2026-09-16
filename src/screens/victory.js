@@ -2,6 +2,7 @@
 import { getState, dispatch, computePartieWinner } from '../state.js';
 import { launchConfetti, stopConfetti } from '../confetti.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
+import { confirmDialog } from '../components/dialog.js';
 
 let teardown = null;
 let root = null;
@@ -76,13 +77,6 @@ export function renderVictory(rootEl) {
         <button id="btn-close-session" class="button button--ghost">Terminer la session</button>
         <button id="btn-clear" class="button button--danger button--ghost">Effacer les données locales</button>
       </div>
-      <dialog id="confirm-dialog">
-        <p>Effacer définitivement les joueurs, réglages et statistiques ?</p>
-        <form method="dialog">
-          <button value="cancel" class="button button--ghost">Annuler</button>
-          <button value="confirm" class="button button--primary">Effacer</button>
-        </form>
-      </dialog>
     </section>
   `;
 
@@ -93,16 +87,23 @@ export function renderVictory(rootEl) {
   // « Nouvelle partie » reste dans la session : le roster et l'anti-doublon survivent.
   root.querySelector('#btn-replay').addEventListener('click', () => dispatch({ type: 'NEW_GAME' }), { signal });
   root.querySelector('#btn-sessions').addEventListener('click', () => dispatch({ type: 'GOTO_SESSIONS' }), { signal });
-  root.querySelector('#btn-close-session').addEventListener('click', () => {
-    if (window.confirm('Terminer cette session ? Les parties restent consultables dans l\'historique.')) {
+  root.querySelector('#btn-close-session').addEventListener('click', async () => {
+    if (await confirmDialog({
+      title: 'Terminer la session',
+      message: 'Terminer cette session ? Les parties restent consultables dans l\'historique.',
+      confirmLabel: 'Terminer',
+    })) {
       dispatch({ type: 'CLOSE_SESSION' });
     }
   }, { signal });
 
-  const dialog = root.querySelector('#confirm-dialog');
-  root.querySelector('#btn-clear').addEventListener('click', () => dialog.showModal(), { signal });
-  dialog.addEventListener('close', () => {
-    if (dialog.returnValue === 'confirm') {
+  root.querySelector('#btn-clear').addEventListener('click', async () => {
+    if (await confirmDialog({
+      title: 'Effacer les données locales',
+      message: 'Effacer définitivement les joueurs, réglages et statistiques ?',
+      confirmLabel: 'Effacer',
+      danger: true,
+    })) {
       dispatch({ type: 'RESET_ALL' });
     }
   }, { signal });

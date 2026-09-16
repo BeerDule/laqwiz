@@ -10,22 +10,24 @@
   </head>
   <body>
     <main id="app" aria-live="polite"></main>
+    <!-- Icônes SVG inline, dessinées maison : silhouettes adoucies par un filet
+         currentColor à coins arrondis (aucune police d'icônes, aucune image). -->
     <nav id="app-nav" class="app-nav" hidden aria-label="Navigation principale">
       <span class="app-nav__brand" aria-hidden="true">Canap' QuiZZ</span>
       <button type="button" class="app-nav__item" data-nav="home">
-        <span class="app-nav__icon" aria-hidden="true">🏠</span>
+        <span class="app-nav__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path fill-rule="evenodd" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3 L20 9.8 V18.5 A2 2 0 0 1 18 20.5 H6 A2 2 0 0 1 4 18.5 V9.8 Z M9.8 13.8 H14.2 V18.2 H9.8 Z"/></svg></span>
         <span class="app-nav__label">Accueil</span>
       </button>
       <button type="button" class="app-nav__item" data-nav="sessions">
-        <span class="app-nav__icon" aria-hidden="true">📂</span>
+        <span class="app-nav__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 7.5 A2 2 0 0 1 6 5.5 H10.3 L12 7.5 H18 A2 2 0 0 1 20 9.5 V18 A2 2 0 0 1 18 20 H6 A2 2 0 0 1 4 18 Z"/></svg></span>
         <span class="app-nav__label">Sessions</span>
       </button>
       <button type="button" class="app-nav__item app-nav__item--play" data-nav="play">
-        <span class="app-nav__icon" aria-hidden="true">▶</span>
+        <span class="app-nav__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M9 6.2 V17.8 L18 12 Z"/></svg></span>
         <span class="app-nav__label">Jouer</span>
       </button>
       <button type="button" class="app-nav__item" data-nav="settings">
-        <span class="app-nav__icon" aria-hidden="true">⚙️</span>
+        <span class="app-nav__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></span>
         <span class="app-nav__label">Réglages</span>
       </button>
     </nav>

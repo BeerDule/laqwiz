@@ -216,7 +216,8 @@
 }
 .app-nav__item:hover { background: var(--bg-surface-soft); }
 .app-nav__item.is-active { color: var(--color-accent-primary); }
-.app-nav__icon { font-size: 21px; line-height: 1; }
+.app-nav__icon { display: grid; place-items: center; }
+.app-nav__icon svg { width: 22px; height: 22px; display: block; }
 .app-nav__item--play { color: var(--color-accent-primary); }
 .app-nav__item--play .app-nav__icon {
   width: 38px;
@@ -227,7 +228,6 @@
   background: var(--color-accent-primary);
   color: var(--accent-contrast);
   box-shadow: var(--shadow-pop), var(--shadow-2);
-  font-size: 16px;
 }
 
 /* Espace réservé sous la barre + toasts remontés quand elle est visible */
@@ -273,7 +273,6 @@ body.with-app-nav #toast-region {
     background: transparent;
     color: inherit;
     box-shadow: none;
-    font-size: 18px;
   }
   body.with-app-nav .arcade,
   body.with-app-nav .screen {
