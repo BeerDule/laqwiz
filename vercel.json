@@ -3,6 +3,8 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "rewrites": [
+    { "source": "/api/sessions", "destination": "/api/sessions" },
+    { "source": "/api/ws", "destination": "/api/ws" },
     { "source": "/api/(.*)", "destination": "/api/gateway" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
