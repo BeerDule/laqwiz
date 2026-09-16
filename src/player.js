@@ -184,6 +184,12 @@ function handleMessage(msg) {
     case 'game.reveal':
       renderPlayerReveal(msg.payload);
       break;
+    case 'game.manche_end':
+      renderMancheEnd(msg.payload);
+      break;
+    case 'game.victory':
+      renderVictory(msg.payload);
+      break;
     // game.question / game.reveal arriveront à l'étape suivante.
   }
 }
@@ -281,5 +287,25 @@ function renderPlayerReveal(payload) {
     <h2 class="player-question">Bonne réponse&nbsp;: ${escapeHtml(payload.answer)}</h2>
     ${payload.explanation ? `<p class="player-reveal">${escapeHtml(payload.explanation)}</p>` : ''}
     <p class="join-waiting-hint">Ton score&nbsp;: ${mine?.score ?? 0} pt</p>
+  `;
+}
+
+function renderMancheEnd(payload) {
+  const body = document.querySelector('.join__body');
+  const winner = (payload.players || []).find(p => p.id === payload.winnerId);
+  body.innerHTML = `
+    <p class="join-waiting__emoji" aria-hidden="true">${winner ? winner.emoji : '🏅'}</p>
+    <p class="join-waiting">${winner ? `${escapeHtml(winner.name)} remporte la manche&nbsp;!` : 'Manche terminée'}</p>
+    <p class="join-waiting-hint">Prochaine question à venir…</p>
+  `;
+}
+
+function renderVictory(payload) {
+  const body = document.querySelector('.join__body');
+  const winner = (payload.players || []).find(p => p.id === payload.winnerId);
+  body.innerHTML = `
+    <p class="join-waiting__emoji" aria-hidden="true">🏆</p>
+    <p class="join-waiting">${winner ? `${escapeHtml(winner.name)} gagne la partie&nbsp;!` : 'Partie terminée'}</p>
+    <p class="join-waiting-hint">Merci d'avoir joué&nbsp;!</p>
   `;
 }

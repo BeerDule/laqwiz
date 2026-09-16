@@ -23,6 +23,7 @@ const senderToClient = new Map();
 // jamais `answer`/`funnyOption`/`explanation` avant le reveal).
 let lastQuestionSig = -1;
 let lastRevealSig = -1;
+let lastPhase = null;
 
 subscribe((state) => {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -32,7 +33,12 @@ subscribe((state) => {
   } else if (state.phase === 'REVEAL' && state.currentIndex !== lastRevealSig) {
     lastRevealSig = state.currentIndex;
     broadcastReveal(state);
+  } else if (state.phase === 'MANCHE_END' && lastPhase !== 'MANCHE_END') {
+    broadcastMancheEnd(state);
+  } else if (state.phase === 'VICTORY' && lastPhase !== 'VICTORY') {
+    broadcastVictory(state);
   }
+  lastPhase = state.phase;
 });
 
 /**
@@ -53,6 +59,7 @@ export async function startHost() {
   await connect(created.sessionId);
   lastQuestionSig = -1;
   lastRevealSig = -1;
+  lastPhase = null;
   // Lien construit côté client : en dev, le relais (:3000) n'a pas l'origine
   // du front (:5173). En prod, même origine, donc équivalent.
   const shareUrl = new URL(`/game/${created.sessionId}`, location.origin).href;
@@ -209,6 +216,45 @@ function broadcastReveal(state) {
       answered: state.roundAnswers[p.id] || null,
       penalty: state.roundPenalties[p.id] || 0,
       eliminated: !!p.eliminated,
+    })),
+  });
+}
+
+/** Diffuse la fin de manche : vainqueur + scores de la manche. */
+function broadcastMancheEnd(state) {
+  const manches = state.partie?.manches || [];
+  const last = manches[manches.length - 1];
+  const won = state.partie?.manchesWon || {};
+  send('game.manche_end', {
+    winnerId: last?.winnerId || null,
+    manchesTarget: state.partie?.manchesTarget ?? 1,
+    players: state.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      score: last?.scores?.[p.id] ?? p.score,
+      manchesWon: won[p.id] || 0,
+    })),
+  });
+}
+
+/** Diffuse la victoire : vainqueur + nombre de manches gagnées. */
+function broadcastVictory(state) {
+  const won = state.partie?.manchesWon || {};
+  let winnerId = null;
+  let best = -1;
+  for (const p of state.players) {
+    const w = won[p.id] || 0;
+    if (w > best) { best = w; winnerId = p.id; }
+  }
+  send('game.victory', {
+    winnerId,
+    players: state.players.map(p => ({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      score: p.score,
+      manchesWon: won[p.id] || 0,
     })),
   });
 }

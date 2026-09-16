@@ -177,6 +177,14 @@ async function main() {
   const started = await player.next();
   assert(started.type === 'game.start', 'joueur reçoit game.start', `reçu : ${started.type}`);
 
+  host.ws.send(JSON.stringify({ type: 'game.manche_end', payload: { winnerId: 'client-alice', players: [{ id: 'client-alice', name: 'Alice', emoji: '🦊' }] } }));
+  const mancheEnd = await player.next();
+  assert(mancheEnd.type === 'game.manche_end', 'joueur reçoit game.manche_end', `reçu : ${mancheEnd.type}`);
+
+  host.ws.send(JSON.stringify({ type: 'game.victory', payload: { winnerId: 'client-alice' } }));
+  const victory = await player.next();
+  assert(victory.type === 'game.victory', 'joueur reçoit game.victory', `reçu : ${victory.type}`);
+
   // 7) Départ du joueur.
   player.ws.close();
   const left = await host.next();
