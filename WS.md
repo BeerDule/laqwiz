@@ -927,8 +927,10 @@ Règles :
 4. L'origine du relais est figée à la compilation (`VITE_RELAY_ORIGIN`) ; à défaut, même
    origine que le front (le relais peut servir `dist/`).
 
-Le proxy LLM reste `api/gateway.js` (Vercel) / `vite.config.js` (dev) tel quel — la
-duplication « deux proxys » demeure.
+Le proxy LLM est implémenté **trois fois** au même contrat (BYOK/repli `.env`) :
+`vite.config.js` (dev), `api/gateway.js` (Vercel) et `server/relay.mjs` (auto-hébergé,
+porté dans le relais pour servir `dist/` en autonome). Toute évolution doit toucher les
+trois.
 
 **Dépendance serveur** : seule `ws` (WebSocket) est ajoutée, jamais embarquée dans le
 bundle front (qui reste à zéro dépendance runtime). `ioredis` a été retiré.

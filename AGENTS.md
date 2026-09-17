@@ -487,9 +487,10 @@ Toute modif de `.env` nécessite un redémarrage. `vite.config.js` est rechargé
 Acceptable en famille, mais un risque XSS subsiste. Pour un hébergement public, préférer la
 config `.env` serveur.
 
-### Deux proxys à maintenir en parallèle
-`vite.config.js` (dev) et `api/gateway.js` (production Vercel) implémentent le **même** contrat
-BYOK/repli. Toute évolution doit toucher les deux.
+### Trois proxys LLM à maintenir en parallèle
+`vite.config.js` (dev), `api/gateway.js` (production Vercel) et `server/relay.mjs`
+(auto-hébergé) implémentent le **même** contrat BYOK/repli. Toute évolution doit toucher
+les trois.
 
 ### Pas de git dans le PATH par défaut
 `nix shell nixpkgs#git --command git ...`
