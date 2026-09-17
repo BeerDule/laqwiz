@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        # BYOK : LLM_CONFIG_REQUIRED=true oblige chaque joueur à saisir sa clé.
+        # Passer à "false" si un jour la clé est servie par le .env du serveur.
+        env:
+          LLM_CONFIG_REQUIRED: "true"
+        run: npm run build
+
+      - name: Deploy to VPS
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -eo pipefail
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          SSH_ARGS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes"
+          tar czf - dist server package.json package-lock.json | \
+            ssh $SSH_ARGS "$DEPLOY_USER@$DEPLOY_HOST" \
+              "set -e; cd ~/quizz-canape && tar xzf - && npm install --omit=dev --no-audit --no-fund && sudo systemctl restart quizz-canape && sleep 1 && curl -sf http://127.0.0.1:3000/api/relay/health >/dev/null && echo 'relais OK après redémarrage'"
