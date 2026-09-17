@@ -7,6 +7,7 @@
 import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH, DIFFICULTY_LABELS } from './constants.js';
 import { relayWsUrl } from './relay.js';
 import { renderThemeSelect, wireThemeSelect } from './themeSwitcher.js';
+import { connIndicatorHtml, wireConnIndicator } from './connIndicator.js';
 
 const PLAYER_STORAGE_KEY = 'quizz-canape:player';
 
@@ -18,6 +19,13 @@ let lastQuestion = null;
 let playerTimerId = null;
 // Contexte de la question courante (thème, manche, numéro) pour l'en-tête.
 let meta = null;
+let currentSessionId = null;
+let lastPingAt = 0;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let connState = 'connecting'; // connecting | connected | reconnecting | offline
+let deliberateClose = false;
+let hasConnected = false;
 
 function loadPlayerIdentity() {
   try {
@@ -45,10 +53,6 @@ function escapeHtml(s) {
   }[c]));
 }
 
-function dispatchToast(message, kind = 'info') {
-  document.dispatchEvent(new CustomEvent('qc:toast', { detail: { message, kind } }));
-}
-
 export function mountPlayer(rootEl, sessionId) {
   const identity = loadPlayerIdentity();
   clientId = identity?.clientId || newClientId();
@@ -67,6 +71,7 @@ export function mountPlayer(rootEl, sessionId) {
           </div>
           <div class="progress-bar"><span id="progress-fill"></span></div>
         </div>
+        ${connIndicatorHtml()}
         ${renderThemeSelect()}
       </header>
       <div id="game-body">${joinHtml()}</div>
@@ -109,28 +114,10 @@ export function mountPlayer(rootEl, sessionId) {
 
   rootEl.querySelector('#btn-disconnect').addEventListener('click', leave);
   wireThemeSelect(rootEl);
+  wireConnIndicator(rootEl, () => ({ state: connState, lastPingAt }));
 
-  // Connexion au relais, une seule fois pour tout l'écran.
-  socket = new WebSocket(relayWsUrl(sessionId));
-  socket.addEventListener('message', (e) => {
-    let msg;
-    try { msg = JSON.parse(e.data); } catch { return; }
-    // session.connected : l'identité du relais ne nous sert pas — notre
-    // identité stable est notre clientId local.
-    if (msg.type !== 'session.connected') handleMessage(msg);
-  });
-  socket.addEventListener('error', () => {
-    showError('Impossible de rejoindre la partie (session inexistante ou expirée ?).');
-    resetSubmit();
-  });
-  socket.addEventListener('close', () => {
-    if (document.querySelector('#btn-join')) {
-      showError('Connexion perdue.');
-      resetSubmit();
-    } else {
-      dispatchToast('Connexion perdue.', 'error');
-    }
-  });
+  // Connexion au relais + reconnexion automatique.
+  openSocket(sessionId);
 
   // Rechargement : on rejoint automatiquement avec l'identité persistée.
   if (identity?.name && identity.emoji) {
@@ -149,15 +136,73 @@ function submitJoin(name, emoji) {
   myName = name;
   myEmoji = emoji;
   const btn = document.querySelector('#btn-join');
-  btn.disabled = true;
-  btn.textContent = 'Connexion…';
-
-  const send = () => socket.send(JSON.stringify({ type: 'lobby.join', payload: { name, emoji, clientId } }));
-  if (socket?.readyState === WebSocket.OPEN) {
-    send();
-  } else {
-    socket.addEventListener('open', send, { once: true });
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Connexion…';
   }
+  sendJoin();
+}
+
+/** Envoie le `lobby.join` avec l'identité courante (rejoint + rejoin). */
+function sendJoin() {
+  if (!myName || !myEmoji) return;
+  const payload = JSON.stringify({ type: 'lobby.join', payload: { name: myName, emoji: myEmoji, clientId } });
+  if (socket?.readyState === WebSocket.OPEN) socket.send(payload);
+  else if (socket) socket.addEventListener('open', () => socket.send(payload), { once: true });
+}
+
+/**
+ * Ouvre (ou rouvre) la connexion au relais. À chaque `session.connected`, si
+ * le joueur a déjà une identité, on re-postule : le host ré-associe la
+ * connexion et renvoie l'état courant (rejoin, WS.md §18.7).
+ */
+function openSocket(sessionId) {
+  currentSessionId = sessionId;
+  connState = 'connecting';
+  socket = new WebSocket(relayWsUrl(sessionId));
+  socket.addEventListener('message', (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+    if (msg.type === 'session.connected') {
+      hasConnected = true;
+      connState = 'connected';
+      reconnectAttempts = 0;
+      lastPingAt = Date.now();
+      sendJoin();
+    } else if (msg.type === 'ping') {
+      lastPingAt = Date.now();
+    } else {
+      handleMessage(msg);
+    }
+  });
+  socket.addEventListener('error', () => {
+    // L'échec initial (session invalide) seul mérite un message : les erreurs
+    // de reconnexion sont silencieuses (le `close` relance la tentative).
+    if (!hasConnected) {
+      showError('Impossible de rejoindre la partie (session inexistante ou expirée ?).');
+      resetSubmit();
+    }
+  });
+  socket.addEventListener('close', () => {
+    socket = null;
+    const deliberate = deliberateClose;
+    deliberateClose = false;
+    if (deliberate || !currentSessionId) { connState = 'offline'; return; }
+    connState = 'reconnecting';
+    scheduleReconnect();
+  });
+}
+
+/** Reconnexion avec recul exponentiel (1 s → 10 s max). */
+function scheduleReconnect() {
+  if (reconnectTimer || !currentSessionId) return;
+  const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000);
+  reconnectAttempts += 1;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    if (!currentSessionId) return;
+    openSocket(currentSessionId);
+  }, delay);
 }
 
 function handleMessage(msg) {
@@ -205,6 +250,9 @@ function handleMessage(msg) {
       break;
     }
     case 'room.closed':
+      // L'hôte a fermé la room : plus de reconnexion, on reste sur l'écran final.
+      currentSessionId = null;
+      connState = 'offline';
       renderRoomClosed();
       break;
     // game.question / game.reveal arriveront à l'étape suivante.
@@ -288,6 +336,9 @@ function leave() {
   // Départ : on prévient l'hôte (libère le siège), on oublie l'identité
   // persistée, on coupe, puis on recharge — l'écran de connexion réapparaît
   // avec une identité neuve.
+  deliberateClose = true;
+  currentSessionId = null;
+  connState = 'offline';
   if (socket?.readyState === WebSocket.OPEN) {
     try { socket.send(JSON.stringify({ type: 'lobby.leave', payload: {} })); } catch { /* ignore */ }
   }
@@ -341,6 +392,15 @@ function renderQuestion(payload) {
   `;
 
   wirePlayerOptions(payload.deadline);
+  // Rejoin : on restaure la réponse déjà envoyée (elle survit au rechargement
+  // de la connexion, sans quoi le joueur croirait l'avoir perdue).
+  if (payload.myAnswer) {
+    const btn = document.querySelector(`#player-options .option-card[data-key="${payload.myAnswer}"]`);
+    if (btn) {
+      btn.classList.add('is-selected');
+      btn.setAttribute('aria-pressed', 'true');
+    }
+  }
 }
 
 function wirePlayerOptions(deadline) {

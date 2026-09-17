@@ -4,7 +4,8 @@ import { DIFFICULTY_LABELS } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
 import { confirmDialog } from '../components/dialog.js';
-import { leaveRoomIfOnline } from '../room.js';
+import { leaveRoomIfOnline, getConnInfo } from '../room.js';
+import { connIndicatorHtml, wireConnIndicator } from '../connIndicator.js';
 
 let teardown = null;
 let root = null;
@@ -90,6 +91,7 @@ const SHELL = `
         </div>
         <div class="progress-bar"><span id="progress-fill"></span></div>
       </div>
+      ${connIndicatorHtml()}
       ${renderThemeSelect()}
     </header>
     <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores" aria-live="polite"></div>
@@ -625,6 +627,7 @@ export function renderGame(rootEl) {
   signal = cleanup.signal;
 
   wireThemeSelect(root);
+  wireConnIndicator(root, getConnInfo, signal);
   root.querySelector('#btn-quit').addEventListener('click', () => confirmQuit(), { signal });
   root.querySelector('#btn-retry').addEventListener('click', () => retryGeneration(), { signal });
   document.addEventListener('keydown', onKeydown, { signal });

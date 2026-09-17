@@ -14,6 +14,12 @@ import {
   getRedis, getSubscriber, roomKey, roomChannel, roomCountKey, ROOM_TTL_SECONDS,
 } from './_redis.js';
 
+// Vercel tue la fonction (et donc la connexion WS) au bout de `maxDuration`.
+// On la pousse au maximum autorisé ; au-delà, c'est le CLIENT qui reconnecte
+// (voir src/room.js et src/player.js). Le heartbeat ci-dessous sert à la fois
+// d'anti-inactivité et de repère « dernier ping » côté client.
+export const maxDuration = 300;
+
 const randomId = () => randomBytes(6).toString('hex'); // player-xxxxxxxxxxxx
 
 export default function handler(req, res) {
@@ -74,6 +80,15 @@ export default function handler(req, res) {
       const channel = roomChannel(sessionId);
       let closed = false;
 
+      // Heartbeat serveur → client : entretient la connexion (proxys, NAT) et
+      // donne au client un repère de fraîcheur (« dernier ping »). La durée de
+      // vie est de toute façon bornée par `maxDuration` — c'est le client qui
+      // reconnecte — mais ce ping évite aussi les coupures d'inactivité.
+      const heartbeat = setInterval(() => {
+        if (closed || ws.readyState !== ws.OPEN) return;
+        try { ws.send(JSON.stringify({ type: 'ping', payload: { ts: Date.now() } })); } catch { /* ignore */ }
+      }, 15000);
+
       // Présence : compte les connexions (Redis, donc partagé entre instances)
       // et informe la room. `senderId` = l'origine, pour que le filtre
       // anti-écho ci-dessous ne renvoie pas l'événement à son auteur.
@@ -122,6 +137,7 @@ export default function handler(req, res) {
       ws.on('close', () => {
         if (closed) return;
         closed = true;
+        clearInterval(heartbeat);
         announce('player.left');
         sub.unsubscribe(channel).catch(() => {});
         sub.quit().catch(() => {});

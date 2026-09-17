@@ -6,7 +6,8 @@
 import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChips } from '../components/playerChip.js';
-import { leaveRoomIfOnline, send } from '../room.js';
+import { leaveRoomIfOnline, send, getConnInfo } from '../room.js';
+import { connIndicatorHtml, wireConnIndicator } from '../connIndicator.js';
 import { MAX_PLAYERS, MIN_PLAYERS } from '../constants.js';
 
 let teardown = null;
@@ -27,7 +28,7 @@ function lobbyHtml(s) {
 
   return `
     <section class="arcade arcade--lobby screen" data-screen="lobby">
-      <div class="arcade__topbar">${renderThemeSelect()}</div>
+      <div class="arcade__topbar">${connIndicatorHtml()}${renderThemeSelect()}</div>
 
       <header class="arcade__title">
         <h1>Lobby</h1>
@@ -112,6 +113,7 @@ export function renderLobby(rootEl) {
     const cleanup = new AbortController();
     const { signal } = cleanup;
     wireThemeSelect(root);
+    wireConnIndicator(root, getConnInfo, signal);
     root.querySelector('#btn-start').addEventListener('click', startGame, { signal });
     root.querySelector('#btn-quit').addEventListener('click', quit, { signal });
     root.querySelector('#btn-copy').addEventListener('click', copyLink, { signal });

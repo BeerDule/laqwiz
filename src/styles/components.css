@@ -1424,6 +1424,33 @@ input[type='range']::-moz-range-thumb {
   padding-top: var(--space-2);
 }
 
+/* ===== Indicateur de connexion (host + joueur) ===== */
+.conn-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: .385em;
+  white-space: nowrap;
+  font-size: .846em;
+  font-weight: 600;
+  padding: .231em .692em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface-raised);
+  color: var(--color-muted);
+}
+.conn-indicator::before {
+  content: '';
+  width: .615em;
+  height: .615em;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.conn-indicator[data-state='connected'] { color: var(--color-success); }
+.conn-indicator[data-state='reconnecting'] { color: var(--color-warning); }
+.conn-indicator[data-state='stale'] { color: var(--color-warning); }
+.conn-indicator[data-state='offline'] { color: var(--color-error); }
+
 /* ===== Sélecteur de thème (pastille app) ===== */
 .theme-picker select {
   min-height: 2.5em;

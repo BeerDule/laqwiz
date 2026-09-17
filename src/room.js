@@ -11,6 +11,11 @@ import { NAME_MAX_LENGTH, PLAYER_EMOJIS } from './constants.js';
 let ws = null;
 let hostPlayerId = null;
 let deliberateClose = false;
+let currentSessionId = null;
+let lastPingAt = 0;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let connState = 'offline'; // connecting | connected | reconnecting | offline
 
 // Correspondance identité stable (clientId, généré côté client et persisté en
 // localStorage) ↔ connexion éphémère (senderId, attribué par le relais). Sert à
@@ -74,6 +79,8 @@ export async function startHost() {
 }
 
 function connect(sessionId) {
+  currentSessionId = sessionId;
+  connState = 'connecting';
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(relayWsUrl(sessionId));
     ws = socket;
@@ -83,7 +90,12 @@ function connect(sessionId) {
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.type === 'session.connected') {
         hostPlayerId = msg.payload.playerId;
+        connState = 'connected';
+        reconnectAttempts = 0;
+        lastPingAt = Date.now();
         resolve();
+      } else if (msg.type === 'ping') {
+        lastPingAt = Date.now();
       } else {
         handle(msg);
       }
@@ -97,14 +109,32 @@ function connect(sessionId) {
 
     socket.addEventListener('close', () => {
       if (ws === socket) { ws = null; hostPlayerId = null; }
-      if (!deliberateClose) {
-        document.dispatchEvent(new CustomEvent('qc:toast', {
-          detail: { message: 'Connexion au lobby perdue.', kind: 'error' },
-        }));
-      }
+      const deliberate = deliberateClose;
       deliberateClose = false;
+      // Room fermée volontairement (ou déjà fermée) : on ne reconnecte pas.
+      if (deliberate || !getState().room) { connState = 'offline'; return; }
+      connState = 'reconnecting';
+      scheduleReconnect();
     });
   });
+}
+
+/**
+ * Reconnexion automatique avec recul exponentiel (1 s → 10 s max). Vercel tue
+ * la fonction WS à `maxDuration` (~5 min) : le host doit rouvrir sa connexion
+ * sans perdre l'état (celui-ci vit dans le store, pas dans le socket).
+ */
+function scheduleReconnect() {
+  if (reconnectTimer || !currentSessionId) return;
+  const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000);
+  reconnectAttempts += 1;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    if (!getState().room) { reconnectAttempts = 0; return; }
+    connect(currentSessionId).catch(() => {
+      // Échec : le `close` relancera scheduleReconnect.
+    });
+  }, delay);
 }
 
 function handle(msg) {
@@ -308,7 +338,12 @@ function sendGameState(targetId) {
   const s = getState();
   if (s.phase === 'QUESTION') {
     const question = questionPayload(s);
-    if (question) send('game.state', { targetId, question });
+    if (question) {
+      // La réponse déjà envoyée survit au rechargement : on la renvoie pour
+      // que le joueur retrouve sa sélection.
+      question.myAnswer = s.roundAnswers[targetId] || null;
+      send('game.state', { targetId, question });
+    }
   } else if (s.phase === 'REVEAL') {
     const reveal = revealPayload(s);
     if (reveal) send('game.state', { targetId, reveal });
@@ -346,11 +381,20 @@ export function closeRoom() {
     try { ws.send(JSON.stringify({ type: 'room.closed', payload: {} })); } catch { /* ignore */ }
   }
   deliberateClose = true;
+  currentSessionId = null;
+  connState = 'offline';
+  reconnectAttempts = 0;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (ws) {
     try { ws.close(); } catch { /* déjà fermé */ }
     ws = null;
   }
   hostPlayerId = null;
+}
+
+/** État de connexion pour l'indicateur visuel (host). */
+export function getConnInfo() {
+  return { state: connState, lastPingAt };
 }
 
 /** Ferme la room si on est en ligne, et remet l'état à zéro (no-op sinon). */

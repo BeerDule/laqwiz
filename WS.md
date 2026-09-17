@@ -936,7 +936,8 @@ Un joueur qui recharge en pleine partie rejoint avec le même `clientId` (persis
 `game.state { targetId, … }`, ciblée sur ce joueur (le relais relaie à tous, seul celui
 visé par `targetId` la traite) :
 
-- `question` — question sans réponse, options, chrono : le joueur reprend sa saisie ;
+- `question` — question sans réponse, options, chrono : le joueur reprend sa saisie.
+  `myAnswer` porte la réponse déjà envoyée, pour que la sélection survive au rechargement ;
 - `reveal` — révélation (réponse + textes + résultats). `answerText`/`funnyText` sont
   embarqués exprès : le joueur qui recharge n'a plus la question en cache ;
 - `mancheEnd` / `victory` — fin de manche ou podium ;
@@ -944,6 +945,15 @@ visé par `targetId` la traite) :
 
 La sortie du host (quitter la partie, terminer la session) ferme la room et diffuse
 `room.closed` aux joueurs. Une partie en ligne n'est pas reprise après fermeture.
+
+### Reconnexion automatique (Vercel `maxDuration`)
+
+Vercel tue la fonction WS au bout de `maxDuration` (300 s max) : aucune connexion unique
+ne tient 5 h. Le relais envoie un `ping` toutes les 15 s (anti-inactivité + repère de
+fraîcheur), et **host comme joueur reconnectent automatiquement** avec recul exponentiel
+(1 s → 10 s) à chaque fermeture. Le host retrouve son état (il vit dans le store, pas dans
+le socket) ; le joueur re-postule via `clientId` et reçoit la projection ci-dessus. Un
+indicateur « Ping Ns » / « Reconnexion… » expose l'état des deux côtés.
 
 ## 18.8 Chronomètre
 
