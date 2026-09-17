@@ -356,37 +356,20 @@
 }
 
 /* ===== Écran joueur « Rejoindre » (mode en ligne) =====
- * Conçu mobile d'abord : le body est à 22px (lisibilité TV), on resserre ici.
- * Une frise d'avatars défilante remplace l'ancienne grille de 30 emojis. */
-.arcade--join {
-  gap: var(--space-3);
-  justify-content: center;
-}
-.join__header {
-  text-align: center;
-}
-.join__eyebrow {
-  margin: 0;
-  color: var(--color-accent-primary);
-  font-size: .8em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-}
-.join__title {
-  margin: var(--space-1) 0 0;
-  font-family: var(--font-display, var(--font-sans));
-  font-weight: 400;
-  font-size: clamp(1.8em, 6vw, 2.4em);
-  line-height: 1.1;
-  color: var(--color-text);
-  text-shadow: var(--text-glow);
-}
+ * Interface alignée sur celle du MJ : même coquille game-screen, mêmes
+ * composants (question-card, options-grid, answer-card, podium). Le joueur est
+ * sur mobile, on resserre ce qui doit l'être. */
 .join__body {
   width: min(24em, 100%);
   margin-inline: auto;
   display: grid;
   gap: var(--space-3);
+  padding: var(--space-4);
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-card), var(--shadow-1);
 }
 .join__label {
   color: var(--color-muted);
@@ -435,108 +418,29 @@
 .join__submit {
   width: 100%;
 }
-.join-waiting__emoji {
-  margin: var(--space-4) 0 0;
-  text-align: center;
+
+/* Grand emoji des écrans d'attente (dans .loading-panel). */
+.join-emoji {
   font-size: 3em;
   line-height: 1;
 }
-.join-waiting {
-  margin: 0;
-  text-align: center;
-  font-size: 1.2em;
-  font-weight: 600;
-}
-.join-waiting-hint {
-  margin: 0;
-  text-align: center;
-  color: var(--color-muted);
-}
 
-/* Écran joueur : la question et ses réponses (réutilise la carte du host) */
-.join__body .question-meta {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-.join__body .player-question {
-  margin: 0;
-  font-size: 1.25em;
-  line-height: 1.35;
-}
-.join__body .options-grid {
-  grid-template-columns: 1fr;
-}
-.join__body .option-card {
+/* Cartes de réponse cliquables côté joueur : des <button> qui reprennent le
+   composant .option-card partagé. Il ne manque que le texte et le clic. */
+.options-grid button.option-card {
   width: 100%;
   text-align: left;
   font: inherit;
+  color: inherit;
   cursor: pointer;
 }
-.join__body .option-card.is-selected {
+.options-grid button.option-card.is-selected {
   border-color: var(--color-accent-primary);
   background-color: var(--bg-surface-soft);
   box-shadow: var(--shadow-pop);
 }
-.join__body .player-reveal {
-  margin: 0;
-  color: var(--color-muted);
-}
-
-/* Classement côté joueur */
-.player-leaderboard {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-2);
-}
-.player-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border: .1em solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--bg-surface);
-}
-.player-row--me {
-  border-color: var(--color-accent-primary);
-  background-color: var(--bg-surface-soft);
-}
-.player-row__rank {
-  min-width: 1.2em;
-  color: var(--color-muted);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.player-row__emoji { font-size: 1.2em; }
-.player-row__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.player-row__score {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.player-row__manches { letter-spacing: .1em; }
-.player-change {
-  margin-top: var(--space-2);
-  align-self: center;
-  font: inherit;
-  color: var(--color-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-/* Mobile : un peu plus serré, la frise tient sur une ligne. */
+/* Mobile : la frise d'avatars reste défilante, le formulaire se resserre. */
 @media (max-width: 47.938em) {
-  .arcade--join { padding: var(--space-3); gap: var(--space-2); }
   .join__body { gap: var(--space-2); }
 }
 

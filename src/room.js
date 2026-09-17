@@ -201,11 +201,18 @@ function remapSender(clientId, senderId) {
 function questionPayload(state) {
   const q = state.questions[state.currentIndex];
   if (!q) return null;
+  const manche = state.partie;
+  const prepared = state.questions.length + state.prefetchQueue.length;
   return {
     question: q.question,
     options: q.options.map(o => ({ key: o.key, text: o.text })),
     difficulty: q.difficulty,
     isBonus: state.isBonusRound,
+    theme: q.theme || state.settings.theme,
+    manche: manche ? manche.mancheIndex + 1 : 1,
+    manchesTarget: manche ? manche.manchesTarget : state.settings.manchesTarget,
+    index: state.currentIndex + 1,
+    total: prepared,
     deadline: state.settings.timerEnabled
       ? Date.now() + (state.settings.timePerQuestion || 60) * 1000
       : null,
@@ -219,6 +226,9 @@ function revealPayload(state) {
   const answerOption = q.options.find(o => o.key === q.answer);
   const funnyOption = q.options.find(o => o.key === q.funnyOption);
   return {
+    question: q.question,
+    options: q.options.map(o => ({ key: o.key, text: o.text })),
+    difficulty: q.difficulty,
     answer: q.answer,
     answerText: answerOption?.text || q.answer,
     funnyOption: q.funnyOption,

@@ -892,8 +892,8 @@ Host → Players (filtrés, relayés) :
 | `lobby.roster` | `{ players }` | `players` = `[{id,name,emoji,color,score}]`, diffusé à chaque join/leave |
 | `lobby.join.rejected` | `{ targetId, reason }` | `reason` = `full` (complet), `taken` (nom/emoji pris), `started` (déjà lancée) |
 | `game.start` | `{ settings }` | règles publiques, **sans config LLM** |
-| `game.question` | `{ question, options[], difficulty, isBonus, deadline }` | **jamais** `answer`/`funnyOption`/`explanation` |
-| `game.reveal` | `{ answer, answerText, funnyOption, funnyText, explanation, results[] }` | `answerText`/`funnyText` portent le libellé — le joueur n'a pas la question en cache au rejoin |
+| `game.question` | `{ question, options[], difficulty, isBonus, theme, manche, manchesTarget, index, total, deadline }` | **jamais** `answer`/`funnyOption`/`explanation` ; `manche`/`index`/`total` alimentent la barre de progression du joueur |
+| `game.reveal` | `{ question, options[], difficulty, answer, answerText, funnyOption, funnyText, explanation, results[] }` | question + options embarquées : la révélation est autonome (rejoin, §18.7) |
 | `game.manche_end` | `{ winnerId, manchesTarget, players[] }` | |
 | `game.victory` | `{ winnerId, players[] }` | |
 | `game.state` | `{ targetId, question\|reveal\|mancheEnd\|victory\|waiting }` | projection ciblée au rejoin (§18.7) ; seul le joueur visé par `targetId` la traite |

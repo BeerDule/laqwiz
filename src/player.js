@@ -4,7 +4,7 @@
 // avatar choisi dans une frise défilante, puis l'attente du début de partie.
 // La réception des questions arrive à l'étape suivante.
 
-import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH } from './constants.js';
+import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH, DIFFICULTY_LABELS } from './constants.js';
 import { relayWsUrl } from './relay.js';
 import { renderThemeSelect, wireThemeSelect } from './themeSwitcher.js';
 
@@ -15,6 +15,9 @@ let clientId = null;
 let myName = '';
 let myEmoji = '';
 let lastQuestion = null;
+let playerTimerId = null;
+// Contexte de la question courante (thème, manche, numéro) pour l'en-tête.
+let meta = null;
 
 function loadPlayerIdentity() {
   try {
@@ -54,25 +57,19 @@ export function mountPlayer(rootEl, sessionId) {
     : PLAYER_EMOJIS[0];
 
   rootEl.innerHTML = `
-    <section class="arcade arcade--join screen" data-screen="join">
-      <div class="arcade__topbar">${renderThemeSelect()}</div>
-      <header class="join__header">
-        <p class="join__eyebrow">Canap' QuiZZ</p>
-        <h1 class="join__title">Rejoindre la partie</h1>
-        <button id="btn-disconnect" class="player-change" type="button" hidden>Se déconnecter</button>
+    <section class="game-screen screen" data-screen="join">
+      <header class="game-header">
+        <button id="btn-disconnect" class="button button--ghost" hidden>Se déconnecter</button>
+        <div class="progress">
+          <div class="progress-text">
+            <span id="question-number">Rejoindre la partie</span>
+            <span id="question-theme" class="question-theme"></span>
+          </div>
+          <div class="progress-bar"><span id="progress-fill"></span></div>
+        </div>
+        ${renderThemeSelect()}
       </header>
-
-      <form id="player-form" class="join__body" novalidate>
-        <label class="join__label" for="player-name">Ton prénom</label>
-        <input id="player-name" class="join__name" type="text" maxlength="${NAME_MAX_LENGTH}"
-          placeholder="Ex. Alice" autocomplete="off" autocapitalize="words" spellcheck="false" />
-
-        <span class="join__label" id="avatar-label">Choisis ton avatar</span>
-        <div id="player-emojis" class="avatar-strip" role="radiogroup" aria-labelledby="avatar-label"></div>
-
-        <p id="player-error" class="form-error" role="alert" hidden></p>
-        <button id="btn-join" class="button button--primary button--large join__submit" type="submit">Rejoindre</button>
-      </form>
+      <div id="game-body">${joinHtml()}</div>
     </section>
   `;
 
@@ -230,19 +227,61 @@ function resetSubmit() {
   btn.textContent = 'Rejoindre';
 }
 
-function renderWaiting(players) {
-  const body = document.querySelector('.join__body');
-  const list = players.map(p => `${p.emoji} ${escapeHtml(p.name)}`).join(' · ');
-  body.innerHTML = `
-    <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
-    <p class="join-waiting">${escapeHtml(myName)}, tu es connecté·e&nbsp;!</p>
-    <p class="join-waiting-hint">Joueurs connectés : ${players.length}${list ? ` — ${list}` : ''}</p>
-    <p class="join-waiting-hint">En attente du début de la partie…</p>
-    <button id="btn-change-identity" class="player-change" type="button">Changer de nom / avatar</button>
+function joinHtml() {
+  return `
+    <form id="player-form" class="join__body" novalidate>
+      <label class="join__label" for="player-name">Ton prénom</label>
+      <input id="player-name" class="join__name" type="text" maxlength="${NAME_MAX_LENGTH}"
+        placeholder="Ex. Alice" autocomplete="off" autocapitalize="words" spellcheck="false" />
+      <span class="join__label" id="avatar-label">Choisis ton avatar</span>
+      <div id="player-emojis" class="avatar-strip" role="radiogroup" aria-labelledby="avatar-label"></div>
+      <p id="player-error" class="form-error" role="alert" hidden></p>
+      <button id="btn-join" class="button button--primary button--large join__submit" type="submit">Rejoindre</button>
+    </form>
   `;
-  body.querySelector('#btn-change-identity').addEventListener('click', leave);
-  const disconnectBtn = document.querySelector('#btn-disconnect');
-  if (disconnectBtn) disconnectBtn.hidden = false;
+}
+
+function setHeader(text, theme, pct) {
+  const num = document.querySelector('#question-number');
+  const themeEl = document.querySelector('#question-theme');
+  const fill = document.querySelector('#progress-fill');
+  if (num) num.textContent = text;
+  if (themeEl) themeEl.textContent = theme || '';
+  if (fill) fill.style.width = `${pct || 0}%`;
+}
+
+function progressPct(m) {
+  if (!m?.index || !m?.total) return 0;
+  return Math.min(100, Math.round((m.index / Math.max(m.total, 1)) * 100));
+}
+
+function setHeaderFromMeta() {
+  if (!meta) { setHeader('Révélation', '', 100); return; }
+  const manche = meta.manche ? `Manche ${meta.manche}/${meta.manchesTarget} · ` : '';
+  setHeader(`${manche}Question ${meta.index || ''}`, meta.theme, progressPct(meta));
+}
+
+function showDisconnect(on) {
+  const btn = document.querySelector('#btn-disconnect');
+  if (btn) btn.hidden = !on;
+}
+
+function renderWaiting(players) {
+  showDisconnect(true);
+  setHeader('En attente du début…', '', 0);
+  const list = players.map(p => `${p.emoji} ${escapeHtml(p.name)}`).join(' · ');
+  document.querySelector('#game-body').innerHTML = `
+    <article class="question-card">
+      <div class="loading-panel">
+        <div class="join-emoji" aria-hidden="true">${myEmoji}</div>
+        <h2>${escapeHtml(myName)}, tu es connecté·e&nbsp;!</h2>
+        <p>Joueurs connectés : ${players.length}${list ? ` — ${list}` : ''}</p>
+        <p>En attente du début de la partie…</p>
+        <button id="btn-change-identity" class="button button--ghost" type="button">Changer de nom / avatar</button>
+      </div>
+    </article>
+  `;
+  document.querySelector('#btn-change-identity').addEventListener('click', leave);
 }
 
 function leave() {
@@ -261,30 +300,44 @@ function leave() {
 }
 
 function renderStarted() {
-  const body = document.querySelector('.join__body');
-  body.innerHTML = `
-    <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
-    <p class="join-waiting">La partie commence&nbsp;!</p>
-    <p class="join-waiting-hint">Les questions vont arriver…</p>
+  showDisconnect(true);
+  setHeader('La partie commence…', '', 0);
+  document.querySelector('#game-body').innerHTML = `
+    <article class="question-card">
+      <div class="loading-panel">
+        <div class="join-emoji" aria-hidden="true">${myEmoji}</div>
+        <h2>La partie commence&nbsp;!</h2>
+        <p>Les questions vont arriver…</p>
+      </div>
+    </article>
   `;
 }
 
 function renderQuestion(payload) {
   lastQuestion = payload;
-  const body = document.querySelector('.join__body');
-  const options = (payload.options || []).map(o => `
-    <button type="button" class="option-card" data-key="${escapeHtml(o.key)}">
-      <span class="option-card__key">${escapeHtml(o.key)}</span>
-      <span class="option-card__text">${escapeHtml(o.text)}</span>
+  meta = payload;
+  showDisconnect(true);
+  const manche = payload.manche ? `Manche ${payload.manche}/${payload.manchesTarget} · ` : '';
+  setHeader(`${manche}Question ${payload.index || ''}`, payload.theme, progressPct(payload));
+  const options = (payload.options || []).map((o, i) => `
+    <button type="button" class="option-card" data-key="${escapeHtml(o.key)}" aria-pressed="false">
+      <div class="option-card__row">
+        <span class="option-card__key">${escapeHtml(o.key)}</span>
+        <span class="option-card__text">${escapeHtml(o.text)}</span>
+        <kbd class="option-card__hint">${i + 1}</kbd>
+      </div>
     </button>
   `).join('');
-  body.innerHTML = `
-    <div class="question-meta">
-      ${payload.isBonus ? '<span class="badge badge--bonus">×2 BONUS</span>' : ''}
-      ${payload.deadline ? '<span class="timer" id="player-timer" role="timer"></span>' : ''}
-    </div>
-    <h2 class="player-question">${escapeHtml(payload.question)}</h2>
-    <div class="options-grid" id="player-options">${options}</div>
+  document.querySelector('#game-body').innerHTML = `
+    <article id="question-card" class="question-card" data-bonus="${payload.isBonus ? 'true' : 'false'}" aria-live="polite">
+      <div class="question-meta">
+        ${payload.difficulty ? `<span class="badge badge--${escapeHtml(payload.difficulty)}">${escapeHtml(DIFFICULTY_LABELS[payload.difficulty] || payload.difficulty)}</span>` : ''}
+        ${payload.isBonus ? '<span class="badge badge--bonus">×2 BONUS</span>' : ''}
+        ${payload.deadline ? '<span id="player-timer" class="timer" role="timer" aria-live="off"></span>' : ''}
+      </div>
+      <h2>${escapeHtml(payload.question)}</h2>
+      <div class="options-grid" id="player-options">${options}</div>
+    </article>
   `;
 
   wirePlayerOptions(payload.deadline);
@@ -296,14 +349,17 @@ function wirePlayerOptions(deadline) {
   grid.querySelectorAll('.option-card').forEach((btn) => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key;
-      grid.querySelectorAll('.option-card').forEach((b) => b.classList.toggle('is-selected', b === btn));
+      grid.querySelectorAll('.option-card').forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle('is-selected', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
       socket.send(JSON.stringify({ type: 'game.answer', payload: { optionKey: key } }));
     });
   });
   if (deadline) startPlayerTimer(deadline);
 }
 
-let playerTimerId = null;
 function startPlayerTimer(deadline) {
   clearInterval(playerTimerId);
   const tick = () => {
@@ -311,87 +367,156 @@ function startPlayerTimer(deadline) {
     if (!el) { clearInterval(playerTimerId); return; }
     const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     el.textContent = left > 0 ? `${left} s` : 'Temps écoulé';
+    el.classList.toggle('timer--urgent', left > 0 && left <= 10);
+    el.classList.toggle('timer--over', left === 0);
   };
   tick();
   playerTimerId = setInterval(tick, 500);
 }
 
 function renderPlayerReveal(payload) {
-  const body = document.querySelector('.join__body');
-  const answerText = payload.answerText || lastQuestion?.options?.find(o => o.key === payload.answer)?.text || payload.answer;
-  const funnyText = payload.funnyText || lastQuestion?.options?.find(o => o.key === payload.funnyOption)?.text || '';
+  showDisconnect(true);
+  setHeaderFromMeta();
+  const options = (payload.options || lastQuestion?.options || []).map(o => {
+    let cls = 'option-card';
+    let badge = '';
+    if (o.key === payload.answer) {
+      cls += ' option-card--correct';
+      badge = '<span class="badge badge--easy">Bonne réponse</span>';
+    } else if (o.key === payload.funnyOption) {
+      cls += ' option-card--funny';
+      badge = '<span class="badge badge--funny">Option drôle</span>';
+    } else {
+      cls += ' option-card--muted';
+    }
+    return `<div class="${cls}"><div class="option-card__row"><span class="option-card__key">${escapeHtml(o.key)}</span><span class="option-card__text">${escapeHtml(o.text)}</span></div>${badge}</div>`;
+  }).join('');
+
   const mine = (payload.results || []).find(r => r.id === clientId);
   const correct = mine && mine.answered === payload.answer;
   const penalty = mine?.penalty || 0;
+  let result;
+  if (mine?.eliminated) result = '<span class="answer-result answer-result--none">☠ Exclu de la manche · +0</span>';
+  else if (!mine?.answered) result = penalty > 0
+    ? `<span class="answer-result answer-result--wrong">— Pas de réponse · −${penalty}</span>`
+    : '<span class="answer-result answer-result--none">— Pas de réponse · +0</span>';
+  else if (correct) result = '<span class="answer-result answer-result--correct">✓ Bonne réponse</span>';
+  else result = penalty > 0
+    ? `<span class="answer-result answer-result--wrong">✕ −${penalty}</span>`
+    : '<span class="answer-result answer-result--wrong">✕ Raté</span>';
 
-  body.innerHTML = `
-    <div class="question-meta">
-      <span class="badge badge--${correct ? 'easy' : 'hard'}">${correct ? '✔ Bonne réponse' : '✕ Raté'}</span>
-      ${penalty > 0 ? `<span class="badge badge--hard">−${penalty}</span>` : ''}
-      ${mine?.eliminated ? '<span class="badge badge--hard">☠ Éliminé</span>' : ''}
+  const myCard = mine ? `
+    <div class="answer-card${correct ? ' answer-card--correct' : (mine.answered ? ' answer-card--wrong' : '')}">
+      <div class="answer-card__head">
+        <span aria-hidden="true">${mine.emoji}</span>
+        <span class="answer-card__name">${escapeHtml(mine.name)}</span>
+        <span class="answer-card__score">${mine.score} pt${mine.score > 1 ? 's' : ''}</span>
+      </div>
+      <div class="answer-result-line">
+        <span>Choix : <strong>${mine.answered || '—'}</strong></span>
+        ${result}
+      </div>
     </div>
-    <h2 class="player-question">Bonne réponse&nbsp;: ${escapeHtml(answerText)}</h2>
-    ${funnyText && funnyText !== answerText ? `<p class="player-reveal">😄 L'option drôle&nbsp;: ${escapeHtml(funnyText)}</p>` : ''}
-    ${payload.explanation ? `<p class="player-reveal">${escapeHtml(payload.explanation)}</p>` : ''}
-    <ul class="player-leaderboard">${leaderboardHtml(payload.results || [], 'score')}</ul>
+  ` : '';
+
+  document.querySelector('#game-body').innerHTML = `
+    <article id="question-card" class="question-card" aria-live="polite">
+      <div class="question-meta">
+        ${payload.difficulty ? `<span class="badge badge--${escapeHtml(payload.difficulty)}">${escapeHtml(DIFFICULTY_LABELS[payload.difficulty] || payload.difficulty)}</span>` : ''}
+      </div>
+      <h2>${escapeHtml(payload.question || lastQuestion?.question || '')}</h2>
+      <div class="options-grid">${options}</div>
+      ${payload.explanation ? `<div class="explanation">${escapeHtml(payload.explanation)}</div>` : ''}
+    </article>
+    <section class="answer-entry">
+      <h3>Résultat</h3>
+      <div class="player-answer-grid">${myCard}</div>
+    </section>
   `;
 }
 
 function renderMancheEnd(payload) {
-  const body = document.querySelector('.join__body');
+  showDisconnect(true);
+  setHeader('Fin de manche', '', 100);
   const winner = (payload.players || []).find(p => p.id === payload.winnerId);
-  body.innerHTML = `
-    <p class="join-waiting__emoji" aria-hidden="true">${winner ? winner.emoji : '🏅'}</p>
-    <p class="join-waiting">${winner ? `${escapeHtml(winner.name)} remporte la manche&nbsp;!` : 'Manche terminée'}</p>
-    <ul class="player-leaderboard">${leaderboardHtml(payload.players || [], 'score')}</ul>
-    <p class="join-waiting-hint">Prochaine question à venir…</p>
+  const rows = [...(payload.players || [])]
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .map((p) => {
+      const won = p.manchesWon || 0;
+      const pips = Array.from({ length: payload.manchesTarget || 1 }, (_, i) =>
+        `<span class="manche-pip${i < won ? ' manche-pip--won' : ''}"></span>`).join('');
+      return `
+        <div class="podium__row${p.id === payload.winnerId ? ' podium__row--first' : ''}">
+          <span aria-hidden="true">${p.emoji}</span>
+          <span class="answer-card__name">${escapeHtml(p.name)}</span>
+          <span class="manche-pips" aria-label="${won} manche${won > 1 ? 's' : ''} gagnée${won > 1 ? 's' : ''}">${pips}</span>
+          <span class="answer-card__score">${p.score ?? 0} pt</span>
+        </div>
+      `;
+    }).join('');
+  document.querySelector('#game-body').innerHTML = `
+    <article class="question-card" aria-live="polite">
+      <h2>${winner ? `🏅 ${escapeHtml(winner.name)} remporte la manche&nbsp;!` : 'Manche terminée'}</h2>
+      <div class="podium">${rows}</div>
+      <p class="gap-msg">Prochaine manche à venir…</p>
+    </article>
   `;
 }
 
 function renderVictory(payload) {
-  const body = document.querySelector('.join__body');
+  showDisconnect(true);
+  setHeader('Partie terminée', '', 100);
   const winner = (payload.players || []).find(p => p.id === payload.winnerId);
-  body.innerHTML = `
-    <p class="join-waiting__emoji" aria-hidden="true">🏆</p>
-    <p class="join-waiting">${winner ? `${escapeHtml(winner.name)} gagne la partie&nbsp;!` : 'Partie terminée'}</p>
-    <ul class="player-leaderboard">${leaderboardHtml(payload.players || [], 'manchesWon')}</ul>
-    <p class="join-waiting-hint">Merci d'avoir joué&nbsp;!</p>
+  const ranked = [...(payload.players || [])]
+    .sort((a, b) => (b.manchesWon || 0) - (a.manchesWon || 0) || (b.score || 0) - (a.score || 0));
+  const maxWon = Math.max(1, ...(payload.players || []).map(p => p.manchesWon || 0));
+  const medals = ['🥇', '🥈', '🥉'];
+  const podiumHtml = ranked.slice(0, 3).map((p, i) => `
+    <div class="podium__row ${i === 0 ? 'podium__row--first' : ''}">
+      <span class="podium__rank" aria-hidden="true">${medals[i] || `${i + 1}`}</span>
+      <span class="podium__emoji" aria-hidden="true">${p.emoji}</span>
+      <div class="podium__info">
+        <div class="answer-card__name">${escapeHtml(p.name)}</div>
+        <div class="podium__bar"><span style="width:${Math.round(((p.manchesWon || 0) / maxWon) * 100)}%"></span></div>
+      </div>
+      <span class="answer-card__score">${p.manchesWon || 0} manche${(p.manchesWon || 0) > 1 ? 's' : ''}</span>
+    </div>
+  `).join('');
+  document.querySelector('#game-body').innerHTML = `
+    <article class="question-card" aria-live="polite">
+      <div class="victory-header">
+        <h1 class="winner-title">${winner ? `🏆 ${escapeHtml(winner.name)} gagne la partie&nbsp;!` : 'Partie terminée&nbsp;!'}</h1>
+        <p>Merci d'avoir joué&nbsp;!</p>
+      </div>
+      <div class="podium" aria-label="Classement">${podiumHtml}</div>
+    </article>
   `;
 }
 
 function renderWaitingForGame() {
-  const body = document.querySelector('.join__body');
-  body.innerHTML = `
-    <p class="join-waiting__emoji" aria-hidden="true">${myEmoji}</p>
-    <p class="join-waiting">Reconnecté·e&nbsp;!</p>
-    <p class="join-waiting-hint">En attente de la prochaine question…</p>
+  showDisconnect(true);
+  setHeader('En attente…', '', 0);
+  document.querySelector('#game-body').innerHTML = `
+    <article class="question-card">
+      <div class="loading-panel">
+        <div class="join-emoji" aria-hidden="true">${myEmoji}</div>
+        <h2>Reconnecté·e&nbsp;!</h2>
+        <p>En attente de la prochaine question…</p>
+      </div>
+    </article>
   `;
 }
 
 function renderRoomClosed() {
-  const body = document.querySelector('.join__body');
-  body.innerHTML = `
-    <p class="join-waiting__emoji" aria-hidden="true">👋</p>
-    <p class="join-waiting">La partie est terminée.</p>
-    <p class="join-waiting-hint">L'hôte a fermé la partie. Merci d'avoir joué&nbsp;!</p>
+  showDisconnect(false);
+  setHeader('Partie terminée', '', 100);
+  document.querySelector('#game-body').innerHTML = `
+    <article class="question-card">
+      <div class="loading-panel">
+        <div class="join-emoji" aria-hidden="true">👋</div>
+        <h2>La partie est terminée.</h2>
+        <p>L'hôte a fermé la partie. Merci d'avoir joué&nbsp;!</p>
+      </div>
+    </article>
   `;
-}
-
-function leaderboardHtml(players, sortBy) {
-  return [...players]
-    .sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0) || (b.score || 0) - (a.score || 0))
-    .map((p, i) => {
-      const me = p.id === clientId;
-      const manches = p.manchesWon != null ? (p.manchesWon > 0 ? '🏆'.repeat(Math.min(p.manchesWon, 5)) : '·') : '';
-      return `
-        <li class="player-row${me ? ' player-row--me' : ''}">
-          <span class="player-row__rank">${i + 1}</span>
-          <span class="player-row__emoji" aria-hidden="true">${p.emoji}</span>
-          <span class="player-row__name">${escapeHtml(p.name)}${me ? ' · toi' : ''}</span>
-          ${manches ? `<span class="player-row__manches" aria-label="${p.manchesWon} manche(s) gagnée(s)">${manches}</span>` : ''}
-          <span class="player-row__score">${p.score ?? 0} pt</span>
-        </li>
-      `;
-    })
-    .join('');
 }
