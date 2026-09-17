@@ -750,7 +750,7 @@ Avec plusieurs instances, il faudra prévoir :
 - des connexions persistantes vers la même instance ;
 - ou un service WebSocket dédié.
 
-> **Canap' QuiZZ** : cas retenu = **plusieurs instances** (Vercel Functions). Voir §18.6 pour l'architecture Redis (état + pub/sub).
+> **Canap' QuiZZ** : cas retenu = **relais auto-hébergé** (un seul processus VPS, rooms en mémoire). Voir §18.6.
 
 ---
 
@@ -844,7 +844,7 @@ Elle est la source de vérité pour la partie en ligne : en cas de conflit, elle
 
 | # | Décision | Statut |
 |---|---|---|
-| 1 | Hébergement : **Vercel Functions + WebSocket (beta) + Redis Cloud** (intégration Marketplace `redis`) — voir §18.6 | acté |
+| 1 | Hébergement : **relais WS auto-hébergé** (`server/relay.mjs` sur un VPS), rooms en mémoire — voir §18.6 | acté |
 | 2 | Mode **hybride** : le local (un seul écran) reste le défaut ; l'« en ligne » est une option activée par le MJ | acté |
 | 3 | Le MJ reste **animateur** : pas de siège joueur en mode en ligne | acté |
 | 4 | Reprise d'une partie en ligne : **terrain préparé** (identité reconnectable + projection au rejoin), non implémentée | acté |
@@ -899,34 +899,39 @@ Host → Players (filtrés, relayés) :
 | `game.state` | `{ targetId, question\|reveal\|mancheEnd\|victory\|waiting }` | projection ciblée au rejoin (§18.7) ; seul le joueur visé par `targetId` la traite |
 | `room.closed` | `{}` | l'hôte a fermé la room (quitter la partie, terminer la session) |
 
-## 18.6 Déploiement — décision : Vercel + Redis Cloud (beta)
+## 18.6 Déploiement — décision : relais auto-hébergé (VPS)
 
-Retenu : **Vercel Functions avec WebSocket (Public Beta) + Redis Cloud** (intégration Marketplace `redis`, le service Redis officiel). On reste ainsi 100 % Vercel, au prix de deux contraintes assumées :
+Retenu : un **serveur Node auto-hébergé** (`server/relay.mjs`) sur un VPS, qui fait tout
+en un seul processus : sessions, relais WebSocket **en mémoire**, et éventuellement le
+statique `dist/`. Le relais serverless Vercel + Redis a été abandonné : la limite dure
+`maxDuration` (~5 min) de Vercel imposait une reconnexion permanente, et Redis ajoutait un
+service facturé pour un problème que la mémoire d'un seul processus résout.
 
-- **instances serverless, éphémères et multiples** : une connexion WS est épinglée à une instance pour sa durée de vie (Fluid compute permet à une instance d'en porter plusieurs), mais deux clients d'une même room peuvent atterrir sur des instances différentes ;
-- **état partagé hors instance** : la `Map` en mémoire du §3 devient **locale à chaque instance**. L'état de room et le relais inter-instances passent par **Redis Cloud**.
-
-Architecture cible :
+Architecture :
 
 ```text
-client ──> Vercel Function (instance X) ──╮
-                                          ├──> Redis Cloud
-client ──> Vercel Function (instance Y) ──╯   · état des rooms (TTL)
-                                               · pub/sub `room:<roomId>`
+client ──> VPS (server/relay.mjs) ── room = Map<sessionId, Map<playerId, socket>>
+client ──>   · POST /api/sessions    (id imprévisible, session en mémoire, TTL 24 h)
+             · WS  /api/ws?sessionId (relais « dumb », anti-écho, présence)
+             · GET /*                (dist/ si présent — un seul serveur pour tout)
 ```
 
 Règles :
 
-1. `POST /api/sessions` écrit les métadonnées de room dans Redis avec un **TTL** (expiration 30 min sans activité / 4 h max, cf. §4).
-2. Chaque instance s'abonne au canal `room:<roomId>` de ses connexions locales.
-3. À la réception d'un message, l'instance publie sur `room:<roomId>` ; toutes les instances abonnées le renvoient à leurs sockets locaux de cette room.
-4. La `Map` en mémoire ne sert qu'à retrouver les sockets **locaux** d'une instance ; la vérité de l'existence, de la limite et de l'expiration d'une room vit dans Redis.
+1. Une room est une `Map` en mémoire : zéro Redis, zéro pub/sub inter-instances (une
+   seule instance suffit pour une partie familiale).
+2. Aucune limite de durée : les connexions tiennent aussi longtemps que nécessaire. Le
+   `ping` (15 s) ne sert qu'à l'anti-inactivité et au repère « dernier ping » côté client.
+3. Les sessions vides sont gardées jusqu'à leur TTL (24 h) pour permettre la reconnexion
+   du host, puis nettoyées.
+4. L'origine du relais est figée à la compilation (`VITE_RELAY_ORIGIN`) ; à défaut, même
+   origine que le front (le relais peut servir `dist/`).
 
-Le dumb relay reste inchangé dans son principe (§17) : seule la localisation de l'état change. Le proxy LLM reste `api/gateway.js` (Vercel) / `vite.config.js` (dev) tel quel — la duplication « deux proxys » demeure, comme aujourd'hui.
+Le proxy LLM reste `api/gateway.js` (Vercel) / `vite.config.js` (dev) tel quel — la
+duplication « deux proxys » demeure.
 
-**Provisionnement** : `vercel install redis` (alias `vc i redis`) crée la base **Redis Cloud** et injecte les variables de connexion dans le projet (URL `redis://`/`rediss://`, typiquement `REDIS_URL` — nom exact à confirmer au setup).
-
-**Dépendances serveur** : ce choix introduit les premières dépendances npm runtime du dépôt — `ws` (WebSocket) et `ioredis` (client Redis standard) — utilisées **uniquement côté serveur**, jamais embarquées dans le bundle front (qui reste à zéro dépendance runtime).
+**Dépendance serveur** : seule `ws` (WebSocket) est ajoutée, jamais embarquée dans le
+bundle front (qui reste à zéro dépendance runtime). `ioredis` a été retiré.
 
 ## 18.7 Rejoin en pleine partie (implémenté)
 
@@ -946,14 +951,14 @@ visé par `targetId` la traite) :
 La sortie du host (quitter la partie, terminer la session) ferme la room et diffuse
 `room.closed` aux joueurs. Une partie en ligne n'est pas reprise après fermeture.
 
-### Reconnexion automatique (Vercel `maxDuration`)
+### Reconnexion automatique
 
-Vercel tue la fonction WS au bout de `maxDuration` (300 s max) : aucune connexion unique
-ne tient 5 h. Le relais envoie un `ping` toutes les 15 s (anti-inactivité + repère de
-fraîcheur), et **host comme joueur reconnectent automatiquement** avec recul exponentiel
-(1 s → 10 s) à chaque fermeture. Le host retrouve son état (il vit dans le store, pas dans
-le socket) ; le joueur re-postule via `clientId` et reçoit la projection ci-dessus. Un
-indicateur « Ping Ns » / « Reconnexion… » expose l'état des deux côtés.
+La connexion tient désormais indéfiniment (pas de `maxDuration`), mais une coupure réseau
+(blip WiFi, redéploiement du relais) reste possible : **host comme joueur reconnectent
+automatiquement** avec recul exponentiel (1 s → 10 s). Le host retrouve son état (il vit
+dans le store, pas dans le socket) ; le joueur re-postule via `clientId` et reçoit la
+projection ci-dessus. Un indicateur « Ping Ns » / « Reconnexion… » expose l'état des deux
+côtés.
 
 ## 18.8 Chronomètre
 

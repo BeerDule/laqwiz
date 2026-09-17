@@ -1,9 +1,8 @@
 // demo/ws-relay-test.mjs — valide le relais WebSocket en local (zéro dépendance).
 //
 // Prérequis :
-//   1. une base Redis (REDIS_URL dans .env) — `vc i redis` ou une instance locale ;
-//   2. `vercel dev` qui tourne (les fonctions /api sont servies, ex. :3000) ;
-//   3. `node demo/ws-relay-test.mjs` (Node ≥ 22 : WebSocket natif).
+//   1. un relais auto-hébergé qui tourne (npm run relay → http://localhost:3000) ;
+//   2. `node demo/ws-relay-test.mjs` (Node ≥ 22 : WebSocket natif).
 //
 // Scénario : crée une session, connecte A puis B, vérifie que le message de A
 // parvient à B avec `senderId`, que le sens inverse marche, qu'il n'y a pas

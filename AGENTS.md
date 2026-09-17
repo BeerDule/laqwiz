@@ -30,7 +30,8 @@ configuré reste inatteignable : la validation du formulaire bloque avant l'appe
 - **Bundler** : Vite 5.4 (`vite.config.js`)
 - **Frontend** : Vanilla JS ES2022, CSS custom properties (pas de `@layer` — la cascade
   repose sur l'ordre des imports dans `main.js` : theme → layout → components → arcade)
-- **Dép.** : **zéro dépendance npm runtime** — seul `vite` en devDependencies
+- **Dép.** : **zéro dépendance npm runtime côté front** — `ws` (relais serveur) en
+  dependencies, seul `vite` en devDependencies
 - **Nix** : `flake.nix` pour shell reproductible + build
 - ~5 800 lignes JS + CSS
 
@@ -144,6 +145,8 @@ vite.config.js        # proxy HTTP → LLM du DEV SERVER (BYOK via en-têtes, re
 vercel.json           # rewrites : /api/* → /api/gateway
 api/
   gateway.js          # proxy LLM serverless (production) — même contrat que le proxy Vite
+server/
+  relay.mjs           # relais WS auto-hébergé (VPS) : sessions + relais en mémoire + statique
 src/
   main.js             # bootstrap, hydratation, routage des écrans, toasts
   state.js            # store pub/sub, réducteur, machine à états, session/partie/manche
@@ -160,11 +163,16 @@ src/
   themeSwitcher.js    # thème de couleurs (data-color-theme)
   mechaBackdrop.js    # fond animé <canvas> du thème Mecha, autonome
   confetti.js         # animation de victoire
+  room.js             # couche réseau du host (reconnexion, diffusions, rejoin)
+  relay.js            # origine du relais WS (configurable à la compilation)
+  player.js           # point d'entrée joueur (connexion + jeu)
+  connIndicator.js    # indicateur d'état de connexion (ping / reconnexion)
   screens/
     home.js           # menu principal (Continuer / Nouvelle session / Sessions / Réglages)
     setup.js          # roster + thème + règles + panneau LLM (BYOK)
     game.js           # question, saisie MJ, révélation, chrono, fin de manche
     victory.js        # podium de partie (classé sur les MANCHES gagnées) + confettis
+    lobby.js          # écran LOBBY (lien d'invitation + QR + joueurs qui rejoignent)
     sessions.js       # gestionnaire : lister, créer, renommer, rouvrir, supprimer
     settings.js       # réglages GLOBAUX de l'appareil : LLM, partage d'URL, reset d'usine
   components/

@@ -8,8 +8,8 @@
 //   5. le départ (player.left) ;
 //   6. le refus d'une session inconnue.
 //
-// Le script démarre lui-même un Redis + le relais sur des ports isolés
-// (6381 / 3001) pour ne pas gêner un `npm run dev-ws` déjà lancé.
+// Le script démarre lui-même le relais auto-hébergé sur un port isolé (3001)
+// pour ne pas gêner un `npm run dev-ws` déjà lancé.
 //
 // Usage : npm run test:lobby    (ou `node demo/lobby-test.mjs` dans nix develop)
 
@@ -17,10 +17,8 @@ import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const RELAY_PORT = process.env.TEST_RELAY_PORT || '3001';
-const REDIS_PORT = process.env.TEST_REDIS_PORT || '6381';
 const BASE = `http://localhost:${RELAY_PORT}`;
 const WS_BASE = `ws://localhost:${RELAY_PORT}`;
-const REDIS_URL = `redis://localhost:${REDIS_PORT}`;
 
 const children = [];
 let passed = 0;
@@ -105,10 +103,8 @@ process.on('SIGTERM', () => cleanup(0));
 async function main() {
   console.log('=== Test lobby (relais WebSocket) ===\n');
 
-  // 1) Redis + relais isolés.
-  spawnChild('redis-server', ['--port', REDIS_PORT, '--save', '', '--appendonly', 'no']);
-  await sleep(600);
-  spawnChild('node', ['demo/dev-server.mjs'], { REDIS_URL, PORT: RELAY_PORT });
+  // 1) Relais auto-hébergé isolé (pas de Redis).
+  spawnChild('node', ['server/relay.mjs'], { PORT: RELAY_PORT });
 
   const up = await waitForServer();
   assert(up, `relais prêt sur ${BASE}`);
@@ -121,9 +117,8 @@ async function main() {
   });
   assert(res.status === 201, 'POST /api/sessions → 201', `reçu ${res.status}`);
   assert(res.headers.get('access-control-allow-origin') === '*', 'CORS allow-origin: *');
-  const { sessionId, shareUrl } = await res.json();
+  const { sessionId } = await res.json();
   assert(/^[a-f0-9]{64}$/.test(sessionId), 'sessionId = 64 caractères hex');
-  assert(typeof shareUrl === 'string' && shareUrl.includes(sessionId), 'shareUrl contient le sessionId');
   console.log(`  sessionId : ${sessionId.slice(0, 16)}…`);
 
   // 3) Connexion du host.

@@ -9,12 +9,13 @@
   "scripts": {
     "dev": "vite",
     "dev-ws": "node demo/dev-ws.mjs",
+    "relay": "node server/relay.mjs",
+    "start": "node server/relay.mjs",
     "test:lobby": "node demo/lobby-test.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "ioredis": "^5.4.1",
     "ws": "^8.18.0"
   },
   "devDependencies": {
