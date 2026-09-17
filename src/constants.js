@@ -311,7 +311,7 @@ export const COLOR_THEMES = {
   paper:   { label: 'Paper Quest' },
   mecha:   { label: 'Mecha' },
 };
-export const DEFAULT_COLOR_THEME = 'paper';
+export const DEFAULT_COLOR_THEME = 'mecha';
 
 export const DIFFICULTY_LABELS = {
   easy: 'Facile',

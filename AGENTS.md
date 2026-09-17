@@ -406,7 +406,7 @@ ressusciter un élément déclaré masqué. Ne pas ajouter de `display: … !imp
 ### Thème ≠ thème
 `settings.theme` = le sujet du quiz (« Cinéma & séries »), envoyé au LLM.
 `data-color-theme` = l'apparence. **10 thèmes** : VS Code, Matrix, Girly, Windows 98,
-Jungle, Kids Friendly, Apple, Apple Glass, **Paper Quest (défaut)**, Mecha.
+Jungle, Kids Friendly, Apple, Apple Glass, Paper Quest, **Mecha (défaut)**.
 Ajouter un thème = une entrée dans `COLOR_THEMES` + un bloc de surcharges dans `theme.css`.
 Aucun autre fichier à toucher, **sauf Mecha**, dont le fond animé vit dans `mechaBackdrop.js`
 (voir « Le thème Mecha »).
