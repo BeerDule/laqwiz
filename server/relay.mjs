@@ -1,9 +1,8 @@
-// server/relay.mjs — relais WebSocket auto-hébergé (VPS), remplace le relais
-// serverless Vercel + Redis (WS.md §18.6 révisé).
+// server/relay.mjs — relais WebSocket auto-hébergé (VPS) : sessions + relais en
+// mémoire + statique + proxy LLM (WS.md §18.6).
 //
 // Un seul processus Node :
-//   - POST /api/chat/completions → proxy LLM (BYOK + repli .env, même contrat
-//     qu'api/gateway.js) ;
+//   - POST /api/chat/completions → proxy LLM (BYOK + repli .env) ;
 //   - GET  /api/health           → config LLM (model / temperature / batchSize) ;
 //   - POST /api/sessions         → crée une session (id imprévisible) ;
 //   - GET  /api/relay/health     → santé du relais (nb de sessions) ;
@@ -41,7 +40,7 @@ function sendError(res, status, code, message) {
   return sendJson(res, status, { error: { code, message } });
 }
 
-// --- Proxy LLM (BYOK + repli .env) — même contrat qu'api/gateway.js ---
+// --- Proxy LLM (BYOK + repli .env) — même contrat que le proxy Vite ---
 function getServerConfig() {
   const baseUrl = (process.env.LLM_BASE_URL || '').replace(/\/+$/, '');
   const apiKey = process.env.LLM_API_KEY || '';
@@ -210,7 +209,7 @@ const server = http.createServer(async (req, res) => {
 
     const url = new URL(req.url, 'http://localhost');
 
-    // Proxy LLM (contrat api/gateway.js) : le front appelle ces deux routes.
+    // Proxy LLM : le front appelle ces deux routes.
     if (url.pathname === '/api/health' && req.method === 'GET') {
       return handleHealth(res);
     }

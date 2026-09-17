@@ -2,7 +2,7 @@
 //
 // Les APIs MediaWiki renvoient `Access-Control-Allow-Origin: *` dès qu'on passe
 // `origin=*` : le navigateur les appelle donc directement, sans passer par le
-// proxy LLM. Rien à ajouter dans vite.config.js ni api/gateway.js.
+// proxy LLM. Rien à ajouter dans le proxy LLM.
 
 const DEFAULT_LANG = 'fr';
 const TIMEOUT_MS = 12_000;

@@ -25,8 +25,7 @@ configuré reste inatteignable : la validation du formulaire bloque avant l'appe
 
 ## Stack
 - **Runtime** : Node 24 LTS (`fetch` natif, `AbortController`, ESM). Épinglé dans
-  `engines.node` — c'est ce champ qui décide aussi de la version déployée sur
-  Vercel, l'export `config` d'une fonction `/api` n'acceptant pas de numéro.
+  `engines.node`.
 - **Bundler** : Vite 5.4 (`vite.config.js`)
 - **Frontend** : Vanilla JS ES2022, CSS custom properties (pas de `@layer` — la cascade
   repose sur l'ordre des imports dans `main.js` : theme → layout → components → arcade)
@@ -142,9 +141,6 @@ des stats, qui suivent donc le score net.
 .env                  # gitignored — optionnel (repli serveur si BYOK absent)
 .env.example          # modèle versionné
 vite.config.js        # proxy HTTP → LLM du DEV SERVER (BYOK via en-têtes, repli .env)
-vercel.json           # rewrites : /api/* → /api/gateway
-api/
-  gateway.js          # proxy LLM serverless (production) — même contrat que le proxy Vite
 server/
   relay.mjs           # relais WS auto-hébergé (VPS) : sessions + relais en mémoire + statique
 src/
@@ -261,10 +257,9 @@ Le numéro de base vit dans `package.json` (`"version"`), seul endroit à modifi
 pour passer en `0.2.0-beta` ou `1.0.0`. Le SHA est résolu au build par
 `resolveVersion()` dans `vite.config.js`, dans cet ordre :
 
-1. `VERCEL_GIT_COMMIT_SHA` — le conteneur de build Vercel n'a pas forcément `git` ;
-2. `git rev-parse --short HEAD` — en local, quand git est dans le PATH (ce n'est
+1. `git rev-parse --short HEAD` — en local, quand git est dans le PATH (ce n'est
    pas le cas par défaut dans le shell Nix, voir le gotcha plus bas) ;
-3. la version nue, sans SHA — elle reste du semver valide, et un build ne doit
+2. la version nue, sans SHA — elle reste du semver valide, et un build ne doit
    pas échouer pour un numéro de version.
 
 **Figée à la compilation** (`define`), comme `LLM_CONFIG_REQUIRED` : la version
@@ -487,10 +482,9 @@ Toute modif de `.env` nécessite un redémarrage. `vite.config.js` est rechargé
 Acceptable en famille, mais un risque XSS subsiste. Pour un hébergement public, préférer la
 config `.env` serveur.
 
-### Trois proxys LLM à maintenir en parallèle
-`vite.config.js` (dev), `api/gateway.js` (production Vercel) et `server/relay.mjs`
-(auto-hébergé) implémentent le **même** contrat BYOK/repli. Toute évolution doit toucher
-les trois.
+### Deux proxys LLM à maintenir en parallèle
+`vite.config.js` (dev) et `server/relay.mjs` (auto-hébergé) implémentent le **même**
+contrat BYOK/repli. Toute évolution doit toucher les deux.
 
 ### Pas de git dans le PATH par défaut
 `nix shell nixpkgs#git --command git ...`

@@ -22,21 +22,17 @@ import { readFileSync } from 'node:fs';
  *
  * Le SHA est cherché dans cet ordre, parce qu'aucune source n'est disponible
  * partout :
- *   1. VERCEL_GIT_COMMIT_SHA — fourni par Vercel, dont le conteneur de build
- *      n'a pas forcément `git` ;
- *   2. `git rev-parse` — en local, quand git est dans le PATH (ce n'est pas le
+ *   1. `git rev-parse` — en local, quand git est dans le PATH (ce n'est pas le
  *      cas par défaut dans le shell Nix du projet) ;
- *   3. aucune — on renvoie la version nue, qui reste du semver valide.
+ *   2. aucune — on renvoie la version nue, qui reste du semver valide.
  */
 function resolveVersion() {
   const base = JSON.parse(readFileSync(new URL('./package.json', import.meta.url))).version;
-  const fromVercel = process.env.VERCEL_GIT_COMMIT_SHA;
-  if (fromVercel) return `${base}+${fromVercel.slice(0, 7)}`;
   try {
     const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
       .toString().trim();
     if (sha) return `${base}+${sha}`;
-  } catch { /* ni Vercel ni git : on continue */ }
+  } catch { /* pas de git : on renvoie la version nue */ }
   return base;
 }
 

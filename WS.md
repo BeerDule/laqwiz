@@ -6,7 +6,7 @@
 
 ---
 
-> **Canap' QuiZZ** : ce document décrit le relais générique (sections 1 à 17). La **section 18** l'adapte au jeu de quiz — rôles host/player, messages métier, projection de sécurité, déploiement Vercel vs auto-hébergé, terrain de reprise. Elle **fait foi pour la partie en ligne**.
+> **Canap' QuiZZ** : ce document décrit le relais générique (sections 1 à 17). La **section 18** l'adapte au jeu de quiz — rôles host/player, messages métier, projection de sécurité, déploiement auto-hébergé, terrain de reprise. Elle **fait foi pour la partie en ligne**.
 
 ## 1. Objectif
 
@@ -903,9 +903,9 @@ Host → Players (filtrés, relayés) :
 
 Retenu : un **serveur Node auto-hébergé** (`server/relay.mjs`) sur un VPS, qui fait tout
 en un seul processus : sessions, relais WebSocket **en mémoire**, et éventuellement le
-statique `dist/`. Le relais serverless Vercel + Redis a été abandonné : la limite dure
-`maxDuration` (~5 min) de Vercel imposait une reconnexion permanente, et Redis ajoutait un
-service facturé pour un problème que la mémoire d'un seul processus résout.
+statique `dist/`. L'ancien relais (limité à ~5 min de connexion) a été abandonné :
+cette limite imposait une reconnexion permanente, et Redis ajoutait un service
+facturé pour un problème que la mémoire d'un seul processus résout.
 
 Architecture :
 
@@ -927,13 +927,12 @@ Règles :
 4. L'origine du relais est figée à la compilation (`VITE_RELAY_ORIGIN`) ; à défaut, même
    origine que le front (le relais peut servir `dist/`).
 
-Le proxy LLM est implémenté **trois fois** au même contrat (BYOK/repli `.env`) :
-`vite.config.js` (dev), `api/gateway.js` (Vercel) et `server/relay.mjs` (auto-hébergé,
-porté dans le relais pour servir `dist/` en autonome). Toute évolution doit toucher les
-trois.
+Le proxy LLM est implémenté **deux fois** au même contrat (BYOK/repli `.env`) :
+`vite.config.js` (dev) et `server/relay.mjs` (auto-hébergé, porté dans le relais pour
+servir `dist/` en autonome). Toute évolution doit toucher les deux.
 
 **Dépendance serveur** : seule `ws` (WebSocket) est ajoutée, jamais embarquée dans le
-bundle front (qui reste à zéro dépendance runtime). `ioredis` a été retiré.
+bundle front (qui reste à zéro dépendance runtime).
 
 ## 18.7 Rejoin en pleine partie (implémenté)
 

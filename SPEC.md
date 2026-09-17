@@ -144,11 +144,8 @@ quizz-canape/
 ├── SPEC.md                       # Ce document
 ├── package.json
 ├── vite.config.js                # build + proxy LLM du serveur de DEV
-├── vercel.json                   # rewrites : /api/* → /api/gateway
 ├── flake.nix                     # shell reproductible
 ├── index.html
-├── api/
-│   └── gateway.js                # proxy LLM serverless (production)
 ├── demo/
 │   └── mock-llm.mjs              # faux LLM OpenAI-compatible, zéro dépendance
 ├── public/
@@ -2205,9 +2202,8 @@ export function clearAll() { ['quizz-canape:players', 'quizz-canape:settings', '
 
 ### 16.1 bis. Versionnage
 
-`engines.node` décide aussi de la version déployée sur Vercel : l'export `config` d'une
-fonction `/api` n'accepte pas de numéro de runtime (`edge` | `experimental-edge` | `nodejs`
-uniquement).
+`engines.node` épingle la version de Node requise (`24.x`) : le relais auto-hébergé
+(`server/relay.mjs`) et le dev server la lisent pour rester alignés.
 
 Le champ `version` est **avancé automatiquement** à chaque commit sur `dev` par
 `.githooks/pre-commit` : compteur de pré-version sur une ligne numérotée (`rc.1` → `rc.2`),
@@ -2230,7 +2226,7 @@ npm run build     # génère dist/
 npm run preview   # prévisualise dist/, avec avertissement ci-dessous
 ```
 
-> ⚠️ **Avertissement déploiement : le build statique n'a pas de proxy.** `vite.config.js` configure le proxy du dev server, pas un serveur de production inclus dans `dist/`. En phase 2, déployer une fonction serverless ou un serveur Express qui implémente `/api/chat/completions`, charge `LLM_*` côté serveur et fait l'injection `Authorization`. Ne jamais remplacer ce proxy par une variable `VITE_LLM_API_KEY`.
+> ⚠️ **Avertissement déploiement : le build statique n'a pas de proxy.** `vite.config.js` configure le proxy du dev server, pas un serveur de production inclus dans `dist/`. En production, `server/relay.mjs` (auto-hébergé) implémente `/api/chat/completions`, charge `LLM_*` côté serveur et fait l'injection `Authorization`. Ne jamais remplacer ce proxy par une variable `VITE_LLM_API_KEY`.
 
 ### 16.3. Vérification build
 
@@ -2358,7 +2354,7 @@ Cocher chaque critère avec un test manuel ou automatisé reproductible.
 - [ ] Vérifier les réponses contenant texte avant JSON, fences, virgules trailing et enveloppe inattendue.
 - [ ] Vérifier les 429, 401, 500, timeout et réseau coupé avec un mock.
 - [ ] Exécuter `npm run build`, inspecter `dist/` et confirmer l'absence de secret.
-- [ ] Documenter le déploiement phase 2 : fonction serverless ou Express, jamais clé dans le front.
+- [ ] Documenter le déploiement : `server/relay.mjs` auto-hébergé, jamais clé dans le front.
 - [ ] Livrer uniquement les fichiers nécessaires, sans `.env`.
 
 ---

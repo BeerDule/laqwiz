@@ -47,8 +47,6 @@
       # --- Environnement de développement (nodejs + npm) -----------------------
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
-          # NB : le CLI Vercel n'est plus dans nixpkgs (nodePackages retiré,
-          # pas de paquet top-level `vercel`) → on le passe par `npx` (npm).
           packages = [
             pkgs.nodejs_24
           ];
@@ -61,10 +59,6 @@
             echo "    npm run dev           # http://localhost:5173"
             echo "    npm run dev-ws        # multijoueur : relais WS + Vite"
             echo "    npm run build         # génère dist/ (nix build .# en fait autant)"
-            echo ""
-            echo "  Vercel CLI (via npx — nixpkgs ne l'embarque plus) :"
-            echo "    npx vercel login      # authentification"
-            echo "    npx vercel link       # lier le projet"
             echo ""
           '';
         };

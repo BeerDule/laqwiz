@@ -71,13 +71,14 @@ npm run build     # génère dist/
 npm run preview   # prévisualise dist/
 ```
 
-Le déploiement cible Vercel : `vercel.json` réécrit `/api/*` vers la fonction
-`api/gateway.js`, qui joue le rôle de proxy LLM côté serveur et injecte
-l'en-tête `Authorization`. Ne **jamais** exposer une variable `VITE_LLM_API_KEY` :
-tout ce qui porte le préfixe `VITE_` finit dans le bundle client.
+Le déploiement cible un **serveur auto-hébergé** (`server/relay.mjs`), qui sert
+`dist/` et implémente à la fois le relais WebSocket multijoueur et le proxy LLM
+(`/api/chat/completions`, BYOK ou `.env`). Ne **jamais** exposer une variable
+`VITE_LLM_API_KEY` : tout ce qui porte le préfixe `VITE_` finit dans le bundle
+client.
 
 > Le proxy de `vite.config.js` ne sert **que** le serveur de développement. En
-> production, c'est `api/gateway.js` qui prend le relais — les deux implémentent
+> production, c'est `server/relay.mjs` qui prend le relais — les deux implémentent
 > le même contrat.
 
 ## Nix / NixOS
@@ -89,9 +90,8 @@ Le projet fournit un `flake.nix` (flakes requis) :
 - `nix flake check` — vérifie que le build passe
 
 > Le projet est épinglé sur **Node.js 24** (LTS) : `engines.node` dans
-> `package.json`, et `nodejs_24` dans le flake. Le même champ détermine la version
-> utilisée par Vercel, dev et production restent donc alignés. Le
-> `package-lock.json` est versionné pour figer `vite`.
+> `package.json`, et `nodejs_24` dans le flake. Le `package-lock.json` est
+> versionné pour figer `vite`.
 
 ## Architecture
 
@@ -108,7 +108,7 @@ Le projet fournit un `flake.nix` (flakes requis) :
 | `src/confetti.js` | Animation de victoire |
 | `src/screens/` | `home` · `setup` · `game` · `victory` · `sessions` |
 | `src/styles/` | Design system (jetons, mise en page, composants, coquille arcade) |
-| `api/gateway.js` | Proxy LLM serverless (production) |
+| `server/relay.mjs` | Relais WebSocket + proxy LLM + statique (auto-hébergé) |
 
 Le petit état lu au démarrage vit en `localStorage` (lecture synchrone avant le
 premier rendu) ; l'archive, qui grossit sans limite, vit en IndexedDB. Si le

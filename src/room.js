@@ -120,9 +120,9 @@ function connect(sessionId) {
 }
 
 /**
- * Reconnexion automatique avec recul exponentiel (1 s → 10 s max). Vercel tue
- * la fonction WS à `maxDuration` (~5 min) : le host doit rouvrir sa connexion
- * sans perdre l'état (celui-ci vit dans le store, pas dans le socket).
+ * Reconnexion automatique avec recul exponentiel (1 s → 10 s max). Une coupure
+ * réseau (blip WiFi, redéploiement du relais) ferme la connexion : le host doit
+ * rouvrir sans perdre l'état (celui-ci vit dans le store, pas dans le socket).
  */
 function scheduleReconnect() {
   if (reconnectTimer || !currentSessionId) return;
