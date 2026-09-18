@@ -191,6 +191,73 @@ function mancheEndHtml(s) {
   `;
 }
 
+/** Carte de résultat pleine (canapé) : tête + choix + pénalité. */
+function fullResultCard(p, q, bonusMult, s) {
+  const ans = s.roundAnswers[p.id];
+  let result;
+  let cls = 'answer-card';
+  if (p.eliminated) {
+    cls += ' answer-card--out';
+    result = '<span class="answer-result answer-result--none">☠ Exclu de la manche · +0</span>';
+  } else if (!ans) {
+    const lost = s.roundPenalties[p.id] || 0;
+    if (lost > 0) {
+      cls += ' answer-card--wrong';
+      result = `<span class="answer-result answer-result--wrong">— Pas de réponse · −${lost}</span>`;
+    } else {
+      result = '<span class="answer-result answer-result--none">— Pas de réponse · +0</span>';
+    }
+  } else if (ans === q.answer) {
+    cls += ' answer-card--correct';
+    result = `<span class="answer-result answer-result--correct">✓ +${bonusMult}</span>`;
+  } else {
+    cls += ' answer-card--wrong';
+    const lost = s.roundPenalties[p.id] || 0;
+    result = lost > 0
+      ? `<span class="answer-result answer-result--wrong">✕ −${lost}</span>`
+      : '<span class="answer-result answer-result--wrong">✕ +0</span>';
+  }
+  return `
+    <div class="${cls}">
+      <div class="answer-card__head">
+        <span aria-hidden="true">${p.emoji}</span>
+        <span class="answer-card__name">${escapeHtml(p.name)}</span>
+        <span class="answer-card__score">${p.score} pt${p.score > 1 ? 's' : ''}</span>
+      </div>
+      <div class="answer-result-line">
+        <span>Choix : <strong>${ans || '—'}</strong></span>
+        ${result}
+      </div>
+    </div>
+  `;
+}
+
+/** Carte de résultat compacte (lobby, jusqu'à 42) : une rangée par joueur. */
+function compactResultCard(p, q, bonusMult, s) {
+  const ans = s.roundAnswers[p.id];
+  let cls = 'answer-card answer-card--compact';
+  let result;
+  if (p.eliminated) { cls += ' answer-card--out'; result = '☠'; }
+  else if (!ans) {
+    const lost = s.roundPenalties[p.id] || 0;
+    if (lost > 0) { cls += ' answer-card--wrong'; result = `−${lost}`; }
+    else result = '—';
+  } else if (ans === q.answer) { cls += ' answer-card--correct'; result = `+${bonusMult}`; }
+  else {
+    const lost = s.roundPenalties[p.id] || 0;
+    cls += ' answer-card--wrong';
+    result = lost > 0 ? `−${lost}` : '0';
+  }
+  return `
+    <div class="${cls}">
+      <span aria-hidden="true">${p.emoji}</span>
+      <span class="answer-card__name">${escapeHtml(p.name)}</span>
+      <span class="answer-card__choice">${ans || '—'}</span>
+      <span class="answer-card__score">${result}</span>
+    </div>
+  `;
+}
+
 function revealHtml(s) {
   const q = s.questions[s.currentIndex];
   const bonusMult = s.isBonusRound ? 2 : 1;
@@ -210,45 +277,9 @@ function revealHtml(s) {
     return `<div class="${cls}" data-key="${o.key}"><div class="option-card__row"><span class="option-card__key">${o.key}</span><span>${escapeHtml(o.text)}</span></div>${badge}</div>`;
   }).join('');
 
-  const resultsHtml = s.players.map(p => {
-    const ans = s.roundAnswers[p.id];
-    let result;
-    let cls = 'answer-card';
-    if (p.eliminated) {
-      cls += ' answer-card--out';
-      result = '<span class="answer-result answer-result--none">☠ Exclu de la manche · +0</span>';
-    } else if (!ans) {
-      const lost = s.roundPenalties[p.id] || 0;
-      if (lost > 0) {
-        cls += ' answer-card--wrong';
-        result = `<span class="answer-result answer-result--wrong">— Pas de réponse · −${lost}</span>`;
-      } else {
-        result = '<span class="answer-result answer-result--none">— Pas de réponse · +0</span>';
-      }
-    } else if (ans === q.answer) {
-      cls += ' answer-card--correct';
-      result = `<span class="answer-result answer-result--correct">✓ +${bonusMult}</span>`;
-    } else {
-      cls += ' answer-card--wrong';
-      const lost = s.roundPenalties[p.id] || 0;
-      result = lost > 0
-        ? `<span class="answer-result answer-result--wrong">✕ −${lost}</span>`
-        : '<span class="answer-result answer-result--wrong">✕ +0</span>';
-    }
-    return `
-      <div class="${cls}">
-        <div class="answer-card__head">
-          <span aria-hidden="true">${p.emoji}</span>
-          <span class="answer-card__name">${escapeHtml(p.name)}</span>
-          <span class="answer-card__score">${p.score} pt${p.score > 1 ? 's' : ''}</span>
-        </div>
-        <div class="answer-result-line">
-          <span>Choix : <strong>${ans || '—'}</strong></span>
-          ${result}
-        </div>
-      </div>
-    `;
-  }).join('');
+  const resultsHtml = s.players
+    .map(p => (s.room ? compactResultCard : fullResultCard)(p, q, bonusMult, s))
+    .join('');
 
   const victory = hasMancheWinner(s);
   const actionLabel = victory ? 'Fin de la manche' : 'Question suivante';
@@ -276,7 +307,7 @@ function revealHtml(s) {
     </article>
     <section class="answer-entry">
       <h3>Résultats</h3>
-      <div class="player-answer-grid">${resultsHtml}</div>
+      <div class="player-answer-grid${s.room ? ' player-answer-grid--compact' : ''}">${resultsHtml}</div>
       ${gapMsg}
       <button id="btn-next" class="button button--primary button--large">${actionLabel}</button>
     </section>
@@ -309,6 +340,20 @@ function renderLeaderboard() {
       <span class="leaderboard-mini__manche">Manche ${s.partie.mancheIndex + 1} sur ${manchesT}</span>
       <span class="leaderboard-mini__goal">Premier à ${cible} points</span>
     </div>` : '';
+
+  // En ligne, jusqu'à 42 joueurs : un couloir par joueur est illisible. On
+  // résume — qui est là, et combien ont déjà répondu.
+  if (s.room) {
+    const answered = Object.keys(s.roundAnswers).length;
+    const sig = `${head}|${s.players.length}|${answered}`;
+    if (sig === lastLaneSig) return;
+    lastLaneSig = sig;
+    el.innerHTML = `${head}<div class="leaderboard-mini__summary">
+      <span>👥 ${s.players.length} joueurs</span>
+      <span class="leaderboard-mini__summary-answered">✅ ${answered} / ${s.players.length} ont répondu</span>
+    </div>`;
+    return;
+  }
 
   const lanes = s.players.map(p => {
     const won = s.partie?.manchesWon?.[p.id] || 0;
@@ -375,6 +420,11 @@ function updateRevealButton() {
   const answered = Object.values(s.roundAnswers).some(a => a);
   // Sans ce `|| timeUp`, un temps écoulé sans aucune réponse bloquerait le MJ.
   btn.disabled = !answered && !timeUp;
+  // En ligne, le MJ attend les réponses : on lui montre la progression.
+  if (s.room) {
+    const n = Object.keys(s.roundAnswers).length;
+    btn.textContent = `Révéler la réponse (${n}/${s.players.length})`;
+  }
 }
 
 /**

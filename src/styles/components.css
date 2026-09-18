@@ -548,6 +548,17 @@ input[type='range']::-moz-range-thumb {
 }
 .leaderboard-mini__target { color: var(--color-muted); font-weight: 400; }
 
+/* En ligne (jusqu'à 42 joueurs), la piste se résume à un compteur. */
+.leaderboard-mini__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  font-size: var(--text-meta);
+  font-weight: 600;
+}
+.leaderboard-mini__summary-answered { color: var(--color-muted); font-weight: 400; }
+
 /* ===== Carte question ===== */
 .question-card {
   max-width: 69.231em;
@@ -923,6 +934,33 @@ input[type='range']::-moz-range-thumb {
   font-size: 1.077em;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* Version compacte (lobby, jusqu'à 42 joueurs) : une rangée par joueur. */
+.answer-card--compact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: .462em .769em;
+}
+.answer-card--compact .answer-card__name {
+  font-size: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.answer-card--compact .answer-card__score {
+  margin-left: 0;
+  font-size: 1em;
+}
+.answer-card--compact .answer-card__choice {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.player-answer-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(13.846em, 1fr));
+  gap: var(--space-2);
 }
 
 .answer-result {
