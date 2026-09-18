@@ -41,4 +41,4 @@ jobs:
           SSH_ARGS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes"
           tar czf - dist server package.json package-lock.json | \
             ssh $SSH_ARGS "$DEPLOY_USER@$DEPLOY_HOST" \
-              "set -e; cd ~/quizz-canape && tar xzf - && npm install --omit=dev --no-audit --no-fund && sudo systemctl restart quizz-canape && sleep 1 && curl -sf http://127.0.0.1:3000/api/relay/health >/dev/null && echo 'relais OK après redémarrage'"
+              "set -e; cd ~/quizz-canape && rm -rf dist && tar xzf - && npm install --omit=dev --no-audit --no-fund && sudo systemctl restart quizz-canape && sleep 1 && curl -sf http://127.0.0.1:3000/api/relay/health >/dev/null && echo 'relais OK après redémarrage'"
