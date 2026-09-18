@@ -314,6 +314,7 @@ export const COLOR_THEMES = {
   'apple-glass': { label: 'Apple Glass' },
   paper:   { label: 'Paper Quest' },
   mecha:   { label: 'Mecha' },
+  'neo-bitnik': { label: 'Neo-Bitnik' },
 };
 export const DEFAULT_COLOR_THEME = 'mecha';
 

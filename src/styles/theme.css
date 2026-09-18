@@ -2053,3 +2053,174 @@ html:root[data-color-theme="mecha"] .option-card__team { border-top-color: rgba(
   src: url('/fonts/dseg7-classic-700.woff2') format('woff2');
   unicode-range: U+002D-002E, U+0030-003A;
 }
+
+/* =====================================================================
+ * Thème « Neo-bitnik » — machine à écrire sur papier noir.
+ * Noir & blanc strict : encre blanche sur papier noir, le zine polycopié
+ * tiré en négatif. « beatnik » (Kerouac tapant On the Road d'une traite)
+ * croisé « bit » (le terminal, le monospace). Zéro couleur : les états
+ * s'expriment par le contraste, le remplissage et la hachure.
+ * ===================================================================== */
+
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/courier-prime-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Courier Prime';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/courier-prime-700-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+html:root[data-color-theme="neo-bitnik"] {
+  color-scheme: dark;
+  --font-display: 'Courier Prime', var(--font-mono);
+  --font-button: 'Courier Prime', var(--font-mono);
+  --font-sans: 'Courier Prime', 'Courier New', monospace;
+  --font-mono: 'Courier Prime', monospace;
+
+  --ink: #eae7e2;
+  --paper: #0b0b0c;
+  --halftone: rgba(234, 231, 226, .14);
+
+  --bg-void: #060607;
+  --bg-surface: #0e0e10;
+  --bg-surface-raised: #151518;
+  --bg-surface-soft: #212124;
+  --color-accent-primary: #eae7e2;
+  --color-accent-cyan: #eae7e2;
+  --color-accent-pink: #eae7e2;
+  --color-accent-lime: #eae7e2;
+  --color-success: #eae7e2;
+  --color-error: #eae7e2;
+  --color-warning: #eae7e2;
+  --color-text: #e3e0db;
+  --color-muted: #837f79;
+  --color-border: #2a2a2e;
+  --color-overlay: rgba(0, 0, 0, .74);
+
+  --gradient-bg: radial-gradient(120% 85% at 50% 0%, #101013 0%, #08080a 55%, #050506 100%);
+  --gradient-surface: linear-gradient(168deg, rgba(255, 255, 255, .028) 0%, rgba(255, 255, 255, 0) 42%);
+  --gradient-accent: none;
+  --accent-contrast: #0b0b0c;
+  --on-success: #0b0b0c;
+  --on-pink: #0b0b0c;
+  --texture:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .015) 0 .07em, transparent .07em .35em),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)'/%3E%3C/svg%3E");
+
+  --shadow-card: 0 .15em 0 rgba(0, 0, 0, .5);
+  --shadow-pop: 0 0 0 .1em #eae7e2;
+  --shadow-1: 0 .08em .15em rgba(0, 0, 0, .4);
+  --shadow-2: 0 .23em .6em rgba(0, 0, 0, .5);
+  --shadow-3: 0 .46em 1.4em rgba(0, 0, 0, .6);
+  --glow-accent: none;
+  --text-glow: none;
+  --focus-ring: .15em solid #eae7e2;
+  --focus-ring-offset: .15em;
+  --material-edge: .1em solid #2a2a2e;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-pill: 0;
+}
+
+html:root[data-color-theme="neo-bitnik"] ::selection { background: #eae7e2; color: #0b0b0c; }
+
+/* ===== Titres : machine à écrire, capitales, soulignés ===== */
+html:root[data-color-theme="neo-bitnik"] :is(.arcade__title h1, .arcade__bar h1, .winner-title, .modal__title, .loading-panel h2, .recap h3) {
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+}
+html:root[data-color-theme="neo-bitnik"] .arcade__title h1 {
+  color: var(--ink);
+  text-decoration: underline double;
+  text-underline-offset: .2em;
+  text-decoration-thickness: .05em;
+}
+
+/* ===== Bouton principal : inversion (blanc plein, encre noire) ===== */
+html:root[data-color-theme="neo-bitnik"] .button--primary {
+  background: var(--ink);
+  color: var(--paper);
+  border: .1em solid var(--ink);
+  box-shadow: .18em .18em 0 #2a2a2e;
+}
+html:root[data-color-theme="neo-bitnik"] .button--primary:hover:not(:disabled) {
+  transform: translate(-.05em, -.05em);
+  box-shadow: .23em .23em 0 #2a2a2e;
+}
+html:root[data-color-theme="neo-bitnik"] .button:disabled { opacity: .35; filter: none; }
+
+/* ===== Badges : la difficulté par la densité d'encre ===== */
+html:root[data-color-theme="neo-bitnik"] .badge {
+  border-radius: 0;
+  border: .1em solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+html:root[data-color-theme="neo-bitnik"] .badge--medium { background: var(--halftone); }
+html:root[data-color-theme="neo-bitnik"] .badge--hard { background: var(--ink); color: var(--paper); }
+html:root[data-color-theme="neo-bitnik"] .badge--bonus,
+html:root[data-color-theme="neo-bitnik"] .badge--funny {
+  border-style: dashed;
+  background: repeating-linear-gradient(-45deg, transparent 0 .5em, var(--halftone) .5em .9em);
+}
+
+/* ===== Révélation : bonne réponse = inversion, option drôle = hachure ===== */
+html:root[data-color-theme="neo-bitnik"] .option-card--correct {
+  border-color: var(--ink);
+  background: var(--ink);
+  box-shadow: none;
+}
+html:root[data-color-theme="neo-bitnik"] .option-card--correct,
+html:root[data-color-theme="neo-bitnik"] .option-card--correct .option-card__text {
+  color: var(--paper);
+}
+html:root[data-color-theme="neo-bitnik"] .option-card--correct .option-card__key {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--paper);
+}
+html:root[data-color-theme="neo-bitnik"] .option-card--funny {
+  border-style: dashed;
+  border-color: var(--ink);
+  background: repeating-linear-gradient(-45deg, transparent 0 .5em, var(--halftone) .5em .9em);
+}
+html:root[data-color-theme="neo-bitnik"] .option-card--funny .option-card__key {
+  background: var(--halftone);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ===== Résultats : bonne réponse encadrée, erreur barrée ===== */
+html:root[data-color-theme="neo-bitnik"] .answer-card--correct {
+  border-color: var(--ink);
+  border-width: .15em;
+}
+html:root[data-color-theme="neo-bitnik"] .answer-card--wrong .answer-card__choice,
+html:root[data-color-theme="neo-bitnik"] .answer-card--wrong .answer-result-line strong {
+  text-decoration: line-through;
+}
+
+/* ===== Piste : barre d'encre, meneur souligné d'un double trait ===== */
+html:root[data-color-theme="neo-bitnik"] .leaderboard-mini__fill {
+  background-image: none;
+  background-color: var(--ink);
+}
+html:root[data-color-theme="neo-bitnik"] .leaderboard-mini__item--leader { border-color: var(--ink); }
+html:root[data-color-theme="neo-bitnik"] .leaderboard-mini__item--leader .leaderboard-mini__name {
+  text-decoration: underline double;
+  text-underline-offset: .18em;
+}
+
+/* ===== Pastilles de manche : pleine = gagnée, creuse = à venir ===== */
+html:root[data-color-theme="neo-bitnik"] .manche-pip--won { background: var(--ink); border-color: var(--ink); }
