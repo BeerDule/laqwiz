@@ -349,12 +349,6 @@
   font-size: .8em;
 }
 
-/* Bouton « Démarrer un lobby » (écran de réglages) */
-.setup-lobby-btn {
-  width: min(24em, 100%);
-  margin: var(--space-3) auto 0;
-}
-
 /* ===== Écran joueur « Rejoindre » (mode en ligne) =====
  * Interface alignée sur celle du MJ : même coquille game-screen, mêmes
  * composants (question-card, options-grid, answer-card, podium). Le joueur est

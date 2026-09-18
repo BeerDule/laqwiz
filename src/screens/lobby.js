@@ -8,7 +8,7 @@ import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChips } from '../components/playerChip.js';
 import { leaveRoomIfOnline, send, getConnInfo } from '../room.js';
 import { connIndicatorHtml, wireConnIndicator } from '../connIndicator.js';
-import { MAX_PLAYERS, MIN_PLAYERS } from '../constants.js';
+import { MAX_LOBBY_PLAYERS, MIN_PLAYERS } from '../constants.js';
 
 let teardown = null;
 let root = null;
@@ -47,7 +47,7 @@ function lobbyHtml(s) {
 
       <div class="arcade-plaque">
         <span class="arcade-plaque__label">Joueurs connectés</span>
-        <strong class="arcade-plaque__name">${count} / ${MAX_PLAYERS}</strong>
+        <strong class="arcade-plaque__name">${count} / ${MAX_LOBBY_PLAYERS}</strong>
         <div class="arcade-plaque__roster">${roster}</div>
       </div>
 

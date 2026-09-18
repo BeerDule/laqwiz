@@ -262,7 +262,7 @@ function handleMessage(msg) {
 function reasonMessage(reason) {
   switch (reason) {
     case 'name-taken': return 'Ce prénom est déjà pris, choisis-en un autre.';
-    case 'emoji-taken': return 'Cet avatar est déjà pris, choisis-en un autre.';
+    case 'full': return 'Le lobby est complet (42 joueurs maximum).';
     case 'started': return 'La partie a déjà commencé.';
     default: return 'Impossible de rejoindre.';
   }

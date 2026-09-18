@@ -56,6 +56,10 @@ export const PRESET_THEMES = [
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
+// En mode lobby, le MJ ne saisit rien : les joueurs répondent depuis leur
+// téléphone. 42 est un choix pragmatique (une classe, un apéro géant) ; la
+// vraie limite est la lisibilité de l'écran de révélation.
+export const MAX_LOBBY_PLAYERS = 42;
 export const NAME_MAX_LENGTH = 18;
 export const THEME_MIN_LENGTH = 2;
 export const THEME_MAX_LENGTH = 60;

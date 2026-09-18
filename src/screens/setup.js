@@ -37,6 +37,8 @@ let pickerFor = null;
 let idCounter = 0;
 let selectedPreset = null;
 let customTheme = '';
+// Format de partie : `false` = canapé (roster local), `true` = lobby en ligne.
+let isLobby = false;
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -100,6 +102,7 @@ function defaultPlayers() {
 
 function initLocalState() {
   const s = getState();
+  isLobby = false;
   players = (s.players && s.players.length >= MIN_PLAYERS)
     ? s.players.map(p => ({ id: p.id, name: p.name || '', emoji: p.emoji, color: p.color, score: 0 }))
     : defaultPlayers();
@@ -116,20 +119,23 @@ function initLocalState() {
 }
 
 function validateForm() {
-  if (players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) {
-    return { ok: false, msg: `${MIN_PLAYERS} à ${MAX_PLAYERS} joueurs requis.` };
-  }
-  const seen = new Set();
-  for (const p of players) {
-    const name = p.name.trim();
-    if (!name || name.length > NAME_MAX_LENGTH) {
-      return { ok: false, msg: 'Saisissez un prénom unique (1 à 18 caractères).', focusId: p.id };
+  // En lobby, pas de roster local : les joueurs rejoignent via le lien.
+  if (!isLobby) {
+    if (players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) {
+      return { ok: false, msg: `${MIN_PLAYERS} à ${MAX_PLAYERS} joueurs requis.` };
     }
-    const key = name.toLowerCase();
-    if (seen.has(key)) {
-      return { ok: false, msg: 'Deux prénoms identiques sont refusés.', focusId: p.id };
+    const seen = new Set();
+    for (const p of players) {
+      const name = p.name.trim();
+      if (!name || name.length > NAME_MAX_LENGTH) {
+        return { ok: false, msg: 'Saisissez un prénom unique (1 à 18 caractères).', focusId: p.id };
+      }
+      const key = name.toLowerCase();
+      if (seen.has(key)) {
+        return { ok: false, msg: 'Deux prénoms identiques sont refusés.', focusId: p.id };
+      }
+      seen.add(key);
     }
-    seen.add(key);
   }
   // Le mode article exige un choix explicite : une recherche tapée mais jamais
   // validée ne doit pas lancer une partie silencieusement sans source.
@@ -926,7 +932,7 @@ function wireEvents(signal) {
   }, { signal });
 
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = validateForm();
     if (!v.ok) {
@@ -938,22 +944,13 @@ function wireEvents(signal) {
       return;
     }
     showError(null);
-    dispatch({ type: 'SET_PLAYERS', players });
-    dispatch({
-      type: 'SET_SETTINGS',
-      patch: {
-        ...readRules(),
-        theme: currentTheme(),
-        modeId: selectedModeId,
-        sourceMode: activeWikiPick() ? 'wikipedia' : 'theme',
-        sourceTitle: activeWikiPick()?.title || '',
-        sourceLang: activeWikiPick()?.lang || 'fr',
-        sourceUrl: activeWikiPick()?.url || '',
-        // La configuration LLM ne transite plus par ce formulaire : elle est
-        // globale à l'appareil et vit dans sa propre tranche d'état.
-      },
-    });
-    dispatch({ type: 'START_GAME', resetHistory: true });
+    applySettings();
+    if (isLobby) {
+      await startLobby();
+    } else {
+      dispatch({ type: 'SET_PLAYERS', players });
+      dispatch({ type: 'START_GAME', resetHistory: true });
+    }
   }, { signal });
 }
 
@@ -990,11 +987,25 @@ export function renderSetup(rootEl) {
            et la soumission LIT le DOM. Sans ça, une partie peut démarrer avec des
            réglages restaurés par le navigateur que personne n'a choisis. -->
       <form id="setup-form" novalidate autocomplete="off">
-        <fieldset class="panel players-panel">
+        <fieldset class="panel format-panel">
+          <legend>🎮 Format de partie</legend>
+          <div class="choice-group" role="radiogroup" aria-label="Format de partie">
+            <label class="choice-chip">
+              <input type="radio" name="gameMode" value="couch" checked />
+              <span>🛋️ Canapé</span>
+            </label>
+            <label class="choice-chip">
+              <input type="radio" name="gameMode" value="lobby" />
+              <span>📡 Lobby en ligne</span>
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="panel players-panel" id="players-panel">
           <legend>👥 Joueurs <span id="player-count-label">2/6</span></legend>
           <div id="players-list" class="players-list"></div>
           <button type="button" id="btn-add-player" class="button add-player-btn">+ Ajouter un joueur</button>
         </fieldset>
+        <p id="lobby-hint" class="rule-group__hint" hidden>Les joueurs rejoignent via le lien d'invitation (jusqu'à 42). Le MJ lit les questions et révèle les réponses.</p>
         <fieldset class="panel theme-panel">
           <legend>🎯 Thème</legend>
           <div class="theme-select-group">
@@ -1116,7 +1127,6 @@ export function renderSetup(rootEl) {
           <div id="history-list" class="history-list">${HISTORY_EMPTY}</div>
         </fieldset>
       </form>
-      <button id="btn-lobby" class="button button--ghost button--large setup-lobby-btn" type="button">📡 Démarrer un lobby</button>
     </section>
   `;
 
@@ -1127,7 +1137,14 @@ export function renderSetup(rootEl) {
 
   const cleanup = new AbortController();
   wireEvents(cleanup.signal);
-  root.querySelector('#btn-lobby').addEventListener('click', startLobby, { signal: cleanup.signal });
+  // Sélecteur de format (Canapé / Lobby) : couple la gestion des joueurs au mode.
+  root.querySelectorAll('input[name="gameMode"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      isLobby = radio.value === 'lobby';
+      syncMode();
+    }, { signal: cleanup.signal });
+  });
+  syncMode();
 
   // La session et les instantanés arrivent de façon asynchrone (IndexedDB) :
   // sans ces deux suivis, le panneau restait figé sur son état de montage.
@@ -1173,15 +1190,42 @@ export function unmountSetup() {
 
 
 
+/** Recopie le formulaire (thème + règles) dans le store, sans les joueurs. */
+function applySettings() {
+  dispatch({
+    type: 'SET_SETTINGS',
+    patch: {
+      ...readRules(),
+      theme: currentTheme(),
+      modeId: selectedModeId,
+      sourceMode: activeWikiPick() ? 'wikipedia' : 'theme',
+      sourceTitle: activeWikiPick()?.title || '',
+      sourceLang: activeWikiPick()?.lang || 'fr',
+      sourceUrl: activeWikiPick()?.url || '',
+    },
+  });
+}
+
+/** Bascule l'écran entre canapé (roster local) et lobby (roster distant). */
+function syncMode() {
+  const panel = root?.querySelector('#players-panel');
+  const hint = root?.querySelector('#lobby-hint');
+  const btn = root?.querySelector('#btn-start');
+  if (panel) panel.hidden = isLobby;
+  if (hint) hint.hidden = !isLobby;
+  if (btn) btn.textContent = isLobby ? '📡 Créer le lobby' : '▶ Générer la partie';
+  updateStartButton();
+}
+
 async function startLobby() {
-  const btn = root.querySelector('#btn-lobby');
+  const btn = root.querySelector('#btn-start');
   btn.disabled = true;
   btn.textContent = 'Création du lobby…';
   try {
     await startHost(); // dispatche ROOM_OPENED → phase LOBBY
   } catch (err) {
     btn.disabled = false;
-    btn.textContent = '📡 Démarrer un lobby';
+    syncMode();
     showError(err.message);
   }
 }

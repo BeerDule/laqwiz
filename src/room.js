@@ -6,7 +6,7 @@
 
 import { dispatch, getState, subscribe } from './state.js';
 import { RELAY_ORIGIN, relayWsUrl } from './relay.js';
-import { NAME_MAX_LENGTH, PLAYER_EMOJIS } from './constants.js';
+import { NAME_MAX_LENGTH, PLAYER_EMOJIS, MAX_LOBBY_PLAYERS } from './constants.js';
 
 let ws = null;
 let hostPlayerId = null;
@@ -171,14 +171,15 @@ function handle(msg) {
         break;
       }
 
-      // Checks d'unicité côté host (le client ne fait pas foi) : nom
-      // insensible à la casse, avatar unique, avatar dans la liste autorisée.
+      // Checks côté host (le client ne fait pas foi) : nom insensible à la
+      // casse, avatar dans la liste autorisée. En ligne l'avatar peut être en
+      // doublon (42 joueurs pour 30 avatars) : seul le prénom est unique.
       if (!name || !PLAYER_EMOJIS.includes(emoji)) {
         send('lobby.join.rejected', { targetId: clientId, reason: 'invalid' });
+      } else if (players.length >= MAX_LOBBY_PLAYERS) {
+        send('lobby.join.rejected', { targetId: clientId, reason: 'full' });
       } else if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
         send('lobby.join.rejected', { targetId: clientId, reason: 'name-taken' });
-      } else if (players.some(p => p.emoji === emoji)) {
-        send('lobby.join.rejected', { targetId: clientId, reason: 'emoji-taken' });
       } else {
         remapSender(clientId, senderId);
         dispatch({ type: 'ROOM_JOIN', id: clientId, name, emoji });
