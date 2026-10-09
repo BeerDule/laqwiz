@@ -88,6 +88,7 @@ export function toUiError(error) {
     UPSTREAM_4XX: { code, message: 'Trop de demandes ; nouvel essai possible.' },
     UPSTREAM_5XX: { code, message: 'Le service de questions est indisponible.' },
     AUTH: { code, message: 'Clé LLM refusée. Vérifiez votre configuration serveur.' },
+    CACHE_EXHAUSTED: { code, message: 'Plus de questions en cache pour ce thème.' },
   };
   return messages[code] || {
     code: 'UNKNOWN',
@@ -125,6 +126,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
   const llm = getState().llm;
   const difficulty = settings.difficulty || 'balanced';
   const audience = settings.audience || 'general';
+  const cacheOnly = settings.cacheOnly || false;
   const systemPrompt = buildSystemPrompt({
     theme, batchSize, history: exclude, schemaJSON: QUESTION_SCHEMA_JSON,
     difficulty, audience,
@@ -151,6 +153,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
       sourceKey: source ? (source.url || `${source.lang || 'fr'}:${source.title || ''}`) : '',
       exclude,
       batchSize,
+      cacheOnly,
     },
   };
 
@@ -198,6 +201,11 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
       }
       await sleep(retryAfterMs(res, rateLimitTries++));
       continue;
+    }
+
+    // --- 409 : cache épuisé (mode cache only), aucun retry ---
+    if (res.status === 409) {
+      throw new ApiError('CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
     }
 
     // --- 401 / 403 : clé invalide, aucun retry ---

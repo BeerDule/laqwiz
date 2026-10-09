@@ -28,7 +28,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
-import { computeKey, getNonExcluded, addQuestions, extractQuestions, load, stats } from './questionCache.mjs';
+import { computeKey, getNonExcluded, addQuestions, extractQuestions, load, stats, listThemes } from './questionCache.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h : couvre une partie de 5 h + reconnexion
@@ -47,6 +47,21 @@ function sendJson(res, status, body) {
 
 function sendError(res, status, code, message) {
   return sendJson(res, status, { error: { code, message } });
+}
+
+/** Réponse synthétique OpenAI-compatible servie depuis le cache. */
+function serveCached(res, questions, model) {
+  const content = JSON.stringify({ questions });
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify({
+    id: 'chatcmpl-cache',
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: model || 'cache',
+    choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+  }));
 }
 
 // --- Proxy LLM (BYOK + repli .env) — même contrat que le proxy Vite ---
@@ -154,18 +169,17 @@ async function handleChat(req, res) {
     const key = computeKey(quiz);
     const cached = getNonExcluded(key, quiz.exclude, wanted);
     if (cached.length >= wanted) {
-      const content = JSON.stringify({ questions: cached });
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({
-        id: 'chatcmpl-cache',
-        object: 'chat.completion',
-        created: Math.floor(Date.now() / 1000),
-        model: serverModel || 'cache',
-        choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-      }));
+      serveCached(res, cached, serverModel);
       return;
+    }
+    if (quiz.cacheOnly) {
+      // Mode hors ligne : jamais d'appel au LLM. On sert ce qui reste, sinon on
+      // signale l'épuisement du pool.
+      if (cached.length > 0) {
+        serveCached(res, cached, serverModel);
+        return;
+      }
+      return sendError(res, 409, 'CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
     }
   }
 
@@ -206,7 +220,7 @@ async function handleChat(req, res) {
       const envelope = JSON.parse(responseBody);
       const content = envelope?.choices?.[0]?.message?.content;
       const questions = extractQuestions(content);
-      if (questions.length) addQuestions(computeKey(quiz), questions);
+      if (questions.length) addQuestions(quiz, questions);
     } catch { /* réponse non-JSON : rien à cacher */ }
   }
 
@@ -259,9 +273,12 @@ const server = http.createServer(async (req, res) => {
 
     const url = new URL(req.url, 'http://localhost');
 
-    // Proxy LLM : le front appelle ces deux routes.
+    // Proxy LLM : le front appelle ces routes.
     if (url.pathname === '/api/health' && req.method === 'GET') {
       return handleHealth(res);
+    }
+    if (url.pathname === '/api/quiz/themes' && req.method === 'GET') {
+      return sendJson(res, 200, { themes: listThemes() });
     }
     if (url.pathname === '/api/chat/completions' && req.method === 'POST') {
       return await handleChat(req, res);

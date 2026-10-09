@@ -1,23 +1,26 @@
-// server/questionCache.mjs — cache de questions générées (serveur).
+// server/questionCache.mjs — cache de questions générées (serveur, SQLite).
 //
 // Réduit le coût et la latence LLM : un thème déjà traité ressort du pool sans
-// rappeler le provider. Le cache est une Map en mémoire, persistée en JSON pour
-// survivre aux redéploiements (le fichier vit à la racine du projet, hors du
-// tar de déploiement qui ne contient que dist/ + server/).
+// rappeler le provider. Le pool vit dans une base SQLite (module natif
+// `node:sqlite`, zéro dépendance npm) persistée à la racine du projet — hors du
+// tar de déploiement qui ne contient que dist/ + server/.
 //
 // Clé de cache : `theme | difficulté | public | sourceKey`. L'`exclude` (questions
 // déjà posées dans la session) n'entre PAS dans la clé : le pool est filtré par
 // exclude à chaque lecture, ce qui permet de resservir les mêmes questions à une
 // NOUVELLE session (historique vide) tout en évitant les doublons dans la même.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+//
+// Le mode « cache only » (jouer sans LLM) s'appuie sur `listThemes()` pour
+// proposer les thèmes disponibles et sur `getNonExcluded()` pour ne servir que
+// l'existant — sans jamais appeler le provider.
+import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CACHE_FILE = process.env.QUESTION_CACHE_FILE
-  || join(dirname(fileURLToPath(import.meta.url)), '..', '.question-cache.json');
+const DB_FILE = process.env.QUESTION_CACHE_DB
+  || join(dirname(fileURLToPath(import.meta.url)), '..', '.question-cache.db');
 
-// key -> questions[]
-const pools = new Map();
+let db = null;
 
 function normalize(s) {
   return String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -28,40 +31,55 @@ export function computeKey({ theme, difficulty, audience, sourceKey }) {
   return [theme, difficulty, audience, sourceKey || ''].map(normalize).join('|');
 }
 
-/** Questions du pool non exclues, jusqu'à `limit` (batch du client). */
-export function getNonExcluded(key, exclude, limit) {
-  const pool = pools.get(key) || [];
-  const excluded = new Set((exclude || []).map(normalize));
-  const out = [];
-  for (const q of pool) {
-    if (excluded.has(normalize(q.question))) continue;
-    out.push(q);
-    if (limit && out.length >= limit) break;
-  }
-  return out;
+function ensureDb() {
+  if (db) return db;
+  db = new DatabaseSync(DB_FILE);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS questions (
+      cache_key   TEXT NOT NULL,
+      theme       TEXT NOT NULL,
+      question_text TEXT NOT NULL,
+      payload     TEXT NOT NULL,
+      created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(cache_key, question_text)
+    );
+    CREATE INDEX IF NOT EXISTS idx_questions_cache_key ON questions(cache_key);
+    CREATE INDEX IF NOT EXISTS idx_questions_theme ON questions(theme);
+  `);
+  return db;
 }
 
-/** Ajoute des questions au pool (dédupliquées), puis persiste. */
-export function addQuestions(key, questions) {
-  if (!Array.isArray(questions) || !questions.length) return;
-  let pool = pools.get(key);
-  if (!pool) {
-    pool = [];
-    pools.set(key, pool);
+/** Questions du pool non exclues, jusqu'à `limit` (batch du client). */
+export function getNonExcluded(key, exclude, limit) {
+  const d = ensureDb();
+  const excluded = (exclude || []).map(normalize);
+  let sql = 'SELECT payload FROM questions WHERE cache_key = ?';
+  const params = [key];
+  if (excluded.length) {
+    sql += ` AND question_text NOT IN (${excluded.map(() => '?').join(',')})`;
+    params.push(...excluded);
   }
-  const seen = new Set(pool.map(q => normalize(q.question)));
-  let changed = false;
+  sql += ' ORDER BY created_at ASC LIMIT ?';
+  params.push(Number(limit) || 8);
+  return d.prepare(sql).all(...params).map((r) => JSON.parse(r.payload));
+}
+
+/** Ajoute des questions au pool (dédupliquées par texte). Retourne le nb inséré. */
+export function addQuestions(quiz, questions) {
+  if (!Array.isArray(questions) || !questions.length) return 0;
+  const d = ensureDb();
+  const key = computeKey(quiz);
+  const theme = String(quiz.theme || '');
+  const stmt = d.prepare(
+    'INSERT OR IGNORE INTO questions (cache_key, theme, question_text, payload) VALUES (?, ?, ?, ?)',
+  );
+  let inserted = 0;
   for (const q of questions) {
     // Garde minimale : ne cacher que des questions structurellement complètes.
-    // Sinon une question invalide (rejetée par le client) serait resservie en boucle.
     if (!q || typeof q.question !== 'string' || !Array.isArray(q.options) || q.options.length !== 4) continue;
-    const n = normalize(q.question);
-    if (seen.has(n)) continue;
-    seen.add(n);
-    pool.push(q);
-    changed = true;
+    inserted += stmt.run(key, theme, normalize(q.question), JSON.stringify(q)).changes;
   }
-  if (changed) persist();
+  return inserted;
 }
 
 /**
@@ -82,34 +100,25 @@ export function extractQuestions(content) {
   }
 }
 
+/** Thèmes disponibles en cache, avec leur nombre de questions (triés). */
+export function listThemes() {
+  const d = ensureDb();
+  return d.prepare(
+    'SELECT theme, COUNT(*) AS count FROM questions GROUP BY theme ORDER BY theme COLLATE NOCASE',
+  ).all();
+}
+
 /** Statistiques d'observation (exposées par /api/relay/health). */
 export function stats() {
-  let questions = 0;
-  for (const pool of pools.values()) questions += pool.length;
-  return { keys: pools.size, questions };
+  const d = ensureDb();
+  const { n } = d.prepare('SELECT COUNT(*) AS n FROM questions').get();
+  const { k } = d.prepare('SELECT COUNT(DISTINCT cache_key) AS k FROM questions').get();
+  return { keys: k, questions: n };
 }
 
-function persist() {
-  try {
-    const data = {};
-    for (const [key, pool] of pools) data[key] = pool;
-    writeFileSync(CACHE_FILE, JSON.stringify(data));
-  } catch (err) {
-    console.error('[question-cache] écriture impossible :', err.message);
-  }
-}
-
-/** Charge le cache depuis le disque (appelé au démarrage du serveur). */
+/** Ouvre la base (création des tables si besoin). Appelé au démarrage. */
 export function load() {
-  try {
-    if (!existsSync(CACHE_FILE)) return;
-    const data = JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
-    for (const [key, pool] of Object.entries(data)) {
-      if (Array.isArray(pool)) pools.set(key, pool);
-    }
-    const s = stats();
-    console.log(`[question-cache] ${s.questions} question(s) chargée(s), ${s.keys} clé(s)`);
-  } catch (err) {
-    console.error('[question-cache] lecture impossible :', err.message);
-  }
+  ensureDb();
+  const s = stats();
+  console.log(`[question-cache] SQLite prêt : ${s.questions} question(s), ${s.keys} clé(s)`);
 }

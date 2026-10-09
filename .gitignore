@@ -10,8 +10,8 @@ node_modules/
 dist/
 dist-ssr/
 
-# Cache de questions (généré au runtime, survit aux redéploiements)
-.question-cache.json
+# Cache de questions (SQLite, généré au runtime, survit aux redéploiements)
+.question-cache.db
 
 # Logs
 *.log

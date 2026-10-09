@@ -39,6 +39,9 @@ let selectedPreset = null;
 let customTheme = '';
 // Format de partie : `false` = canapé (roster local), `true` = lobby en ligne.
 let isLobby = false;
+// Mode « cache only » : jouer hors ligne depuis le pool de questions (sans LLM).
+let cacheOnly = false;
+let cacheThemes = []; // [{ theme, count }] chargés depuis /api/quiz/themes
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -86,8 +89,11 @@ function activeWikiPick() {
   return root?.querySelector('#wiki-enabled')?.checked ? wikiPick : null;
 }
 
-/** Priorité : article Wikipédia > thème libre > thème prédéfini. */
+/** Priorité : article Wikipédia > thème libre > thème prédéfini. Cache > tout. */
 function currentTheme() {
+  if (cacheOnly) {
+    return root?.querySelector('#cache-theme-select')?.value || '';
+  }
   const wiki = activeWikiPick();
   if (wiki) return wiki.title;
   return customTheme.trim() || selectedPreset || '';
@@ -103,6 +109,8 @@ function defaultPlayers() {
 function initLocalState() {
   const s = getState();
   isLobby = false;
+  cacheOnly = false;
+  cacheThemes = [];
   players = (s.players && s.players.length >= MIN_PLAYERS)
     ? s.players.map(p => ({ id: p.id, name: p.name || '', emoji: p.emoji, color: p.color, score: 0 }))
     : defaultPlayers();
@@ -137,27 +145,30 @@ function validateForm() {
       seen.add(key);
     }
   }
-  // Le mode article exige un choix explicite : une recherche tapée mais jamais
-  // validée ne doit pas lancer une partie silencieusement sans source.
-  if (root.querySelector('#wiki-enabled')?.checked && !activeWikiPick()) {
+  // Le mode article exige un choix explicite (sauf en mode cache, où il n'y a
+  // ni article ni thème libre : on choisit directement dans le pool).
+  if (!cacheOnly && root.querySelector('#wiki-enabled')?.checked && !activeWikiPick()) {
     return { ok: false, msg: 'Choisissez un article dans la liste, ou collez son URL.' };
   }
   const theme = currentTheme();
   if (!theme) return { ok: false, msg: 'Choisissez un thème.' };
   // Un titre d'article vient de Wikipédia et peut légitimement dépasser la
   // limite prévue pour un thème saisi à la main.
-  if (!activeWikiPick() && (theme.length < THEME_MIN_LENGTH || theme.length > THEME_MAX_LENGTH)) {
+  if (!cacheOnly && !activeWikiPick() && (theme.length < THEME_MIN_LENGTH || theme.length > THEME_MAX_LENGTH)) {
     return { ok: false, msg: `Le thème doit faire entre ${THEME_MIN_LENGTH} et ${THEME_MAX_LENGTH} caractères.` };
   }
-  if (!getState().ui.isOnline) {
-    return { ok: false, msg: 'Connexion requise pour générer les questions.' };
-  }
-  // La configuration LLM n'est plus saisie ici : elle est globale à l'appareil
-  // (menu principal > Paramètres). On vérifie seulement qu'elle existe.
-  if (REQUIRE_LLM_CONFIG) {
-    const { baseUrl, apiKey, model } = getState().llm;
-    if (!baseUrl || !apiKey || !model) {
-      return { ok: false, msg: 'Configurez votre modèle LLM depuis Paramètres, au menu principal.' };
+  // En mode cache, la partie tourne hors ligne : ni réseau ni LLM requis.
+  if (!cacheOnly) {
+    if (!getState().ui.isOnline) {
+      return { ok: false, msg: 'Connexion requise pour générer les questions.' };
+    }
+    // La configuration LLM n'est plus saisie ici : elle est globale à l'appareil
+    // (menu principal > Paramètres). On vérifie seulement qu'elle existe.
+    if (REQUIRE_LLM_CONFIG) {
+      const { baseUrl, apiKey, model } = getState().llm;
+      if (!baseUrl || !apiKey || !model) {
+        return { ok: false, msg: 'Configurez votre modèle LLM depuis Paramètres, au menu principal.' };
+      }
     }
   }
   return { ok: true };
@@ -1011,24 +1022,34 @@ export function renderSetup(rootEl) {
         <p id="lobby-hint" class="rule-group__hint" hidden>Les joueurs rejoignent via le lien d'invitation (jusqu'à 42). Le MJ lit les questions et révèle les réponses.</p>
         <fieldset class="panel theme-panel">
           <legend>🎯 Thème</legend>
-          <div class="theme-select-group">
-            <select id="theme-select" aria-label="Choisir un thème prédéfini">
+          <label class="toggle-row"><input id="cache-only-enabled" type="checkbox" /> <span class="toggle-track"></span> Jouer hors ligne depuis le cache</label>
+          <div id="cache-only-group" hidden>
+            <label class="field-label" for="cache-theme-select">Thème en cache</label>
+            <select id="cache-theme-select" aria-label="Choisir un thème en cache">
               <option value="">— Choisir un thème —</option>
-              ${PRESET_THEMES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
             </select>
-            <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
-            <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
+            <p class="rule-group__hint" id="cache-only-hint" hidden>Aucune question en cache pour l'instant.</p>
           </div>
-          <label class="toggle-row"><input id="wiki-enabled" type="checkbox" /> <span class="toggle-track"></span> Composer les questions depuis une page Wikipédia</label>
-          <div class="wiki-group" id="wiki-group" hidden>
-            <label class="field-label" for="wiki-search">Article source</label>
-            <div class="wiki-search-wrap">
-              <input id="wiki-search" type="search" autocomplete="off" spellcheck="false"
-                placeholder="Cherchez un article, ou collez son URL"
-                role="combobox" aria-expanded="false" aria-controls="wiki-results" aria-autocomplete="list" />
-              <ul id="wiki-results" class="wiki-results" role="listbox" hidden></ul>
+          <div id="llm-theme-group">
+            <div class="theme-select-group">
+              <select id="theme-select" aria-label="Choisir un thème prédéfini">
+                <option value="">— Choisir un thème —</option>
+                ${PRESET_THEMES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+              </select>
+              <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
+              <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
             </div>
-            <p id="wiki-chosen" class="wiki-chosen" hidden></p>
+            <label class="toggle-row"><input id="wiki-enabled" type="checkbox" /> <span class="toggle-track"></span> Composer les questions depuis une page Wikipédia</label>
+            <div class="wiki-group" id="wiki-group" hidden>
+              <label class="field-label" for="wiki-search">Article source</label>
+              <div class="wiki-search-wrap">
+                <input id="wiki-search" type="search" autocomplete="off" spellcheck="false"
+                  placeholder="Cherchez un article, ou collez son URL"
+                  role="combobox" aria-expanded="false" aria-controls="wiki-results" aria-autocomplete="list" />
+                <ul id="wiki-results" class="wiki-results" role="listbox" hidden></ul>
+              </div>
+              <p id="wiki-chosen" class="wiki-chosen" hidden></p>
+            </div>
           </div>
         </fieldset>
         <fieldset class="panel modes-panel">
@@ -1149,6 +1170,13 @@ export function renderSetup(rootEl) {
   });
   syncMode();
 
+  // Mode « cache only » : bascule l'entrée LLM / la liste des thèmes en cache.
+  root.querySelector('#cache-only-enabled').addEventListener('change', (e) => {
+    cacheOnly = e.target.checked;
+    syncCacheOnly();
+  }, { signal: cleanup.signal });
+  syncCacheOnly();
+
   // La session et les instantanés arrivent de façon asynchrone (IndexedDB) :
   // sans ces deux suivis, le panneau restait figé sur son état de montage.
   let lastResumeKey = '';
@@ -1207,6 +1235,7 @@ function applySettings() {
     patch: {
       ...readRules(),
       theme: currentTheme(),
+      cacheOnly,
       modeId: selectedModeId,
       sourceMode: activeWikiPick() ? 'wikipedia' : 'theme',
       sourceTitle: activeWikiPick()?.title || '',
@@ -1239,6 +1268,34 @@ function syncMode() {
   if (panel) panel.hidden = isLobby;
   if (hint) hint.hidden = !isLobby;
   if (btn) btn.textContent = isLobby ? '📡 Créer le lobby' : '▶ Générer la partie';
+  updateStartButton();
+}
+
+/** Charge les thèmes disponibles en cache, pour le mode « cache only ». */
+async function loadCacheThemes() {
+  try {
+    const res = await fetch('/api/quiz/themes');
+    cacheThemes = res.ok ? ((await res.json()).themes || []) : [];
+  } catch {
+    cacheThemes = [];
+  }
+  if (!root) return;
+  const select = root.querySelector('#cache-theme-select');
+  const hint = root.querySelector('#cache-only-hint');
+  if (select) {
+    select.innerHTML = '<option value="">— Choisir un thème —</option>' +
+      cacheThemes.map(t => `<option value="${escapeHtml(t.theme)}">${escapeHtml(t.theme)} · ${t.count}</option>`).join('');
+  }
+  if (hint) hint.hidden = cacheThemes.length > 0;
+}
+
+/** Bascule le mode « cache only » : masque l'entrée LLM, charge les thèmes. */
+function syncCacheOnly() {
+  const group = root?.querySelector('#cache-only-group');
+  const llmGroup = root?.querySelector('#llm-theme-group');
+  if (group) group.hidden = !cacheOnly;
+  if (llmGroup) llmGroup.hidden = cacheOnly;
+  if (cacheOnly && !cacheThemes.length) loadCacheThemes();
   updateStartButton();
 }
 

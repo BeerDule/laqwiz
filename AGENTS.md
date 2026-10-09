@@ -496,11 +496,14 @@ config `.env` serveur.
 `vite.config.js` (dev) et `server/relay.mjs` (auto-hébergé) implémentent le **même**
 contrat BYOK/repli. Toute évolution doit toucher les deux.
 
-Le **cache de questions** (`server/questionCache.mjs`) est branché dans les **deux**
-proxys, sur le même contrat : le client envoie un champ `_quiz` (theme, difficulty,
-audience, sourceKey, exclude, batchSize) que le proxy retire avant de forwarder. Le
-pool est persisté en `.question-cache.json` (racine du projet, hors du tar de
-déploiement) et ses stats sont exposées par `/api/relay/health`.
+Le **cache de questions** (`server/questionCache.mjs`, SQLite natif `node:sqlite`) est
+branché dans les **deux** proxys, sur le même contrat : le client envoie un champ `_quiz`
+(theme, difficulty, audience, sourceKey, exclude, batchSize, cacheOnly) que le proxy
+retire avant de forwarder. Le pool est persisté en `.question-cache.db` (racine du
+projet, hors du tar de déploiement). `GET /api/quiz/themes` liste les thèmes en cache
+(pour le mode « cache only » hors ligne, sans LLM), et `/api/relay/health` expose les
+stats. En `cacheOnly`, le proxy ne forwarde jamais : il sert l'existant ou répond
+`409 CACHE_EXHAUSTED`.
 
 ### Pas de git dans le PATH par défaut
 `nix shell nixpkgs#git --command git ...`

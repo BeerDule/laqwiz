@@ -2,7 +2,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { computeKey, getNonExcluded, addQuestions, extractQuestions, load } from './server/questionCache.mjs';
+import { computeKey, getNonExcluded, addQuestions, extractQuestions, load, listThemes } from './server/questionCache.mjs';
 
 /**
  * Version affichée, en semver : `<version de package.json>+<sha court>`.
@@ -70,6 +70,21 @@ function llmProxyPlugin(env, { validate } = {}) {
     res.end(JSON.stringify({ error: { code, message } }));
   }
 
+  /** Réponse synthétique OpenAI-compatible servie depuis le cache. */
+  function serveCached(res, questions, model) {
+    const content = JSON.stringify({ questions });
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({
+      id: 'chatcmpl-cache',
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: model || 'cache',
+      choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    }));
+  }
+
   return {
     name: 'quizz-canape-llm-proxy',
     configureServer(server) {
@@ -92,6 +107,16 @@ function llmProxyPlugin(env, { validate } = {}) {
           batchSize: parseInt(batchSize, 10),
           // JAMAIS la clé !
         }));
+      });
+
+      // Thèmes disponibles en cache (mode « cache only » hors ligne).
+      server.middlewares.use('/api/quiz/themes', (req, res) => {
+        if (req.method !== 'GET') {
+          return sendError(res, 405, 'METHOD_NOT_ALLOWED', 'GET only.');
+        }
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ themes: listThemes() }));
       });
 
       server.middlewares.use('/api', async (req, res) => {
@@ -158,18 +183,17 @@ function llmProxyPlugin(env, { validate } = {}) {
           const key = computeKey(quiz);
           const cached = getNonExcluded(key, quiz.exclude, wanted);
           if (cached.length >= wanted) {
-            const content = JSON.stringify({ questions: cached });
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({
-              id: 'chatcmpl-cache',
-              object: 'chat.completion',
-              created: Math.floor(Date.now() / 1000),
-              model: model || 'cache',
-              choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-              usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-            }));
+            serveCached(res, cached, model);
             return;
+          }
+          if (quiz.cacheOnly) {
+            // Mode hors ligne : jamais d'appel au LLM. On sert ce qui reste, sinon on
+            // signale l'épuisement du pool.
+            if (cached.length > 0) {
+              serveCached(res, cached, model);
+              return;
+            }
+            return sendError(res, 409, 'CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
           }
         }
 
@@ -218,7 +242,7 @@ function llmProxyPlugin(env, { validate } = {}) {
             const envelope = JSON.parse(responseBody);
             const content = envelope?.choices?.[0]?.message?.content;
             const questions = extractQuestions(content);
-            if (questions.length) addQuestions(computeKey(quiz), questions);
+            if (questions.length) addQuestions(quiz, questions);
           } catch { /* réponse non-JSON : rien à cacher */ }
         }
 
