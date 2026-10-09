@@ -477,6 +477,14 @@ Chaque question doit avoir EXACTEMENT :
 
 0 question valide après 3 retries → `INVALID_JSON` → UI : *« Le LLM a répondu dans un format inattendu »*
 
+### Rate-limit (HTTP 429)
+`fetchQuestionBatch` retente un 429 avec backoff **4 s / 8 s / 16 s** (3 essais), en respectant
+`Retry-After` s'il est fourni (le relais le transmet). Au-delà → `UPSTREAM_4XX` → « Trop de
+demandes ». Le 429 remonte du **provider** (le relais ne fait que le forwarder, sans le logger) :
+c'est souvent le pool partagé du modèle (ex. `mistral-small` sur OpenRouter) qui sature, pas la
+clé — changer de modèle résout le cas typique. Le `LLM_BATCH_SIZE` par défaut est **8** (moins
+d'appels, donc moins de 429).
+
 ### `.env` lu au démarrage de Vite uniquement
 Toute modif de `.env` nécessite un redémarrage. `vite.config.js` est rechargé à chaud.
 
@@ -544,6 +552,21 @@ reprise portant la même clé.
 
 Vérifier le **code de retour** de `npm run build`, jamais ses dernières lignes : une erreur
 de bundling y affiche une trace de pile, pas un résumé.
+
+### Tests E2E navigateur (Puppeteer + Chromium)
+
+- `npm run test:e2e` — `test/e2e.mjs` : monte un relais + mock LLM **locaux**, déroule 7
+  scénarios de jeu (lobby → question → révélation → victoire, rejoin, reprise F5, MJ joueur…).
+- `npm run test:e2e:prod` — `test/e2e-prod.mjs` : teste le **déploiement de production**
+  (`https://quiz.wagu.lu` par défaut, `E2E_PROD_URL` pour une autre cible). 36 scénarios :
+  signalisation réelle, DataChannel via les ICE (STUN/TURN), ping RTT, déconnexion/reconnexion
+  inopinée, et 6 scénarios de jeu réel dont les questions sont générées via la **clé LLM du
+  `.env` local** (donc consommateur de crédit). Sans `.env`, les scénarios de lobby tournent
+  encore (config factice), mais ceux qui génèrent des questions échouent.
+
+`page.setOfflineMode(true)` ne ferme **pas** les WebSockets existants dans Chrome : le test
+traque les `WebSocket`/`RTCPeerConnection` créés par la page (`evaluateOnNewDocument`) et les
+ferme de force (`dropNet`) pour simuler une vraie coupure réseau.
 
 ## Historique git
 Voir `git log`. (Ne pas recopier les commits ici : cette section a été fausse deux fois.)

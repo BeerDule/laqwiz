@@ -228,7 +228,7 @@ quizz-canape/
 | `LLM_API_KEY` | string | *(vide)* | **OUI** | Clé secrète du provider |
 | `LLM_MODEL` | string | `mammouth-chat` | Non | Identifiant du modèle (ex: `gpt-4o-mini`, `llama-3.1-70b`, `mistral-large`) |
 | `LLM_TEMPERATURE` | float ∈ [0, 2] | `0.9` | Non | Température de sampling. Plus haut = plus créatif/drôle |
-| `LLM_BATCH_SIZE` | int ∈ [1, 20] | `5` | Non | Taille du lot de questions généré par appel API |
+| `LLM_BATCH_SIZE` | int ∈ [1, 20] | `8` | Non | Taille du lot de questions généré par appel API |
 
 ### 4.2. Règle d'or : PAS de préfixe `VITE_`
 
@@ -260,8 +260,8 @@ LLM_MODEL=mammouth-chat
 # Température de sampling (0 = déterministe, 2 = chaos)
 LLM_TEMPERATURE=0.9
 
-# Nombre de questions générées par appel API (recommandé : 5)
-LLM_BATCH_SIZE=5
+# Nombre de questions générées par appel API (recommandé : 8)
+LLM_BATCH_SIZE=8
 ```
 
 ### 4.4. Fichier `.env` (NON versionné)
@@ -308,7 +308,7 @@ Thumbs.db
 | `LLM_API_KEY` | Erreur fatale ; le serveur refuse de démarrer |
 | `LLM_MODEL` | Erreur fatale si vide |
 | `LLM_TEMPERATURE` | Défaut `0.9` si non définie ou non numérique |
-| `LLM_BATCH_SIZE` | Défaut `5` si non définie ou hors bornes `[1,20]` |
+| `LLM_BATCH_SIZE` | Défaut `8` si non définie ou hors bornes `[1,20]` |
 
 ---
 
@@ -884,7 +884,7 @@ function stripTrailingCommas(s) {
 | Situation | Comportement |
 |-----------|--------------|
 | JSON invalide côté LLM (extract échoue, ou `parseQuestions` rejette tout) | **2 retries silencieux** (re-appel LLM avec même prompt) ; si toujours KO, `ApiError('INVALID_JSON')` |
-| HTTP 429 (rate limit) | Backoff exponentiel : **2 s → 4 s → 8 s**. 3 tentatives max. Au-delà : `ApiError('UPSTREAM_4XX', '429')`. Le navigateur affiche un toast « Trop de requêtes, réessayez dans quelques secondes ». |
+| HTTP 429 (rate limit) | Backoff exponentiel : **4 s → 8 s → 16 s**. 3 tentatives max. Au-delà : `ApiError('UPSTREAM_4XX', '429')`. Le navigateur affiche un toast « Trop de requêtes, réessayez dans quelques secondes ». |
 | HTTP 401/403 | `ApiError('AUTH')` immédiat, pas de retry (clé invalide). |
 | HTTP 5xx | 1 retry après 2 s ; au-delà : `ApiError('UPSTREAM_5XX')`. |
 | Timeout (30 s client) | `ApiError('TIMEOUT')`, pas de retry. |
@@ -943,7 +943,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [] }) {
 
       // Gestion par code HTTP avec backoff
       if (res.status === 429) {
-        await backoffWithAbort([2000, 4000, 8000]);
+        await backoffWithAbort([4000, 8000, 16000]);
         continue; // relance (considéré comme un retry 'upstream_4xx')
       }
       if (res.status === 401 || res.status === 403) {
@@ -1249,7 +1249,7 @@ const INITIAL_STATE = Object.freeze({
   // Délibérément HORS de `settings` : celui-ci est recopié en entier dans chaque
   // partie archivée et chaque instantané de reprise. La clé API s'y retrouvait
   // dupliquée à chaque sauvegarde. Elle est aussi globale à l'appareil.
-  llm: { model: '', baseUrl: '', apiKey: '', temperature: 0.9, batchSize: 5 },
+  llm: { model: '', baseUrl: '', apiKey: '', temperature: 0.9, batchSize: 8 },
 
   // === Hiérarchie de jeu (non spécifiée dans ce document — voir AGENTS.md) ===
   session: null, // roster + sac de parties, aucune condition de fin
@@ -1619,7 +1619,7 @@ Le système doit générer **5 questions au démarrage** (ou `settings.batchSize
 
 Invariants à respecter :
 
-1. À `START_GAME`, lancer exactement un appel initial avec `batchSize = 5`.
+1. À `START_GAME`, lancer exactement un appel initial avec `batchSize = 8`.
 2. Ne jamais afficher une question non validée.
 3. `history` contient toute question affichée dans la session, pas seulement la file.
 4. Ne jamais lancer deux lots simultanément (`prefetchInflight` est un verrou).
@@ -1641,7 +1641,7 @@ async function loadInitialBatch() {
   try {
     const result = await fetchQuestionBatch({
       theme: getState().settings.theme,
-      batchSize: 5,
+      batchSize: 8,
       exclude: [],
     });
     dispatch({ type: 'BATCH_RECEIVED', questions: result.questions });
@@ -1675,7 +1675,7 @@ function maybePrefetchNext() {
   dispatch({ type: 'SET_PREFETCH_INFLIGHT', value: true });
   fetchQuestionBatch({
     theme: s.settings.theme,
-    batchSize: 5,
+    batchSize: 8,
     exclude: s.history,
   }).then(({ questions }) => {
     dispatch({ type: 'BATCH_RECEIVED', questions });
@@ -2156,7 +2156,7 @@ export function clearAll() { ['quizz-canape:players', 'quizz-canape:settings', '
 | JSON invalide | extraction/parse/validation échoue | 2 retries silencieux ; si échec, toast + retry manuel | « Le LLM a répondu dans un format inattendu. » |
 | Lot incomplet | 1-`batchSize-1` questions valides | ajouter les valides ; demander complément au prochain seuil | « Quelques cartes n'ont pas pu être validées. » |
 | Lot vide | zéro valide après retries | ne pas changer la question courante ; bouton réessayer | « Aucune question valide reçue. » |
-| HTTP 429 | `res.status === 429` | backoff 2/4/8 s ; au-delà, erreur non fatale | « Trop de demandes ; nouvel essai possible. » |
+| HTTP 429 | `res.status === 429` | backoff 4/8/16 s ; au-delà, erreur non fatale | « Trop de demandes ; nouvel essai possible. » |
 | HTTP 5xx | status 500-599 | un retry après 2 s ; file conservée | « Le service de questions est indisponible. » |
 | Offline initial | `navigator.onLine=false` | désactiver démarrage ; afficher état offline | « Connexion requise pour générer les questions. » |
 | Offline en partie | événement `offline` | ne pas quitter la partie ; utiliser la file ; désactiver prefetch | « Hors connexion : les cartes déjà chargées restent disponibles. » |
@@ -2264,7 +2264,7 @@ Cocher chaque critère avec un test manuel ou automatisé reproductible.
 24. [ ] Une question dont l'explication ne contient pas 1-3 phrases est refusée.
 25. [ ] Un lot entouré de texte ou de fences ```json est parsé correctement.
 26. [ ] Un JSON invalide déclenche au maximum 2 retries silencieux puis une erreur lisible.
-27. [ ] Un 429 respecte le backoff 2 s, 4 s, 8 s puis expose une erreur.
+27. [ ] Un 429 respecte le backoff 4 s, 8 s, 16 s puis expose une erreur.
 28. [ ] Toute requête est abandonnée après 30 s côté navigateur.
 29. [ ] La question 1 est affichée sans révéler sa réponse.
 30. [ ] La grille contient exactement 4 options dans deux colonnes sur desktop.

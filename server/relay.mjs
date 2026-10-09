@@ -319,27 +319,23 @@ wss.on('connection', (ws, sessionId, isHost) => {
     });
   }
 
-  // Heartbeat : entretient la connexion (NAT/proxys) et sert de repère de
-  // fraîcheur au client (« dernier ping »). Pas de maxDuration ici : la
-  // connexion ne meurt pas d'elle-même.
-  const heartbeat = setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
-      try { ws.send(JSON.stringify({ type: 'ping', payload: { ts: Date.now() } })); } catch { /* ignore */ }
-    }
-  }, 15000);
-
-  // Signalisation : routage en étoile, `senderId` ajouté côté serveur.
+  // Signalisation : routage en étoile, `senderId` ajouté côté serveur. Un
+  // `ping` du client ne se route pas : on répond `pong` pour mesurer la latence
+  // (aller-retour) ; ce ping entretient aussi la connexion (NAT/proxys).
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
     if (!msg || typeof msg.type !== 'string') return;
+    if (msg.type === 'ping') {
+      try { ws.send(JSON.stringify({ type: 'pong', payload: msg.payload })); } catch { /* ignore */ }
+      return;
+    }
     const envelope = { ...msg, senderId: playerId };
     if (isHost) routeFromHost(session, envelope);
     else routeToHost(session, envelope);
   });
 
   ws.on('close', () => {
-    clearInterval(heartbeat);
     session.clients.delete(playerId);
     if (isHost) {
       if (session.hostPlayerId === playerId) session.hostPlayerId = null;

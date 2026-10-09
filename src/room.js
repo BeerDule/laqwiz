@@ -22,7 +22,8 @@ let hostPlayerId = null;
 let hostToken = null;
 let deliberateClose = false;
 let currentSessionId = null;
-let lastPingAt = 0;
+let rttMs = null; // dernière latence mesurée (aller-retour, ms)
+let pingTimer = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 let connState = 'offline'; // connecting | connected | reconnecting | offline
@@ -125,13 +126,19 @@ function connect(sessionId) {
       let msg;
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.type === 'session.connected') {
+        // Reconnexion après coupure réseau (pas un F5) : les canaux directs ont
+        // pu tomber avec le WS — on fait re-postuler les joueurs (§18.7).
+        const wasReconnect = reconnectAttempts > 0;
         hostPlayerId = msg.payload.playerId;
         connState = 'connected';
         reconnectAttempts = 0;
-        lastPingAt = Date.now();
+        rttMs = null;
+        startPing();
+        if (wasReconnect) broadcastRoomRejoin();
         resolve();
-      } else if (msg.type === 'ping') {
-        lastPingAt = Date.now();
+      } else if (msg.type === 'pong') {
+        const ts = msg.payload?.ts;
+        if (typeof ts === 'number') rttMs = Date.now() - ts;
       } else {
         handle(msg);
       }
@@ -144,6 +151,8 @@ function connect(sessionId) {
     });
 
     socket.addEventListener('close', () => {
+      stopPing();
+      rttMs = null;
       if (ws === socket) { ws = null; hostPlayerId = null; }
       const deliberate = deliberateClose;
       deliberateClose = false;
@@ -506,6 +515,8 @@ export function closeRoom() {
   deliberateClose = true;
   currentSessionId = null;
   connState = 'offline';
+  stopPing();
+  rttMs = null;
   reconnectAttempts = 0;
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (ws) {
@@ -517,9 +528,22 @@ export function closeRoom() {
   clearRoom();
 }
 
+/** Ping de latence (RTT) : le host envoie `ping`, le relais répond `pong`. */
+function startPing() {
+  stopPing();
+  pingTimer = setInterval(() => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'ping', payload: { ts: Date.now() } }));
+    }
+  }, 5000);
+}
+function stopPing() {
+  if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+}
+
 /** État de connexion pour l'indicateur visuel (host). */
 export function getConnInfo() {
-  return { state: connState, lastPingAt };
+  return { state: connState, rttMs };
 }
 
 /** Ferme la room si on est en ligne, et remet l'état à zéro (no-op sinon). */

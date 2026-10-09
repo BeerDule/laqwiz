@@ -23,7 +23,8 @@ let playerTimerId = null;
 // Contexte de la question courante (thème, manche, numéro) pour l'en-tête.
 let meta = null;
 let currentSessionId = null;
-let lastPingAt = 0;
+let rttMs = null; // dernière latence mesurée (aller-retour, ms)
+let pingTimer = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 let connState = 'connecting'; // connecting | connected | reconnecting | offline
@@ -121,7 +122,7 @@ export function mountPlayer(rootEl, sessionId) {
 
   rootEl.querySelector('#btn-disconnect').addEventListener('click', leave);
   wireThemeSelect(rootEl);
-  wireConnIndicator(rootEl, () => ({ state: connState, lastPingAt }));
+  wireConnIndicator(rootEl, () => ({ state: connState, rttMs }));
 
   // Connexion au relais + reconnexion automatique.
   openSocket(sessionId);
@@ -187,10 +188,12 @@ function openSocket(sessionId) {
       hasConnected = true;
       connState = 'connected';
       reconnectAttempts = 0;
-      lastPingAt = Date.now();
+      rttMs = null;
+      startPing();
       sendJoin();
-    } else if (msg.type === 'ping') {
-      lastPingAt = Date.now();
+    } else if (msg.type === 'pong') {
+      const ts = msg.payload?.ts;
+      if (typeof ts === 'number') rttMs = Date.now() - ts;
     } else if (msg.type === 'rtc.offer') {
       // Nouvelle offre = nouvelle connexion : on repart d'un pair neuf (l'ancien,
       // tombé ou en cours de fermeture, ne doit pas être réutilisé).
@@ -220,6 +223,8 @@ function openSocket(sessionId) {
     }
   });
   socket.addEventListener('close', () => {
+    stopPing();
+    rttMs = null;
     socket = null;
     const deliberate = deliberateClose;
     deliberateClose = false;
@@ -241,10 +246,23 @@ function scheduleReconnect() {
   }, delay);
 }
 
+// Ping de latence (RTT) : le joueur envoie `ping`, le relais répond `pong`.
+function startPing() {
+  stopPing();
+  pingTimer = setInterval(() => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'ping', payload: { ts: Date.now() } }));
+    }
+  }, 5000);
+}
+function stopPing() {
+  if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+}
+
 /** Crée (ou renvoie) le canal de données direct vers le host (répondeur). */
 function ensurePeer() {
   if (peer) return peer;
-  peer = createDataPeer({
+  const p = createDataPeer({
     initiator: false,
     iceServers: ICE_SERVERS,
     onSignal: (sig) => {
@@ -257,9 +275,12 @@ function ensurePeer() {
     },
     onOpen: () => clearDirectTimeout(),
     onMessage: (msg) => handleMessage(msg),
-    onClose: () => { peer = null; },
+    // Garde : un ancien pair qui se ferme (remplacé par rejoin) ne doit pas
+    // effacer la référence du nouveau pair.
+    onClose: () => { if (peer === p) peer = null; },
   });
-  return peer;
+  peer = p;
+  return p;
 }
 
 function handleMessage(msg) {
@@ -389,6 +410,8 @@ function leave() {
   // persistée, on coupe, puis on recharge — l'écran de connexion réapparaît
   // avec une identité neuve.
   clearDirectTimeout();
+  stopPing();
+  rttMs = null;
   deliberateClose = true;
   currentSessionId = null;
   connState = 'offline';

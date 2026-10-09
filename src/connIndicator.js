@@ -1,9 +1,9 @@
 // connIndicator.js — indicateur d'état de connexion WebSocket (host et joueur).
 //
-// Un point coloré + un libellé (« Ping 3s », « Reconnexion… », « Hors ligne »)
+// Un point coloré + un libellé (« Ping 42 ms », « Reconnexion… », « Hors ligne »)
 // rafraîchi chaque seconde. Le consommateur fournit `getInfo()` qui renvoie
-// `{ state, lastPingAt }` où `state` ∈ connecting | connected | reconnecting |
-// offline, et `lastPingAt` est un timestamp (0 si jamais pingé).
+// `{ state, rttMs }` où `state` ∈ connecting | connected | reconnecting | offline,
+// et `rttMs` est la dernière latence aller-retour mesurée (null si jamais mesurée).
 
 export function connIndicatorHtml() {
   return '<span id="conn-indicator" class="conn-indicator" data-state="offline" role="status" aria-live="off"></span>';
@@ -12,10 +12,8 @@ export function connIndicatorHtml() {
 function connStatus(info) {
   if (info.state === 'offline') return { state: 'offline', label: 'Hors ligne' };
   if (info.state === 'connecting' || info.state === 'reconnecting') return { state: 'reconnecting', label: 'Reconnexion…' };
-  const s = info.lastPingAt ? Math.round((Date.now() - info.lastPingAt) / 1000) : null;
-  if (s == null) return { state: 'connected', label: 'Connecté' };
-  if (s <= 10) return { state: 'connected', label: `Ping ${s}s` };
-  return { state: 'stale', label: `Latence ${s}s` };
+  if (typeof info.rttMs === 'number') return { state: 'connected', label: `Ping ${info.rttMs} ms` };
+  return { state: 'connected', label: 'Connecté' };
 }
 
 /**

@@ -1486,7 +1486,6 @@ input[type='range']::-moz-range-thumb {
 }
 .conn-indicator[data-state='connected'] { color: var(--color-success); }
 .conn-indicator[data-state='reconnecting'] { color: var(--color-warning); }
-.conn-indicator[data-state='stale'] { color: var(--color-warning); }
 .conn-indicator[data-state='offline'] { color: var(--color-error); }
 
 /* ===== Sélecteur de thème (pastille app) ===== */

@@ -866,6 +866,11 @@ L'URL de partage est `https://host/#join=<roomId>` (identifiant en **hash**, pas
 - **Host (MJ)** : créateur de la room, seul émetteur des messages d'état (`game.*`), source de vérité (`state.js`), **seul à appeler le LLM** — la clé API ne quitte jamais sa machine / son serveur.
 - **Player** : joint via l'URL de partage, fournit `name` + `emoji`, reçoit une projection filtrée, n'émet que `lobby.join`, `lobby.leave`, `game.answer`, `game.answer.cancel`.
 
+Le **host peut aussi jouer** (« Je joue aussi » dans le lobby) : il occupe un siège local
+(`HOST_PLAYER_ID = 'host'`), répond depuis son écran de jeu (clic ou touches 1-4), et apparaît
+dans le roster, la révélation et le podium comme n'importe quel joueur. Il peut aussi rejoindre
+depuis un autre appareil (clientId distinct, sans conflit avec son siège local).
+
 Le serveur étant un dumb signaling, **le contrôle de rôle est appliqué côté host** : toute commande d'état (`game.start`, `game.reveal`, …) émise par un player est ignorée. Le host s'authentifie à la connexion par un **jeton** remis à la création de la room (`?role=host&token=…`) ; lui seul peut diffuser.
 
 ## 18.4 Projection de sécurité (règle d'or)
@@ -885,6 +890,7 @@ Les messages **métier** ci-dessous transitent par le **DataChannel** (direct, c
 | `rtc.ice` | bidirectionnel | `{ candidate }` |
 | `room.rejoin` | host → tous | `{}` — le host a rechargé, les joueurs re-postulent |
 | `room.closed` | host → tous | `{}` — l'hôte a fermé la room |
+| `ping` / `pong` | client ↔ serveur | `{ ts }` — latence (RTT) : le client ping toutes les 5 s, le serveur répond `pong` en écho ; non routé |
 
 Player → Host (sur le DataChannel) :
 
@@ -935,7 +941,8 @@ Règles :
    les joueurs se connectent avec le seul `sessionId`. Un nouveau host chasse l'ancien.
 3. Le routage est **en étoile** : tout message d'un joueur remonte au host ; tout message
    du host part vers un joueur ciblé (`targetId` = playerId serveur) ou vers tous.
-4. Aucune limite de durée : `ping` (15 s) d'anti-inactivité + repère « dernier ping ».
+4. Aucune limite de durée : le **client** envoie `ping` toutes les 5 s (le serveur répond
+   `pong`) — ça entretient la connexion (NAT/proxys) **et** mesure la latence (RTT en ms).
 5. Les rooms vides sont gardées jusqu'à leur TTL (24 h) puis nettoyées.
 6. L'origine du serveur est figée à la compilation (`VITE_RELAY_ORIGIN`) ; les serveurs ICE
    (`VITE_ICE_SERVERS` : STUN public par défaut, TURN en repli pour les NAT symétriques) aussi.
@@ -970,8 +977,12 @@ La connexion tient désormais indéfiniment (pas de `maxDuration`), mais une cou
 (blip WiFi, redéploiement du relais) reste possible : **host comme joueur reconnectent
 automatiquement** avec recul exponentiel (1 s → 10 s). Le host retrouve son état (il vit
 dans le store, pas dans le socket) ; le joueur re-postule via `clientId` et reçoit la
-projection ci-dessus. Un indicateur « Ping Ns » / « Reconnexion… » expose l'état des deux
-côtés.
+projection ci-dessus. Un indicateur « Ping N ms » (latence réelle) / « Reconnexion… » expose
+l'état des deux côtés.
+
+À la reconnexion du WS du host après une coupure réseau (pas un F5), le host rediffuse
+`room.rejoin` : les joueurs re-postulent et récupèrent un DataChannel neuf — sans quoi les
+canaux directs restaient morts quand la coupure emportait aussi le WebRTC.
 
 ### Reprise du host après rechargement (F5)
 
