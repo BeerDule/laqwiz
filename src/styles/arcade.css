@@ -159,7 +159,6 @@
   color: var(--color-muted);
 }
 .arcade-plaque__name { display: block; font-size: 1.267em; margin-top: .105em; font-weight: 700; }
-.arcade-plaque__roster { display: flex; gap: .4em; justify-content: center; margin-top: var(--space-3); }
 
 /* ===== Grille de sessions (level select) ===== */
 .arcade-grid {
@@ -377,6 +376,58 @@
   background-color: var(--bg-void);
   color: var(--color-text);
   font-size: .9em;
+}
+
+/* Mise en page du lobby : invitation à gauche, joueurs à droite (desktop). */
+.lobby-layout {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+  width: min(52em, 100%);
+  margin-inline: auto;
+}
+.lobby-panel { display: grid; gap: var(--space-4); align-content: start; }
+.lobby-layout .lobby-card,
+.lobby-layout .arcade-plaque { width: 100%; }
+@media (min-width: 44em) {
+  .lobby-layout { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+}
+
+/* Roster : badges nom + emoji (partagés host / joueur). */
+.lobby-roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-top: var(--space-3);
+}
+.lobby-roster--flat { margin-top: 0; }
+.lobby-roster__item {
+  display: inline-flex;
+  align-items: center;
+  gap: .385em;
+  padding: .353em .824em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-1);
+}
+.lobby-roster__dot {
+  width: .615em;
+  height: .615em;
+  border-radius: 50%;
+  background: var(--pc, var(--color-accent-primary));
+  box-shadow: 0 0 .462em var(--pc, var(--color-accent-primary));
+}
+.lobby-roster__emoji { font-size: 1.154em; line-height: 1; }
+.lobby-roster__name { font-weight: 700; font-size: .933em; }
+
+.lobby-start-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: .875em;
 }
 
 /* ===== Écran joueur « Rejoindre » (mode en ligne) =====

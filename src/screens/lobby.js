@@ -5,7 +5,7 @@
 
 import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
-import { playerChips, playerChip } from '../components/playerChip.js';
+import { playerChip } from '../components/playerChip.js';
 import { leaveRoomIfOnline, send, getConnInfo, broadcastRoster } from '../room.js';
 import { connIndicatorHtml, wireConnIndicator } from '../connIndicator.js';
 import { MAX_LOBBY_PLAYERS, MIN_PLAYERS, HOST_PLAYER_ID, PLAYER_EMOJIS, NAME_MAX_LENGTH } from '../constants.js';
@@ -47,12 +47,22 @@ function hostJoinHtml(s) {
     </div>`;
 }
 
+function rosterHtml(players) {
+  if (!players.length) return '<span class="lobby-empty">En attente de joueurs…</span>';
+  return `<div class="lobby-roster">${players.map(p => `
+    <span class="lobby-roster__item">
+      <span class="lobby-roster__dot" style="--pc:${p.color || 'var(--color-accent-primary)'}" aria-hidden="true"></span>
+      <span class="lobby-roster__emoji" aria-hidden="true">${p.emoji}</span>
+      <span class="lobby-roster__name">${escapeHtml(p.name)}</span>
+    </span>`).join('')}</div>`;
+}
+
 function lobbyHtml(s) {
   const shareUrl = s.room?.shareUrl || '';
   const count = s.players.length;
-  const roster = count
-    ? playerChips(s.players, { className: 'arcade-avatar' })
-    : '<span class="lobby-empty">En attente de joueurs…</span>';
+  const hint = count < MIN_PLAYERS
+    ? `<p class="lobby-start-hint">Il faut au moins ${MIN_PLAYERS} joueurs pour commencer.</p>`
+    : '';
 
   return `
     <section class="arcade arcade--lobby screen" data-screen="lobby">
@@ -63,26 +73,30 @@ function lobbyHtml(s) {
         <p>Partagez le lien, les joueurs rejoignent la partie.</p>
       </header>
 
-      <div class="lobby-card">
-        <span class="lobby-card__label">Lien d'invitation</span>
-        <div class="lobby-link">
-          <input id="lobby-link" type="text" readonly value="${escapeHtml(shareUrl)}" />
-          <button id="btn-copy" class="arcade-btn arcade-btn--small" type="button">Copier</button>
+      <div class="lobby-layout">
+        <div class="lobby-card">
+          <span class="lobby-card__label">Lien d'invitation</span>
+          <div class="lobby-link">
+            <input id="lobby-link" type="text" readonly value="${escapeHtml(shareUrl)}" />
+            <button id="btn-copy" class="arcade-btn arcade-btn--small" type="button">Copier</button>
+          </div>
+          <div id="lobby-qr" class="lobby-qr"></div>
+          <p class="lobby-qr-hint">Scannez avec un téléphone pour rejoindre.</p>
         </div>
-        <div id="lobby-qr" class="lobby-qr"></div>
-        <p class="lobby-qr-hint">Scannez avec un téléphone pour rejoindre.</p>
-      </div>
 
-      <div class="arcade-plaque">
-        <span class="arcade-plaque__label">Joueurs connectés</span>
-        <strong class="arcade-plaque__name">${count} / ${MAX_LOBBY_PLAYERS}</strong>
-        <div class="arcade-plaque__roster">${roster}</div>
+        <div class="lobby-panel">
+          <div class="arcade-plaque">
+            <span class="arcade-plaque__label">Joueurs connectés</span>
+            <strong class="arcade-plaque__name">${count} / ${MAX_LOBBY_PLAYERS}</strong>
+            ${rosterHtml(s.players)}
+          </div>
+          ${hostJoinHtml(s)}
+        </div>
       </div>
-
-      ${hostJoinHtml(s)}
 
       <nav class="arcade__menu" aria-label="Lobby">
         <button id="btn-start" class="arcade-btn arcade-btn--primary" disabled>▶ Démarrer la partie</button>
+        ${hint}
         <button id="btn-quit" class="arcade-btn">Quitter le lobby</button>
       </nav>
     </section>
@@ -105,6 +119,11 @@ function copyLink() {
   const link = getState().room?.shareUrl;
   if (!link) return;
   navigator.clipboard?.writeText(link).then(() => {
+    const btn = root?.querySelector('#btn-copy');
+    if (btn) {
+      btn.textContent = 'Copié ✓';
+      setTimeout(() => { btn.textContent = 'Copier'; }, 2000);
+    }
     document.dispatchEvent(new CustomEvent('qc:toast', { detail: { message: 'Lien copié.', kind: 'info' } }));
   }).catch(() => {});
 }
@@ -147,6 +166,8 @@ export function renderLobby(rootEl) {
     root.querySelector('#btn-start').addEventListener('click', startGame, { signal });
     root.querySelector('#btn-quit').addEventListener('click', quit, { signal });
     root.querySelector('#btn-copy').addEventListener('click', copyLink, { signal });
+    // Un clic/focus sélectionne tout le lien : copie manuelle en un geste.
+    root.querySelector('#lobby-link').addEventListener('focus', (e) => e.target.select(), { signal });
 
     const hostJoin = root.querySelector('#btn-host-join');
     const hostName = root.querySelector('#host-name');

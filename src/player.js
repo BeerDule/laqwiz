@@ -363,13 +363,19 @@ function showDisconnect(on) {
 function renderWaiting(players) {
   showDisconnect(true);
   setHeader('En attente du début…', '', 0);
-  const list = players.map(p => `${p.emoji} ${escapeHtml(p.name)}`).join(' · ');
+  const roster = players.map(p => `
+    <span class="lobby-roster__item">
+      <span class="lobby-roster__emoji" aria-hidden="true">${p.emoji}</span>
+      <span class="lobby-roster__name">${escapeHtml(p.name)}</span>
+    </span>`).join('');
   document.querySelector('#game-body').innerHTML = `
     <article class="question-card">
       <div class="loading-panel">
         <div class="join-emoji" aria-hidden="true">${myEmoji}</div>
         <h2>${escapeHtml(myName)}, tu es connecté·e&nbsp;!</h2>
-        <p>Joueurs connectés : ${players.length}${list ? ` — ${list}` : ''}</p>
+        <p>${players.length} joueur${players.length > 1 ? 's' : ''} connecté${players.length > 1 ? 's' : ''}</p>
+        <div class="lobby-roster lobby-roster--flat">${roster}</div>
+        <div class="loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
         <p>En attente du début de la partie…</p>
         <button id="btn-change-identity" class="button button--ghost" type="button">Changer de nom / avatar</button>
       </div>
