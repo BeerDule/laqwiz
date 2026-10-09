@@ -1,17 +1,20 @@
 // player.js — point d'entrée « joueur » (multijoueur en ligne, WS.md §18).
 //
-// Ouvert via /game/<sessionId>. Écran de connexion minimal : un prénom, un
-// avatar choisi dans une frise défilante, puis l'attente du début de partie.
-// La réception des questions arrive à l'étape suivante.
+// Ouvert via #join=<sessionId>. Écran de connexion minimal (prénom + avatar),
+// puis le jeu en direct. La signalisation passe par un WebSocket ; les données
+// de jeu (questions, réponses, révélations) par un RTCDataChannel direct.
 
 import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH, DIFFICULTY_LABELS } from './constants.js';
 import { relayWsUrl } from './relay.js';
+import { ICE_SERVERS } from './ice.js';
+import { createDataPeer } from './rtc.js';
 import { renderThemeSelect, wireThemeSelect } from './themeSwitcher.js';
 import { connIndicatorHtml, wireConnIndicator } from './connIndicator.js';
 
 const PLAYER_STORAGE_KEY = 'quizz-canape:player';
 
 let socket = null;
+let peer = null; // canal de données direct (RTCDataChannel) vers le host
 let clientId = null;
 let myName = '';
 let myEmoji = '';
@@ -171,8 +174,18 @@ function openSocket(sessionId) {
       sendJoin();
     } else if (msg.type === 'ping') {
       lastPingAt = Date.now();
-    } else {
-      handleMessage(msg);
+    } else if (msg.type === 'rtc.offer') {
+      ensurePeer().handleSignal({ type: 'offer', sdp: msg.payload?.sdp });
+    } else if (msg.type === 'rtc.ice') {
+      peer?.handleSignal({ type: 'ice', candidate: msg.payload?.candidate });
+    } else if (msg.type === 'lobby.join.rejected') {
+      showError(reasonMessage(msg.payload?.reason));
+      resetSubmit();
+    } else if (msg.type === 'room.closed') {
+      // L'hôte a fermé la room : plus de reconnexion, on reste sur l'écran final.
+      currentSessionId = null;
+      connState = 'offline';
+      renderRoomClosed();
     }
   });
   socket.addEventListener('error', () => {
@@ -205,14 +218,29 @@ function scheduleReconnect() {
   }, delay);
 }
 
+/** Crée (ou renvoie) le canal de données direct vers le host (répondeur). */
+function ensurePeer() {
+  if (peer) return peer;
+  peer = createDataPeer({
+    initiator: false,
+    iceServers: ICE_SERVERS,
+    onSignal: (sig) => {
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      if (sig.type === 'answer') {
+        socket.send(JSON.stringify({ type: 'rtc.answer', payload: { sdp: sig.sdp } }));
+      } else if (sig.type === 'ice') {
+        socket.send(JSON.stringify({ type: 'rtc.ice', payload: { candidate: sig.candidate } }));
+      }
+    },
+    onOpen: () => {},
+    onMessage: (msg) => handleMessage(msg),
+    onClose: () => { peer = null; },
+  });
+  return peer;
+}
+
 function handleMessage(msg) {
   switch (msg.type) {
-    case 'lobby.join.rejected':
-      if (msg.payload?.targetId === clientId) {
-        showError(reasonMessage(msg.payload.reason));
-        resetSubmit();
-      }
-      break;
     case 'lobby.roster': {
       const players = msg.payload?.players || [];
       // On n'est « connecté » que si NOTRE identité (clientId) figure dans le
@@ -240,8 +268,8 @@ function handleMessage(msg) {
       renderVictory(msg.payload);
       break;
     case 'game.state': {
+      // Arrive sur notre propre canal direct : pas de ciblage à vérifier.
       const p = msg.payload || {};
-      if (p.targetId !== clientId) break;
       if (p.question) renderQuestion(p.question);
       else if (p.reveal) renderPlayerReveal(p.reveal);
       else if (p.mancheEnd) renderMancheEnd(p.mancheEnd);
@@ -249,13 +277,6 @@ function handleMessage(msg) {
       else if (p.waiting) renderWaitingForGame();
       break;
     }
-    case 'room.closed':
-      // L'hôte a fermé la room : plus de reconnexion, on reste sur l'écran final.
-      currentSessionId = null;
-      connState = 'offline';
-      renderRoomClosed();
-      break;
-    // game.question / game.reveal arriveront à l'étape suivante.
   }
 }
 
@@ -347,6 +368,7 @@ function leave() {
     try { socket.close(); } catch { /* ignore */ }
     socket = null;
   }
+  if (peer) { peer.close(); peer = null; }
   location.reload();
 }
 
@@ -409,15 +431,22 @@ function wirePlayerOptions(deadline) {
   grid.querySelectorAll('.option-card').forEach((btn) => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key;
+      // Re-cliquer sur la réponse déjà choisie la retire (game.answer.cancel).
+      const wasSelected = btn.classList.contains('is-selected');
       grid.querySelectorAll('.option-card').forEach((b) => {
-        const on = b === btn;
+        const on = b === btn && !wasSelected;
         b.classList.toggle('is-selected', on);
         b.setAttribute('aria-pressed', String(on));
       });
-      socket.send(JSON.stringify({ type: 'game.answer', payload: { optionKey: key } }));
+      if (wasSelected) sendAnswer('game.answer.cancel', {});
+      else sendAnswer('game.answer', { optionKey: key });
     });
   });
   if (deadline) startPlayerTimer(deadline);
+}
+
+function sendAnswer(type, payload) {
+  if (peer) peer.send({ type, payload });
 }
 
 function startPlayerTimer(deadline) {

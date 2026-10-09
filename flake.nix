@@ -49,6 +49,8 @@
         default = pkgs.mkShell {
           packages = [
             pkgs.nodejs_24
+            # Pour `npm run test:e2e` (puppeteer-core + Chromium réel).
+            pkgs.chromium
           ];
           shellHook = ''
             echo ""

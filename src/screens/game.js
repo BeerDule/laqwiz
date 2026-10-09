@@ -70,7 +70,9 @@ function startTimer() {
   if (!s.settings.timerEnabled) return;
   // On vise une échéance plutôt que de décrémenter : setInterval dérive et se
   // fait brider quand l'onglet passe en arrière-plan.
-  const deadline = Date.now() + (s.settings.timePerQuestion || 60) * 1000;
+  // Échéance posée par le store (SHOW_NEXT_QUESTION / RESUME_PARTIE) : source
+  // de vérité unique, partagée avec room.js qui refuse les réponses tardives.
+  const deadline = s.deadlineAt ?? (Date.now() + (s.settings.timePerQuestion || 60) * 1000);
   timeLeft = Math.ceil((deadline - Date.now()) / 1000);
   paintTimer();
   timerId = setInterval(() => {

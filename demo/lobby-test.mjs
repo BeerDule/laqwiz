@@ -1,14 +1,14 @@
-// demo/lobby-test.mjs — test local de bout en bout du lobby (zéro dépendance).
+// demo/lobby-test.mjs — test local de la signalisation WebSocket (zéro dépendance).
 //
 // Valide, sans navigateur ni serveur préalable :
-//   1. la création du lobby (POST /api/sessions) ;
-//   2. la connexion du host au relais WebSocket ;
-//   3. la connexion d'un AUTRE client (le joueur) ;
-//   4. la présence (player.joined) et le `lobby.join` (nom + avatar) ;
-//   5. le départ (player.left) ;
+//   1. la création de la room (POST /api/sessions → sessionId + hostToken) ;
+//   2. l'authentification du host (rôle + jeton) et le refus d'un faux host ;
+//   3. la connexion des joueurs (sans jeton) ;
+//   4. la présence (player.joined / player.left, comptés sans le host) ;
+//   5. le routage en étoile : joueur → host uniquement, host → tous ou ciblé ;
 //   6. le refus d'une session inconnue.
 //
-// Le script démarre lui-même le relais auto-hébergé sur un port isolé (3001)
+// Le script démarre lui-même le serveur de signalisation sur un port isolé (3001)
 // pour ne pas gêner un `npm run dev-ws` déjà lancé.
 //
 // Usage : npm run test:lobby    (ou `node demo/lobby-test.mjs` dans nix develop)
@@ -45,7 +45,7 @@ function spawnChild(cmd, args, env = {}) {
 async function waitForServer() {
   for (let i = 0; i < 50; i += 1) {
     try {
-      await fetch(`${BASE}/api/sessions`);
+      await fetch(`${BASE}/api/relay/health`);
       return true;
     } catch {
       await sleep(150);
@@ -54,9 +54,11 @@ async function waitForServer() {
   return false;
 }
 
-function connect(sessionId) {
+function connect(sessionId, { role, token } = {}) {
   const url = new URL('/api/ws', WS_BASE);
   url.searchParams.set('sessionId', sessionId);
+  if (role) url.searchParams.set('role', role);
+  if (token) url.searchParams.set('token', token);
   const ws = new WebSocket(url);
   const inbox = [];
   const waiters = [];
@@ -70,12 +72,23 @@ function connect(sessionId) {
     ws.addEventListener('open', resolve, { once: true });
     ws.addEventListener('error', () => reject(new Error('erreur WebSocket')), { once: true });
   });
-  const next = (timeoutMs = 3000) => new Promise((resolve, reject) => {
+  // Attente d'un message, ou `null` passé le délai. Le waiter se retire
+  // toujours de la file : pas de fuite vers le message suivant.
+  const wait = (timeoutMs = 3000) => new Promise((resolve) => {
     if (inbox.length) return resolve(inbox.shift());
-    const t = setTimeout(() => reject(new Error('timeout')), timeoutMs);
-    waiters.push((m) => { clearTimeout(t); resolve(m); });
+    const waiter = (m) => { clearTimeout(t); resolve(m); };
+    const t = setTimeout(() => {
+      const i = waiters.indexOf(waiter);
+      if (i >= 0) waiters.splice(i, 1);
+      resolve(null);
+    }, timeoutMs);
+    waiters.push(waiter);
   });
-  return { ws, open, next };
+  const next = (timeoutMs = 3000) => wait(timeoutMs).then((m) => {
+    if (m == null) throw new Error('timeout');
+    return m;
+  });
+  return { ws, open, next, wait };
 }
 
 async function testInvalidSession() {
@@ -90,6 +103,27 @@ async function testInvalidSession() {
   try { ws.close(); } catch { /* déjà fermé */ }
 }
 
+async function expectRejectedUpgrade(sessionId, role, token) {
+  const url = new URL('/api/ws', WS_BASE);
+  url.searchParams.set('sessionId', sessionId);
+  url.searchParams.set('role', role);
+  url.searchParams.set('token', token);
+  const ws = new WebSocket(url);
+  const outcome = await Promise.race([
+    new Promise((r) => ws.addEventListener('error', () => r('error'), { once: true })),
+    new Promise((r) => ws.addEventListener('open', () => r('open'), { once: true })),
+    sleep(3000).then(() => 'timeout'),
+  ]);
+  assert(outcome === 'error', 'host avec mauvais jeton refusé (401)', `reçu : ${outcome}`);
+  try { ws.close(); } catch { /* déjà fermé */ }
+}
+
+/** Atteste qu'aucun message n'arrive au pair dans la fenêtre `ms`. */
+async function expectSilence(peer, ms = 500, label) {
+  const m = await peer.wait(ms);
+  assert(m == null, label, m ? `message inattendu reçu : ${m.type}` : '');
+}
+
 function cleanup(code) {
   for (const c of children) {
     try { c.kill('SIGTERM'); } catch { /* déjà mort */ }
@@ -101,94 +135,98 @@ process.on('SIGINT', () => cleanup(130));
 process.on('SIGTERM', () => cleanup(0));
 
 async function main() {
-  console.log('=== Test lobby (relais WebSocket) ===\n');
+  console.log('=== Test lobby (signalisation WebSocket P2P) ===\n');
 
-  // 1) Relais auto-hébergé isolé (pas de Redis).
+  // 1) Serveur de signalisation isolé.
   spawnChild('node', ['server/relay.mjs'], { PORT: RELAY_PORT });
 
   const up = await waitForServer();
-  assert(up, `relais prêt sur ${BASE}`);
+  assert(up, `serveur de signalisation prêt sur ${BASE}`);
   if (!up) { cleanup(1); return; }
 
-  // 2) Création du lobby.
+  // 2) Création de la room (sessionId + hostToken).
   const res = await fetch(`${BASE}/api/sessions`, {
     method: 'POST',
     headers: { Origin: 'http://localhost:5173' },
   });
   assert(res.status === 201, 'POST /api/sessions → 201', `reçu ${res.status}`);
   assert(res.headers.get('access-control-allow-origin') === '*', 'CORS allow-origin: *');
-  const { sessionId } = await res.json();
+  const { sessionId, hostToken } = await res.json();
   assert(/^[a-f0-9]{64}$/.test(sessionId), 'sessionId = 64 caractères hex');
+  assert(/^[a-f0-9]{48}$/.test(hostToken), 'hostToken = 48 caractères hex');
   console.log(`  sessionId : ${sessionId.slice(0, 16)}…`);
 
-  // 3) Connexion du host.
-  const host = connect(sessionId);
+  // 3) Connexion du host (authentifié par jeton).
+  const host = connect(sessionId, { role: 'host', token: hostToken });
   await host.open;
   const hostConnected = await host.next();
   assert(hostConnected.type === 'session.connected', 'host : session.connected');
+  assert(hostConnected.payload.role === 'host', 'host : rôle host', `reçu : ${hostConnected.payload.role}`);
   const hostId = hostConnected.payload.playerId;
   assert(typeof hostId === 'string' && hostId.startsWith('player-'), 'host : playerId attribué');
 
-  // 4) Connexion d'un AUTRE client (le joueur).
-  const player = connect(sessionId);
-  await player.open;
-  const playerConnected = await player.next();
-  assert(playerConnected.type === 'session.connected', 'joueur : session.connected');
-  const playerId = playerConnected.payload.playerId;
-  assert(playerId !== hostId, 'identifiants distincts host / joueur');
+  // 3 bis) Un faux host (mauvais jeton) est refusé.
+  await expectRejectedUpgrade(sessionId, 'host', 'mauvais-jeton');
 
-  // 5) Présence côté host.
-  const joined = await host.next();
-  assert(joined.type === 'player.joined', 'host voit player.joined', `reçu : ${joined.type}`);
-  assert(joined.payload?.playersCount === 2, 'playersCount = 2', `reçu : ${joined.payload?.playersCount}`);
+  // 4) Connexion de deux joueurs (sans jeton).
+  const alice = connect(sessionId);
+  await alice.open;
+  const aliceConnected = await alice.next();
+  assert(aliceConnected.type === 'session.connected', 'alice : session.connected');
+  assert(aliceConnected.payload.role === 'player', 'alice : rôle player');
+  const aliceId = aliceConnected.payload.playerId;
 
-  // 6) Le joueur annonce son identité (lobby.join + clientId stable).
-  player.ws.send(JSON.stringify({ type: 'lobby.join', payload: { clientId: 'client-alice', name: 'Alice', emoji: '🦊' } }));
+  const bob = connect(sessionId);
+  await bob.open;
+  const bobConnected = await bob.next();
+  assert(bobConnected.type === 'session.connected', 'bob : session.connected');
+  const bobId = bobConnected.payload.playerId;
+  assert(aliceId !== bobId && aliceId !== hostId, 'identifiants distincts host / joueurs');
+
+  // 5) Présence côté host (le host n'est pas compté comme joueur).
+  const joinedAlice = await host.next();
+  assert(joinedAlice.type === 'player.joined', 'host voit player.joined (alice)', `reçu : ${joinedAlice.type}`);
+  assert(joinedAlice.payload?.playersCount === 1, 'playersCount = 1 (host exclu)', `reçu : ${joinedAlice.payload?.playersCount}`);
+  const joinedBob = await host.next();
+  assert(joinedBob.type === 'player.joined', 'host voit player.joined (bob)', `reçu : ${joinedBob.type}`);
+  assert(joinedBob.payload?.playersCount === 2, 'playersCount = 2');
+
+  // 6) Routage en étoile : un message d'un joueur ne remonte qu'au host.
+  alice.ws.send(JSON.stringify({ type: 'lobby.join', payload: { clientId: 'client-alice', name: 'Alice', emoji: '🦊' } }));
   const join = await host.next();
   assert(join.type === 'lobby.join', 'host reçoit lobby.join', `reçu : ${join.type}`);
-  assert(join.senderId === playerId, 'senderId = id du joueur', `reçu : ${join.senderId}`);
+  assert(join.senderId === aliceId, 'senderId = id d\'alice', `reçu : ${join.senderId}`);
   assert(
     join.payload?.name === 'Alice' && join.payload?.emoji === '🦊' && join.payload?.clientId === 'client-alice',
     'payload nom + avatar + clientId corrects',
     `reçu : ${JSON.stringify(join.payload)}`,
   );
+  await expectSilence(bob, 500, 'bob ne reçoit pas le lobby.join d\'alice (joueur → host)');
 
-  // 6 bis) Broadcasts host → joueur : roster (acceptation), rejet ciblé, démarrage.
+  // 7) Broadcast du host (sans targetId) → tous les joueurs.
   host.ws.send(JSON.stringify({ type: 'lobby.roster', payload: { players: [{ id: 'client-alice', name: 'Alice', emoji: '🦊' }] } }));
-  const roster = await player.next();
-  assert(roster.type === 'lobby.roster', 'joueur reçoit lobby.roster', `reçu : ${roster.type}`);
-  assert(roster.payload?.players?.[0]?.id === 'client-alice', 'roster porte le clientId du joueur');
+  const rosterAlice = await alice.next();
+  const rosterBob = await bob.next();
+  assert(rosterAlice.type === 'lobby.roster', 'alice reçoit lobby.roster', `reçu : ${rosterAlice.type}`);
+  assert(rosterBob.type === 'lobby.roster', 'bob reçoit lobby.roster', `reçu : ${rosterBob.type}`);
 
-  host.ws.send(JSON.stringify({ type: 'lobby.join.rejected', payload: { targetId: 'client-alice', reason: 'name-taken' } }));
-  const rejected = await player.next();
-  assert(rejected.type === 'lobby.join.rejected', 'joueur reçoit lobby.join.rejected', `reçu : ${rejected.type}`);
-  assert(
-    rejected.payload?.targetId === 'client-alice' && rejected.payload?.reason === 'name-taken',
-    'rejet ciblé + raison corrects',
-    `reçu : ${JSON.stringify(rejected.payload)}`,
-  );
+  // 8) Message ciblé du host (targetId) → un seul joueur.
+  host.ws.send(JSON.stringify({ type: 'rtc.offer', targetId: aliceId, payload: { sdp: 'offre-alice' } }));
+  const offer = await alice.next();
+  assert(offer.type === 'rtc.offer', 'alice reçoit rtc.offer ciblé', `reçu : ${offer.type}`);
+  await expectSilence(bob, 500, 'bob ne reçoit pas le rtc.offer ciblé sur alice');
 
-  host.ws.send(JSON.stringify({ type: 'game.start', payload: {} }));
-  const started = await player.next();
-  assert(started.type === 'game.start', 'joueur reçoit game.start', `reçu : ${started.type}`);
-
-  host.ws.send(JSON.stringify({ type: 'game.manche_end', payload: { winnerId: 'client-alice', players: [{ id: 'client-alice', name: 'Alice', emoji: '🦊' }] } }));
-  const mancheEnd = await player.next();
-  assert(mancheEnd.type === 'game.manche_end', 'joueur reçoit game.manche_end', `reçu : ${mancheEnd.type}`);
-
-  host.ws.send(JSON.stringify({ type: 'game.victory', payload: { winnerId: 'client-alice' } }));
-  const victory = await player.next();
-  assert(victory.type === 'game.victory', 'joueur reçoit game.victory', `reçu : ${victory.type}`);
-
-  // 7) Départ du joueur.
-  player.ws.close();
+  // 9) Départ d'un joueur.
+  alice.ws.close();
   const left = await host.next();
   assert(left.type === 'player.left', 'host voit player.left', `reçu : ${left.type}`);
+  assert(left.payload?.playersCount === 1, 'playersCount = 1 après départ d\'alice');
 
-  // 8) Session inconnue refusée.
+  // 10) Session inconnue refusée.
   await testInvalidSession();
 
   host.ws.close();
+  bob.ws.close();
 
   console.log(`\n${passed} test(s) OK, ${failed} échec(s).`);
   cleanup(failed ? 1 : 0);

@@ -1,18 +1,26 @@
-// server/relay.mjs — relais WebSocket auto-hébergé (VPS) : sessions + relais en
-// mémoire + statique + proxy LLM (WS.md §18.6).
+// server/relay.mjs — serveur de signalisation WebSocket auto-hébergé (VPS).
+//
+// Phase P2P (WS.md §18) : ce processus ne relaie PLUS les données de jeu. Il ne
+// fait que la signalisation — présenter le host aux joueurs et router les
+// messages d'établissement (offres/réponses/candidats ICE). Le transport des
+// données se fait en direct (RTCDataChannel) entre le navigateur du MJ et ceux
+// des joueurs.
 //
 // Un seul processus Node :
 //   - POST /api/chat/completions → proxy LLM (BYOK + repli .env) ;
 //   - GET  /api/health           → config LLM (model / temperature / batchSize) ;
-//   - POST /api/sessions         → crée une session (id imprévisible) ;
-//   - GET  /api/relay/health     → santé du relais (nb de sessions) ;
-//   - WS   /api/ws?sessionId=…   → relais « dumb » en mémoire (une room = les
-//     sockets connectés à cet id) ;
+//   - POST /api/sessions         → crée une room { sessionId, hostToken } ;
+//   - GET  /api/relay/health     → santé (nb de rooms) ;
+//   - WS   /api/ws?sessionId=…   → canal de signalisation (routage en étoile) ;
 //   - GET  /* (hors /api)        → sert dist/ si présent (un seul serveur).
 //
-// Plus de Redis (une seule instance suffit), plus de limite de durée : les
-// connexions tiennent en mémoire, donc plus de coupure à 5 min. Le heartbeat
-// sert d'anti-inactivité et de repère « dernier ping » côté client.
+// Routage en étoile : tout message d'un joueur remonte au host ; tout message du
+// host part vers un joueur ciblé (champ `targetId`) ou vers tous. Le serveur ne
+// comprend pas le contenu (dumb signaling) et ne garde aucune donnée de jeu.
+//
+// Le host s'authentifie à la connexion WS par un jeton remis à la création de la
+// session (`?role=host&token=…`) : lui seul peut diffuser. Les joueurs se
+// connectent avec le seul `sessionId`.
 
 import http from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -25,7 +33,7 @@ const PORT = Number(process.env.PORT || 3000);
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h : couvre une partie de 5 h + reconnexion
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
 
-// sessionId -> { clients: Map<playerId, ws>, expiresAt: number }
+// sessionId -> { hostToken, hostPlayerId, clients: Map<playerId, ws>, expiresAt }
 const sessions = new Map();
 
 const randomId = (bytes) => randomBytes(bytes).toString('hex');
@@ -223,8 +231,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/sessions' && req.method === 'POST') {
       const sessionId = randomId(32); // 64 hex — imprévisible (WS.md §10)
-      sessions.set(sessionId, { clients: new Map(), expiresAt: Date.now() + SESSION_TTL_MS });
-      return sendJson(res, 201, { sessionId });
+      const hostToken = randomId(24); // 48 hex — seul le host le connaît
+      sessions.set(sessionId, {
+        hostToken,
+        hostPlayerId: null,
+        clients: new Map(),
+        expiresAt: Date.now() + SESSION_TTL_MS,
+      });
+      return sendJson(res, 201, { sessionId, hostToken });
     }
 
     if (req.method === 'GET' && !url.pathname.startsWith('/api/')) {
@@ -244,30 +258,61 @@ const server = http.createServer(async (req, res) => {
 
 const wss = new WebSocketServer({ noServer: true });
 
+function rejectUpgrade(socket, status, reason) {
+  socket.write(`HTTP/1.1 ${status} ${reason}\r\n\r\n`);
+  socket.destroy();
+}
+
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url, 'http://localhost');
   const sessionId = url.searchParams.get('sessionId');
+  const role = url.searchParams.get('role');
+  const token = url.searchParams.get('token');
+  const session = sessionId ? sessions.get(sessionId) : null;
+
   // Format valide + session connue : sinon on refuse l'upgrade (404).
-  if (!sessionId || !/^[a-f0-9]{16,64}$/i.test(sessionId) || !sessions.has(sessionId)) {
-    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-    socket.destroy();
+  if (!sessionId || !/^[a-f0-9]{16,64}$/i.test(sessionId) || !session) {
+    rejectUpgrade(socket, 404, 'Not Found');
     return;
   }
-  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, sessionId));
+  // Le host s'authentifie par le jeton remis à la création. Sans jeton valide,
+  // on refuse : un joueur ne doit jamais pouvoir se faire passer pour le host.
+  if (role === 'host' && (!token || token !== session.hostToken)) {
+    rejectUpgrade(socket, 401, 'Unauthorized');
+    return;
+  }
+
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, sessionId, role === 'host'));
 });
 
-wss.on('connection', (ws, sessionId) => {
+wss.on('connection', (ws, sessionId, isHost) => {
   const session = sessions.get(sessionId);
   const playerId = `player-${randomId(6)}`;
   session.expiresAt = Date.now() + SESSION_TTL_MS; // activité → on prolonge
+
+  if (isHost) {
+    // Un nouveau host chasse l'ancien (reconnexion après coupure réseau) :
+    // pas deux sources de vérité sur la même room.
+    if (session.hostPlayerId && session.clients.has(session.hostPlayerId)) {
+      try { session.clients.get(session.hostPlayerId).close(); } catch { /* ignore */ }
+    }
+    session.hostPlayerId = playerId;
+  }
   session.clients.set(playerId, ws);
 
   // Identité attribuée par le serveur, jamais choisie par le client (WS.md §9).
-  ws.send(JSON.stringify({ type: 'session.connected', payload: { sessionId, playerId } }));
-  broadcast(session, playerId, {
-    type: 'player.joined',
-    payload: { playerId, playersCount: session.clients.size },
-  });
+  ws.send(JSON.stringify({
+    type: 'session.connected',
+    payload: { sessionId, playerId, role: isHost ? 'host' : 'player' },
+  }));
+
+  // Présence : seul le host est informé de l'arrivée d'un joueur.
+  if (!isHost && session.hostPlayerId) {
+    routeToHost(session, {
+      type: 'player.joined',
+      payload: { playerId, playersCount: playerCount(session) },
+    });
+  }
 
   // Heartbeat : entretient la connexion (NAT/proxys) et sert de repère de
   // fraîcheur au client (« dernier ping »). Pas de maxDuration ici : la
@@ -278,34 +323,63 @@ wss.on('connection', (ws, sessionId) => {
     }
   }, 15000);
 
-  // Message client → relayé à la room, avec `senderId` ajouté côté serveur.
+  // Signalisation : routage en étoile, `senderId` ajouté côté serveur.
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
     if (!msg || typeof msg.type !== 'string') return;
-    broadcast(session, playerId, { ...msg, senderId: playerId });
+    const envelope = { ...msg, senderId: playerId };
+    if (isHost) routeFromHost(session, envelope);
+    else routeToHost(session, envelope);
   });
 
   ws.on('close', () => {
     clearInterval(heartbeat);
     session.clients.delete(playerId);
-    if (session.clients.size === 0) {
-      // Room vide : on garde la session jusqu'au TTL pour la reconnexion du
-      // host (le nettoyage périodique s'en chargera).
+    if (isHost) {
+      if (session.hostPlayerId === playerId) session.hostPlayerId = null;
       return;
     }
-    broadcast(session, playerId, {
-      type: 'player.left',
-      payload: { playerId, playersCount: session.clients.size },
-    });
+    if (session.hostPlayerId) {
+      routeToHost(session, {
+        type: 'player.left',
+        payload: { playerId, playersCount: playerCount(session) },
+      });
+    }
   });
 });
 
-/** Diffuse à toute la room, sans écho à l'expéditeur (WS.md §4.4). */
-function broadcast(session, senderId, message) {
+/** Nombre de joueurs connectés (le host n'est pas un joueur). */
+function playerCount(session) {
+  let n = 0;
+  for (const id of session.clients.keys()) {
+    if (id !== session.hostPlayerId) n += 1;
+  }
+  return n;
+}
+
+function sendTo(session, playerId, message) {
+  const client = playerId ? session.clients.get(playerId) : null;
+  if (client?.readyState === WebSocket.OPEN) client.send(JSON.stringify(message));
+}
+
+/** Player → host : tout message d'un joueur remonte au seul host. */
+function routeToHost(session, message) {
+  sendTo(session, session.hostPlayerId, message);
+}
+
+/**
+ * Host → joueurs : vers un joueur ciblé (champ `targetId`), sinon vers tous.
+ * Pas d'écho au host.
+ */
+function routeFromHost(session, message) {
+  if (typeof message.targetId === 'string' && message.targetId) {
+    sendTo(session, message.targetId, message);
+    return;
+  }
   const data = JSON.stringify(message);
   for (const [id, client] of session.clients) {
-    if (id === senderId) continue;
+    if (id === session.hostPlayerId) continue;
     if (client.readyState === WebSocket.OPEN) client.send(data);
   }
 }
@@ -319,6 +393,6 @@ setInterval(() => {
 }, 60_000).unref();
 
 server.listen(PORT, () => {
-  console.log(`[relay] relais WS + /api sur http://localhost:${PORT}${existsSync(join(DIST, 'index.html')) ? ' (sert aussi dist/)' : ''}`);
+  console.log(`[relay] signalisation WS + /api sur http://localhost:${PORT}${existsSync(join(DIST, 'index.html')) ? ' (sert aussi dist/)' : ''}`);
 });
 

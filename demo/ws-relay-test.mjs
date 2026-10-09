@@ -1,12 +1,12 @@
-// demo/ws-relay-test.mjs — valide le relais WebSocket en local (zéro dépendance).
+// demo/ws-relay-test.mjs — valide le serveur de signalisation en local (zéro dépendance).
 //
 // Prérequis :
-//   1. un relais auto-hébergé qui tourne (npm run relay → http://localhost:3000) ;
+//   1. un serveur de signalisation qui tourne (npm run relay → http://localhost:3000) ;
 //   2. `node demo/ws-relay-test.mjs` (Node ≥ 22 : WebSocket natif).
 //
-// Scénario : crée une session, connecte A puis B, vérifie que le message de A
-// parvient à B avec `senderId`, que le sens inverse marche, qu'il n'y a pas
-// d'écho, et que les événements de présence circulent.
+// Scénario : crée une room, connecte le host (jeton) puis deux joueurs, vérifie
+// le routage en étoile (joueur → host, host → tous ou ciblé), l'absence d'écho
+// à l'expéditeur et la présence (player.joined / player.left).
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 
@@ -21,9 +21,11 @@ async function createSession() {
   return res.json();
 }
 
-function connect(sessionId) {
+function connect(sessionId, { role, token } = {}) {
   const wsUrl = new URL('/api/ws', BASE.replace(/^http/, 'ws'));
   wsUrl.searchParams.set('sessionId', sessionId);
+  if (role) wsUrl.searchParams.set('role', role);
+  if (token) wsUrl.searchParams.set('token', token);
   const ws = new WebSocket(wsUrl);
 
   const inbox = [];
@@ -35,23 +37,43 @@ function connect(sessionId) {
   });
 
   const open = new Promise((resolve) => ws.addEventListener('open', resolve, { once: true }));
-  const next = () => new Promise((resolve) => {
-    if (inbox.length) resolve(inbox.shift());
-    else waiters.push(resolve);
+  const wait = (timeoutMs = 3000) => new Promise((resolve) => {
+    if (inbox.length) return resolve(inbox.shift());
+    const waiter = (m) => { clearTimeout(t); resolve(m); };
+    const t = setTimeout(() => {
+      const i = waiters.indexOf(waiter);
+      if (i >= 0) waiters.splice(i, 1);
+      resolve(null);
+    }, timeoutMs);
+    waiters.push(waiter);
+  });
+  const next = (timeoutMs = 3000) => wait(timeoutMs).then((m) => {
+    if (m == null) throw new Error('timeout');
+    return m;
   });
 
-  return { ws, open, next };
+  return { ws, open, next, wait };
 }
 
-const { sessionId, shareUrl } = await createSession();
-console.log(`✓ session créée : ${sessionId}`);
-console.log(`  shareUrl : ${shareUrl}`);
+const { sessionId, hostToken } = await createSession();
+console.log(`✓ room créée : ${sessionId.slice(0, 16)}…`);
+
+// Host authentifié, puis deux joueurs.
+const host = connect(sessionId, { role: 'host', token: hostToken });
+await host.open;
+const hostConnected = await host.next();
+if (hostConnected.type !== 'session.connected' || hostConnected.payload.role !== 'host') {
+  fail(`host : attendu session.connected role=host, reçu ${hostConnected.type}`);
+}
+const hostId = hostConnected.payload.playerId;
+console.log(`✓ host connecté (playerId ${hostId})`);
 
 const a = connect(sessionId);
 await a.open;
 const aConnected = await a.next();
 if (aConnected.type !== 'session.connected') fail(`A : attendu session.connected, reçu ${aConnected.type}`);
-console.log(`✓ A connecté (playerId ${aConnected.payload.playerId})`);
+const aId = aConnected.payload.playerId;
+console.log(`✓ A connecté (playerId ${aId})`);
 
 const b = connect(sessionId);
 await b.open;
@@ -59,36 +81,56 @@ const bConnected = await b.next();
 if (bConnected.type !== 'session.connected') fail(`B : attendu session.connected, reçu ${bConnected.type}`);
 console.log(`✓ B connecté (playerId ${bConnected.payload.playerId})`);
 
-const aSeesB = await a.next();
-if (aSeesB.type !== 'player.joined') fail(`A : attendu player.joined, reçu ${aSeesB.type}`);
-console.log(`✓ A voit l'arrivée de B (playersCount ${aSeesB.payload.playersCount})`);
+// Présence : le host voit l'arrivée des deux joueurs.
+const joinedA = await host.next();
+if (joinedA.type !== 'player.joined' || joinedA.payload.playersCount !== 1) {
+  fail(`host : attendu player.joined count=1, reçu ${joinedA.type} ${joinedA.payload?.playersCount}`);
+}
+const joinedB = await host.next();
+if (joinedB.type !== 'player.joined' || joinedB.payload.playersCount !== 2) {
+  fail(`host : attendu player.joined count=2, reçu ${joinedB.type} ${joinedB.payload?.playersCount}`);
+}
+console.log('✓ host voit player.joined (playersCount 1 puis 2)');
 
-// A → B : message relayé avec senderId ajouté par le serveur.
-a.ws.send(JSON.stringify({ type: 'game.move', payload: { position: 4 } }));
-const bGot = await b.next();
-if (bGot.type !== 'game.move' || bGot.payload.position !== 4) fail('B : relais incorrect');
-if (bGot.senderId !== aConnected.payload.playerId) fail(`B : senderId incorrect (${bGot.senderId})`);
-console.log(`✓ B reçoit le message de A (senderId ${bGot.senderId})`);
+// Joueur → host : relais avec senderId, sans fuite vers l'autre joueur.
+a.ws.send(JSON.stringify({ type: 'lobby.join', payload: { clientId: 'a', name: 'A', emoji: '🦊' } }));
+const aJoin = await host.next();
+if (aJoin.type !== 'lobby.join' || aJoin.senderId !== aId) {
+  fail(`host : attendu lobby.join de A (senderId ${aId}), reçu ${aJoin.type}/${aJoin.senderId}`);
+}
+const bSilent1 = await b.wait(500);
+if (bSilent1 != null) fail(`B : fuite du lobby.join de A (${bSilent1.type})`);
+console.log('✓ joueur → host (senderId correct, pas de fuite vers B)');
 
-// B → A (sens inverse).
-b.ws.send(JSON.stringify({ type: 'game.chat', payload: { message: 'coucou' } }));
-const aGot = await a.next();
-if (aGot.type !== 'game.chat' || aGot.senderId !== bConnected.payload.playerId) fail('A : relais inverse incorrect');
-console.log('✓ A reçoit la réponse de B (sens inverse OK)');
+// Host → tous (sans targetId).
+host.ws.send(JSON.stringify({ type: 'game.question', payload: { q: 'coucou' } }));
+const aQ = await a.next();
+const bQ = await b.next();
+if (aQ.type !== 'game.question' || bQ.type !== 'game.question') {
+  fail('A/B : attendu game.question broadcast');
+}
+console.log('✓ host → tous (broadcast atteint A et B)');
 
-// Pas d'écho : B ne reçoit pas son propre message.
-const noEcho = await Promise.race([
-  b.next().then((m) => ({ echo: true, m })),
-  new Promise((r) => setTimeout(() => r({ echo: false }), 500)),
-]);
-if (noEcho.echo) fail(`B : écho inattendu de son propre message (${noEcho.m.type})`);
-console.log("✓ pas d'écho à l'expéditeur");
+// Pas d'écho au host (il ne reçoit pas son propre broadcast).
+const hostSilent = await host.wait(500);
+if (hostSilent != null) fail(`host : écho inattendu (${hostSilent.type})`);
+console.log("✓ pas d'écho au host");
 
+// Host → joueur ciblé (targetId).
+host.ws.send(JSON.stringify({ type: 'rtc.offer', targetId: aId, payload: { sdp: 'x' } }));
+const aOffer = await a.next();
+if (aOffer.type !== 'rtc.offer') fail(`A : attendu rtc.offer, reçu ${aOffer.type}`);
+const bSilent2 = await b.wait(500);
+if (bSilent2 != null) fail(`B : fuite du rtc.offer ciblé sur A (${bSilent2.type})`);
+console.log('✓ host → joueur ciblé (targetId)');
+
+// Départ d'un joueur → présence côté host.
 b.ws.close();
-const bLeft = await a.next();
-if (bLeft.type !== 'player.left') fail(`A : attendu player.left, reçu ${bLeft.type}`);
-console.log('✓ A est informé du départ de B');
+const bLeft = await host.next();
+if (bLeft.type !== 'player.left') fail(`host : attendu player.left, reçu ${bLeft.type}`);
+console.log('✓ host est informé du départ de B');
 
+host.ws.close();
 a.ws.close();
-console.log('\nRelais WebSocket validé ✅');
+console.log('\nServeur de signalisation validé ✅');
 process.exit(0);

@@ -1,15 +1,23 @@
-// room.js — couche réseau du host (relais WebSocket, WS.md §18).
+// room.js — couche réseau du host (signalisation WS + transport WebRTC, WS.md §18).
 //
-// Le host crée une room (POST /api/sessions) puis s'y connecte en WebSocket.
-// Le serveur est un dumb relay : room.js traduit les messages reçus en actions
-// du store et expose `send()` pour diffuser. La logique de jeu reste en state.js.
+// Le host crée une room (POST /api/sessions → sessionId + hostToken) puis se
+// connecte en WebSocket pour la SIGNALISATION. À l'arrivée de chaque joueur, il
+// établit un RTCDataChannel direct (offre / réponse + candidats ICE relayés par
+// le serveur). Les données de jeu transitent par le DataChannel ; le WS ne porte
+// que la signalisation et les contrôles (rejet, fermeture).
+//
+// La logique de jeu reste dans state.js : room.js traduit les messages reçus en
+// actions du store et expose des diffusions ciblées (projection, WS.md §18.4).
 
 import { dispatch, getState, subscribe } from './state.js';
 import { RELAY_ORIGIN, relayWsUrl } from './relay.js';
+import { ICE_SERVERS } from './ice.js';
+import { createDataPeer } from './rtc.js';
 import { NAME_MAX_LENGTH, PLAYER_EMOJIS, MAX_LOBBY_PLAYERS } from './constants.js';
 
 let ws = null;
 let hostPlayerId = null;
+let hostToken = null;
 let deliberateClose = false;
 let currentSessionId = null;
 let lastPingAt = 0;
@@ -24,6 +32,10 @@ let connState = 'offline'; // connecting | connected | reconnecting | offline
 const clientToSender = new Map();
 const senderToClient = new Map();
 
+// clientId → canal de données direct (RTCDataChannel). La source de vérité du
+// roster reste le store ; cette map ne sert qu'à router les diffusions.
+const peers = new Map();
+
 // Diffusion des questions/résultats aux joueurs (projection, WS.md §18.4 :
 // jamais `answer`/`funnyOption`/`explanation` avant le reveal).
 let lastQuestionSig = -1;
@@ -31,7 +43,7 @@ let lastRevealSig = -1;
 let lastPhase = null;
 
 subscribe((state) => {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!state.room) return;
   if (state.phase === 'QUESTION' && state.currentIndex !== lastQuestionSig) {
     lastQuestionSig = state.currentIndex;
     broadcastQuestion(state);
@@ -47,7 +59,7 @@ subscribe((state) => {
 });
 
 /**
- * Crée la room puis ouvre la connexion WS du host.
+ * Crée la room puis ouvre la connexion de signalisation du host.
  * Résout { sessionId, shareUrl } une fois `session.connected` reçu.
  */
 export async function startHost() {
@@ -61,6 +73,7 @@ export async function startHost() {
     throw new Error(message);
   }
   const created = await res.json();
+  hostToken = created.hostToken;
   await connect(created.sessionId);
   lastQuestionSig = -1;
   lastRevealSig = -1;
@@ -82,7 +95,7 @@ function connect(sessionId) {
   currentSessionId = sessionId;
   connState = 'connecting';
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(relayWsUrl(sessionId));
+    const socket = new WebSocket(relayWsUrl(sessionId, { role: 'host', token: hostToken }));
     ws = socket;
 
     socket.addEventListener('message', (e) => {
@@ -137,6 +150,7 @@ function scheduleReconnect() {
   }, delay);
 }
 
+/** Messages reçus sur le canal de signalisation (WS). */
 function handle(msg) {
   switch (msg.type) {
     case 'lobby.join': {
@@ -146,28 +160,27 @@ function handle(msg) {
       const emoji = typeof msg.payload?.emoji === 'string' ? msg.payload.emoji : '';
 
       if (!clientId) {
-        send('lobby.join.rejected', { targetId: senderId, reason: 'invalid' });
+        wsSend('lobby.join.rejected', senderId, { reason: 'invalid' });
         break;
       }
 
       const players = getState().players;
 
       // Rechargement : le même appareil se reconnecte avec son clientId. On
-      // ré-associe la nouvelle connexion sans créer de doublon, puis on renvoie
-      // l'état courant (roster en lobby, projection ciblée en pleine partie).
+      // ré-associe la nouvelle connexion sans créer de doublon, on rouvre le
+      // canal direct, puis on renvoie l'état courant à l'ouverture.
       if (players.some(p => p.id === clientId)) {
         remapSender(clientId, senderId);
-        if (getState().phase === 'LOBBY') {
-          broadcastRoster();
-        } else {
-          sendGameState(clientId);
-        }
+        openPeer(clientId, senderId, (id) => {
+          if (getState().phase === 'LOBBY') broadcastRoster();
+          else sendGameState(id);
+        });
         break;
       }
 
       // La partie est déjà lancée : plus personne ne rejoint.
       if (getState().phase !== 'LOBBY') {
-        send('lobby.join.rejected', { targetId: clientId, reason: 'started' });
+        wsSend('lobby.join.rejected', senderId, { reason: 'started' });
         break;
       }
 
@@ -175,15 +188,17 @@ function handle(msg) {
       // casse, avatar dans la liste autorisée. En ligne l'avatar peut être en
       // doublon (42 joueurs pour 30 avatars) : seul le prénom est unique.
       if (!name || !PLAYER_EMOJIS.includes(emoji)) {
-        send('lobby.join.rejected', { targetId: clientId, reason: 'invalid' });
+        wsSend('lobby.join.rejected', senderId, { reason: 'invalid' });
       } else if (players.length >= MAX_LOBBY_PLAYERS) {
-        send('lobby.join.rejected', { targetId: clientId, reason: 'full' });
+        wsSend('lobby.join.rejected', senderId, { reason: 'full' });
       } else if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-        send('lobby.join.rejected', { targetId: clientId, reason: 'name-taken' });
+        wsSend('lobby.join.rejected', senderId, { reason: 'name-taken' });
       } else {
         remapSender(clientId, senderId);
         dispatch({ type: 'ROOM_JOIN', id: clientId, name, emoji });
-        broadcastRoster();
+        // Le roster sera diffusé à l'ouverture du canal direct (le nouveau
+        // joueur n'a pas encore de canal, inutile de diffuser maintenant).
+        openPeer(clientId, senderId, () => broadcastRoster());
       }
       break;
     }
@@ -193,30 +208,104 @@ function handle(msg) {
       if (!clientId) break;
       senderToClient.delete(msg.senderId);
       clientToSender.delete(clientId);
+      peers.get(clientId)?.close();
       const inLobby = getState().phase === 'LOBBY';
       // Départ explicite (« Se déconnecter ») ou en lobby : on retire le siège.
       // En pleine partie, une déconnexion réseau (rechargement) garde le siège
-      // pour permettre le rejoin (§18.7) — le joueur re-associe sa connexion.
+      // pour permettre le rejoin (§18.7) — le joueur ré-associe sa connexion.
       if (msg.type === 'lobby.leave' || inLobby) {
         dispatch({ type: 'ROOM_LEAVE', id: clientId });
       }
-      // On ne re-diffuse le roster qu'en lobby : en pleine partie, le broadcast
-      // ferait retomber les autres joueurs sur l'écran d'attente.
       if (inLobby) broadcastRoster();
       break;
     }
-    case 'game.answer': {
+    case 'rtc.answer': {
       const clientId = senderToClient.get(msg.senderId);
+      peers.get(clientId)?.handleSignal({ type: 'answer', sdp: msg.payload?.sdp });
+      break;
+    }
+    case 'rtc.ice': {
+      const clientId = senderToClient.get(msg.senderId);
+      peers.get(clientId)?.handleSignal({ type: 'ice', candidate: msg.payload?.candidate });
+      break;
+    }
+  }
+}
+
+/**
+ * Ouvre (ou rouvre) le canal de données direct vers un joueur. Le host est
+ * toujours l'initiateur (il crée le DataChannel et l'offre). `senderId` est le
+ * playerId attribué par le serveur — c'est LUI que le routage étoile utilise
+ * (pas le clientId, inconnu du serveur). `onReady` est appelé à l'ouverture.
+ */
+function openPeer(clientId, senderId, onReady) {
+  const previous = peers.get(clientId);
+  if (previous) { peers.delete(clientId); previous.close(); }
+
+  const peer = createDataPeer({
+    initiator: true,
+    iceServers: ICE_SERVERS,
+    onSignal: (sig) => {
+      if (sig.type === 'offer') wsSend('rtc.offer', senderId, { sdp: sig.sdp });
+      else if (sig.type === 'ice') wsSend('rtc.ice', senderId, { candidate: sig.candidate });
+    },
+    onOpen: () => onReady(clientId),
+    onMessage: (msg) => handleData(clientId, msg),
+    onClose: () => {
+      // Canal tombé : on ne reprend que si l'entrée est encore la nôtre (sinon
+      // c'est un remplacement par rejoin, qui ne doit pas relancer la reprise).
+      if (peers.get(clientId) !== peer) return;
+      peers.delete(clientId);
+      schedulePeerRestart(clientId);
+    },
+  });
+  peers.set(clientId, peer);
+}
+
+/**
+ * Reprise d'un canal de données tombé (coupure réseau du pair sans que son WS de
+ * signalisation soit mort). Le host re-propose une offre après un court délai ;
+ * le joueur reçoit l'offre et re-crée son pair (ensurePeer). On renvoie la
+ * projection courante à l'ouverture pour resynchroniser l'écran du joueur.
+ */
+function schedulePeerRestart(clientId) {
+  const s = getState();
+  // Pas de reprise si on ferme la room, si le joueur a quitté (siège libéré),
+  // ou si sa connexion de signalisation n'est plus mappée.
+  if (!s.room) return;
+  if (!s.players.some(p => p.id === clientId)) return;
+  if (!clientToSender.has(clientId)) return;
+  setTimeout(() => {
+    if (!getState().room) return;
+    if (peers.has(clientId)) return; // déjà rouvert (rejoin concurrent)
+    const senderId = clientToSender.get(clientId);
+    if (!senderId) return;
+    openPeer(clientId, senderId, (id) => {
+      if (getState().phase === 'LOBBY') broadcastRoster();
+      else sendGameState(id);
+    });
+  }, 500);
+}
+
+/** Messages de données reçus d'un joueur (sur son canal direct). */
+function handleData(clientId, msg) {
+  switch (msg.type) {
+    case 'game.answer': {
       const optionKey = msg.payload?.optionKey;
       const s = getState();
-      // Le joueur ne répond qu'en phase QUESTION, s'il existe et n'est pas éliminé.
-      const player = clientId && s.players.find(p => p.id === clientId);
-      if (!player || player.eliminated || s.phase !== 'QUESTION') break;
-      if (!['A', 'B', 'C', 'D'].includes(optionKey)) break;
+      // Chrono écoulé : réponse refusée, même si le reveal n'est pas encore
+      // parti (l'échéance fait foi, pas l'action du MJ).
+      if (s.deadlineAt && Date.now() > s.deadlineAt) return;
+      const player = s.players.find(p => p.id === clientId);
+      if (!player || player.eliminated || s.phase !== 'QUESTION') return;
+      if (!['A', 'B', 'C', 'D'].includes(optionKey)) return;
       dispatch({ type: 'PLAYER_ANSWER', playerId: clientId, optionKey });
       break;
     }
-    // game.answer arrivera à l'étape suivante (réponses des joueurs).
+    case 'game.answer.cancel': {
+      dispatch({ type: 'CLEAR_PLAYER_ANSWER', playerId: clientId });
+      break;
+    }
   }
 }
 
@@ -244,9 +333,7 @@ function questionPayload(state) {
     manchesTarget: manche ? manche.manchesTarget : state.settings.manchesTarget,
     index: state.currentIndex + 1,
     total: prepared,
-    deadline: state.settings.timerEnabled
-      ? Date.now() + (state.settings.timePerQuestion || 60) * 1000
-      : null,
+    deadline: state.deadlineAt || null,
   };
 }
 
@@ -343,44 +430,53 @@ function sendGameState(targetId) {
       // La réponse déjà envoyée survit au rechargement : on la renvoie pour
       // que le joueur retrouve sa sélection.
       question.myAnswer = s.roundAnswers[targetId] || null;
-      send('game.state', { targetId, question });
+      sendTo(targetId, 'game.state', { question });
     }
   } else if (s.phase === 'REVEAL') {
     const reveal = revealPayload(s);
-    if (reveal) send('game.state', { targetId, reveal });
+    if (reveal) sendTo(targetId, 'game.state', { reveal });
   } else if (s.phase === 'MANCHE_END') {
-    send('game.state', { targetId, mancheEnd: mancheEndPayload(s) });
+    sendTo(targetId, 'game.state', { mancheEnd: mancheEndPayload(s) });
   } else if (s.phase === 'VICTORY') {
-    send('game.state', { targetId, victory: victoryPayload(s) });
+    sendTo(targetId, 'game.state', { victory: victoryPayload(s) });
   } else {
     // LOADING : la prochaine question arrivera d'elle-même.
-    send('game.state', { targetId, waiting: true });
+    sendTo(targetId, 'game.state', { waiting: true });
   }
 }
 
-/**
- * Diffuse le roster courant aux joueurs (projection, WS.md §18.4).
- * Le relais étant un dumb relay, ce message part vers tous les joueurs ;
- * chacun s'en sert pour afficher qui est connecté.
- */
+/** Diffuse le roster courant aux joueurs (projection, WS.md §18.4). */
 function broadcastRoster() {
   send('lobby.roster', {
     players: getState().players.map(p => ({ id: p.id, name: p.name, emoji: p.emoji })),
   });
 }
 
-/** Diffuse un message vers la room (relayé à tous les autres clients). */
+/** Envoie un message de signalisation/contrôle sur le WS. `targetId` est un
+ *  `playerId` serveur (routage étoile) — jamais un `clientId`. */
+function wsSend(type, targetId, payload) {
+  if (ws?.readyState !== WebSocket.OPEN) return;
+  const msg = { type, payload };
+  if (targetId) msg.targetId = targetId;
+  ws.send(JSON.stringify(msg));
+}
+
+/** Diffuse un message de jeu à tous les joueurs (sur leurs canaux directs). */
 export function send(type, payload) {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type, payload }));
-  }
+  const envelope = { type, payload };
+  for (const peer of peers.values()) peer.send(envelope);
+}
+
+/** Envoie un message de jeu à un seul joueur (sur son canal direct). */
+function sendTo(clientId, type, payload) {
+  peers.get(clientId)?.send({ type, payload });
 }
 
 export function closeRoom() {
-  // Prévenir les joueurs avant de couper (le relais relaie ce message).
-  if (ws?.readyState === WebSocket.OPEN) {
-    try { ws.send(JSON.stringify({ type: 'room.closed', payload: {} })); } catch { /* ignore */ }
-  }
+  // Prévenir les joueurs (contrôle) puis fermer les canaux directs.
+  wsSend('room.closed', null, {});
+  for (const peer of peers.values()) peer.close();
+  peers.clear();
   deliberateClose = true;
   currentSessionId = null;
   connState = 'offline';
@@ -391,6 +487,7 @@ export function closeRoom() {
     ws = null;
   }
   hostPlayerId = null;
+  hostToken = null;
 }
 
 /** État de connexion pour l'indicateur visuel (host). */

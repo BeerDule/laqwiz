@@ -79,6 +79,10 @@ const INITIAL_STATE = Object.freeze({
   roundAnswers: {},
   roundPenalties: {}, // { playerId: points réellement retirés ce tour }
   isBonusRound: false,
+  // Échéance absolue du chrono de la question courante (transitoire, jamais
+  // persistée). Source de vérité partagée : game.js y lit le décompte, room.js
+  // refuse les réponses arrivées après.
+  deadlineAt: null,
 
   // === Phase courante ===
   phase: 'HOME', // 'HOME' | 'SETUP' | 'LOBBY' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'MANCHE_END' | 'VICTORY'
@@ -476,6 +480,10 @@ function reducer(s, action) {
       s.roundAnswers = Object.fromEntries(s.players.map(p => [p.id, null]));
       s.roundPenalties = {};
       s.isBonusRound = s.settings.bonusEnabled && Math.random() < BONUS_CHANCE;
+      // Échéance du chrono posée ici (une fois par question, pas à chaque tick).
+      s.deadlineAt = s.settings.timerEnabled
+        ? Date.now() + (s.settings.timePerQuestion || 60) * 1000
+        : null;
       s.phase = 'QUESTION';
       persistResume(s);
       maybePrefetchNext();
@@ -662,6 +670,12 @@ function reducer(s, action) {
       s.source = r.source || null;
       // Une partie sauvegardée en LOADING n'a rien à afficher : on la relance.
       s.phase = r.phase === 'LOADING' ? 'LOADING' : r.phase;
+      // L'échéance est transitoire (jamais dans l'instantané) : on la recale pour
+      // que le chrono local et le filtre anti-réponses-tardives partagent la
+      // même horloge.
+      s.deadlineAt = s.settings.timerEnabled && s.phase === 'QUESTION'
+        ? Date.now() + (s.settings.timePerQuestion || 60) * 1000
+        : null;
       // Reprise : cette partie n'est plus « en attente », les autres si.
       s.ui.resumables = s.ui.resumables.filter(x => x.partieId !== r.partieId);
       if (s.phase === 'LOADING') triggerInitialBatch();
