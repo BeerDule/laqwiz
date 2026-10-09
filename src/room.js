@@ -326,6 +326,9 @@ function handleData(clientId, msg) {
       break;
     }
     case 'game.answer.cancel': {
+      // Annulation tardive (après révélation) : ne pas muter `roundAnswers`,
+      // sinon le rejoin du reveal afficherait « pas de réponse » à tort.
+      if (getState().phase !== 'QUESTION') return;
       dispatch({ type: 'CLEAR_PLAYER_ANSWER', playerId: clientId });
       break;
     }

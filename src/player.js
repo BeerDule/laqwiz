@@ -291,6 +291,7 @@ function reasonMessage(reason) {
     case 'name-taken': return 'Ce prénom est déjà pris, choisis-en un autre.';
     case 'full': return 'Le lobby est complet (42 joueurs maximum).';
     case 'started': return 'La partie a déjà commencé.';
+    case 'invalid': return 'Nom ou avatar invalide.';
     default: return 'Impossible de rejoindre.';
   }
 }

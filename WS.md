@@ -899,14 +899,14 @@ Host → Players (filtrés, relayés) :
 
 | type | payload | notes |
 |---|---|---|
-| `lobby.roster` | `{ players }` | `players` = `[{id,name,emoji,color,score}]`, diffusé à chaque join/leave |
-| `lobby.join.rejected` | `{ targetId, reason }` | `reason` = `full` (complet), `taken` (nom/emoji pris), `started` (déjà lancée) |
-| `game.start` | `{ settings }` | règles publiques, **sans config LLM** |
+| `lobby.roster` | `{ players }` | `players` = `[{id,name,emoji}]`, diffusé à chaque join/leave |
+| `lobby.join.rejected` | `{ reason }` | `reason` = `full` (complet), `name-taken` (prénom déjà pris), `started` (déjà lancée), `invalid` (nom/avatar invalide) |
+| `game.start` | `{}` | signal de démarrage — aucune règle transmise |
 | `game.question` | `{ question, options[], difficulty, isBonus, theme, manche, manchesTarget, index, total, deadline }` | **jamais** `answer`/`funnyOption`/`explanation` ; `manche`/`index`/`total` alimentent la barre de progression du joueur |
 | `game.reveal` | `{ question, options[], difficulty, answer, answerText, funnyOption, funnyText, explanation, results[] }` | question + options embarquées : la révélation est autonome (rejoin, §18.7) |
 | `game.manche_end` | `{ winnerId, manchesTarget, players[] }` | |
 | `game.victory` | `{ winnerId, players[] }` | |
-| `game.state` | `{ targetId, question\|reveal\|mancheEnd\|victory\|waiting }` | projection ciblée au rejoin (§18.7) ; seul le joueur visé par `targetId` la traite |
+| `game.state` | `{ question\|reveal\|mancheEnd\|victory\|waiting }` | projection ciblée au rejoin (§18.7), envoyée sur le canal direct du joueur visé |
 | `room.closed` | `{}` | l'hôte a fermé la room (quitter la partie, terminer la session) |
 
 ## 18.6 Déploiement — signalisation auto-hébergée + DataChannel

@@ -65,10 +65,9 @@ function quit() {
 }
 
 function startGame() {
-  // On prévient les joueurs (règles publiques, sans config LLM — WS.md §18.5),
-  // puis on lance la partie côté host (START_GAME déclenche la génération des
-  // questions).
-  send('game.start', { settings: getState().settings });
+  // On prévient les joueurs du démarrage, puis on lance la partie côté host
+  // (START_GAME déclenche la génération des questions).
+  send('game.start', {});
   dispatch({ type: 'START_GAME', resetHistory: true });
 }
 

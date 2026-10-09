@@ -188,6 +188,45 @@ async function startGame(host, count) {
   players.forEach((p) => closeCtx(p.ctx));
 }
 
+// ============ Scénario 5 : reprise du host après rechargement (F5) ============
+{
+  const h = await hostCreateLobby();
+  const a = await playerJoin(h.shareUrl, 'Alice');
+  const b = await playerJoin(h.shareUrl, 'Bob');
+  await startGame(h.host, 2);
+  await a.player.waitForSelector('#player-options', { timeout: 20000 });
+  // Alice répond, puis le host recharge : room et état doivent survivre.
+  await clickEl(a.player, '#player-options .option-card[data-key="A"]');
+  await h.host.reload({ waitUntil: 'domcontentloaded' });
+  // La phase QUESTION est restaurée : l'écran de jeu réapparaît côté host.
+  await h.host.waitForSelector('#btn-reveal', { timeout: 20000 });
+  const round = await h.host.evaluate(() => window.__QC_STATE__.getState().roundAnswers);
+  const aliceId = await h.host.evaluate(() =>
+    window.__QC_STATE__.getState().players.find((p) => p.name === 'Alice')?.id);
+  if (aliceId && round[aliceId] === 'A') ok("S5 : reprise du host après F5 (réponse d'Alice restaurée)");
+  else fail('S5', `roundAnswers = ${JSON.stringify(round)}`);
+  closeCtx(h.ctx); closeCtx(a.ctx); closeCtx(b.ctx);
+}
+
+// ============ Scénario 6 : prénom déjà pris (rejet ciblé) ============
+{
+  const h = await hostCreateLobby();
+  const a = await playerJoin(h.shareUrl, 'Alice');
+  await waitPlayerCount(h.host, 1);
+  const bCtx = await newCtx();
+  const b = await bCtx.newPage();
+  await b.goto(h.shareUrl, { waitUntil: 'domcontentloaded' });
+  await b.waitForSelector('#player-name', { timeout: 15000 });
+  await b.type('#player-name', 'Alice');
+  await clickEl(b, '#btn-join');
+  await b.waitForSelector('#player-error:not([hidden])', { timeout: 15000 });
+  const err = await b.$eval('#player-error', (el) => el.textContent);
+  if (err.includes('pris')) ok('S6 : prénom déjà pris → rejet ciblé');
+  else fail('S6', `message inattendu : ${err}`);
+  closeCtx(h.ctx); closeCtx(a.ctx); closeCtx(bCtx);
+}
+
+
 await browser.close();
 kids.forEach((k) => { try { k.kill(); } catch {} });
 console.log(`\n${passed} test(s) OK, ${failed} échec(s).`);
