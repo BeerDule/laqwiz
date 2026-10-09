@@ -68,7 +68,7 @@ export const THEME_MIN_LENGTH = 2;
 export const THEME_MAX_LENGTH = 60;
 export const TARGET_SCORE_MIN = 5;
 export const TARGET_SCORE_MAX = 30;
-export const BATCH_SIZE = 5;
+export const BATCH_SIZE = 8;
 // Caractères d'article envoyés par lot (~900 tokens). Un article complet monte
 // à 178 000 caractères : le réexpédier à chaque lot serait ruineux.
 export const SOURCE_BUDGET_CHARS = 3500;

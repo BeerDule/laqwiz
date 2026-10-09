@@ -54,7 +54,7 @@ function getServerConfig() {
   const apiKey = process.env.LLM_API_KEY || '';
   const model = process.env.LLM_MODEL || '';
   const temperature = process.env.LLM_TEMPERATURE || '0.9';
-  const batchSize = process.env.LLM_BATCH_SIZE || '5';
+  const batchSize = process.env.LLM_BATCH_SIZE || '8';
   return { baseUrl, apiKey, model, temperature, batchSize };
 }
 
@@ -174,6 +174,10 @@ async function handleChat(req, res) {
 
   res.statusCode = upstreamResponse.status;
   res.setHeader('Content-Type', upstreamResponse.headers.get('content-type') || 'application/json');
+  // Sur 429, transmettre Retry-After pour que le client attende le bon délai
+  // (au lieu d'un backoff fixe). LiteLLM/OpenRouter peut l'omettre.
+  const retryAfter = upstreamResponse.headers.get('retry-after');
+  if (retryAfter) res.setHeader('Retry-After', retryAfter);
   res.end(responseBody);
 }
 

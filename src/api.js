@@ -96,7 +96,25 @@ export function toUiError(error) {
 }
 
 const MAX_JSON_TRIES = 3; // 1 tentative + 2 retries silencieux
-const RATE_LIMIT_DELAYS = [2000, 4000, 8000];
+// Backoff sur 429 (rate limit). Les fournisseurs peuvent saturer leur pool
+// partagé plus de 8 s : on espace davantage que l'ancien 2/4/8 s.
+const RATE_LIMIT_DELAYS = [4000, 8000, 16000];
+
+/**
+ * Délai d'attente sur un 429 : respecte `Retry-After` (secondes ou date HTTP)
+ * s'il est présent, sinon retombe sur `RATE_LIMIT_DELAYS`. Plafonné à 60 s pour
+ * ne pas bloquer indéfiniment une partie.
+ */
+function retryAfterMs(res, tries) {
+  const ra = res.headers?.get('retry-after');
+  if (ra) {
+    const secs = Number(ra);
+    if (Number.isFinite(secs) && secs > 0) return Math.min(secs * 1000, 60_000);
+    const t = Date.parse(ra);
+    if (!Number.isNaN(t)) return Math.min(Math.max(t - Date.now(), 0), 60_000);
+  }
+  return RATE_LIMIT_DELAYS[Math.min(tries, RATE_LIMIT_DELAYS.length - 1)];
+}
 
 /**
  * Demande un lot de questions au LLM via le proxy /api.
@@ -162,13 +180,13 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
       }
     }
 
-    // --- 429 : backoff exponentiel 2 s / 4 s / 8 s ---
+    // --- 429 : backoff (Retry-After si fourni, sinon 4 s / 8 s / 16 s) ---
     if (res.status === 429) {
       if (rateLimitTries >= RATE_LIMIT_DELAYS.length) {
         throw new ApiError('UPSTREAM_4XX',
           'Trop de demandes ; nouvel essai possible.', res.status);
       }
-      await sleep(RATE_LIMIT_DELAYS[rateLimitTries++]);
+      await sleep(retryAfterMs(res, rateLimitTries++));
       continue;
     }
 
@@ -190,7 +208,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
           throw new ApiError('UPSTREAM_4XX',
             'Trop de demandes ; nouvel essai possible.', res.status);
         }
-        await sleep(RATE_LIMIT_DELAYS[rateLimitTries++]);
+        await sleep(retryAfterMs(res, rateLimitTries++));
         res = await requestOnce();
       }
       if (res.status === 401 || res.status === 403) {

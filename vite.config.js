@@ -47,7 +47,7 @@ function llmProxyPlugin(env, { validate } = {}) {
   const apiKey = env.LLM_API_KEY || '';
   const model = env.LLM_MODEL || '';
   const temperature = env.LLM_TEMPERATURE || '0.9';
-  const batchSize = env.LLM_BATCH_SIZE || '5';
+  const batchSize = env.LLM_BATCH_SIZE || '8';
 
   // Validation au chargement du plugin, uniquement en mode dev (`vite dev`).
   // `vite build` ne démarre pas de serveur : le build statique n'a pas de
@@ -215,7 +215,7 @@ export default defineConfig(({ mode, command }) => {
     batchSize > 20 ||
     !Number.isInteger(batchSize)
   ) {
-    env.LLM_BATCH_SIZE = '5';
+    env.LLM_BATCH_SIZE = '8';
   } else {
     env.LLM_BATCH_SIZE = String(batchSize);
   }
