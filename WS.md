@@ -847,7 +847,7 @@ Elle est la source de vérité pour la partie en ligne : en cas de conflit, elle
 | 1 | Hébergement : **serveur de signalisation** (`server/relay.mjs` sur un VPS) + **RTCDataChannel** direct host↔joueur — voir §18.6 | acté |
 | 2 | Mode **hybride** : le local (un seul écran) reste le défaut ; l'« en ligne » est une option activée par le MJ | acté |
 | 3 | Le MJ reste **animateur** : pas de siège joueur en mode en ligne | acté |
-| 4 | Reprise d'une partie en ligne : **implémentée** (rejoin joueur via `clientId`, reprise du host après F5) | acté |
+| 4 | Reprise d'une partie en ligne : **implémentée** (rejoin joueur via `clientId`, reprise du host après F5/fermeture d'onglet) | acté |
 | 5 | Le serveur reste un **dumb signaling** : il route la signalisation, ne comprend ni ne valide le métier | acté |
 
 ## 18.2 Terminologie — collision « session »
@@ -913,7 +913,7 @@ Host → Players (filtrés, relayés) :
 | `game.manche_end` | `{ winnerId, manchesTarget, players[] }` | |
 | `game.victory` | `{ winnerId, players[] }` | |
 | `game.state` | `{ question\|reveal\|mancheEnd\|victory\|waiting }` | projection ciblée au rejoin (§18.7), envoyée sur le canal direct du joueur visé |
-| `room.closed` | `{}` | l'hôte a fermé la room (quitter la partie, terminer la session) |
+| `room.closed` | `{}` | l'hôte a fermé la room (quitter le lobby, terminer la session) — quitter la partie en cours la suspend, sans `room.closed` |
 
 ## 18.6 Déploiement — signalisation auto-hébergée + DataChannel
 
@@ -968,8 +968,10 @@ le canal cible à lui seul) :
 - `mancheEnd` / `victory` — fin de manche ou podium ;
 - `waiting` — phase LOADING : la prochaine question arrivera d'elle-même.
 
-La sortie du host (quitter la partie, terminer la session) ferme la room et diffuse
-`room.closed` aux joueurs. Une partie en ligne n'est pas reprise après fermeture.
+La sortie du host a deux formes. **Fermer** la room (quitter le lobby avant le lancement, ou
+terminer la session) diffuse `room.closed` aux joueurs : une partie en ligne n'est pas reprise
+après fermeture. **Suspendre** la room (quitter la partie en cours) ne diffuse rien : la room
+persiste (localStorage + relais) et la reprise reconnecte les joueurs (voir ci-dessous).
 
 ### Reconnexion automatique
 
@@ -984,14 +986,22 @@ l'état des deux côtés.
 `room.rejoin` : les joueurs re-postulent et récupèrent un DataChannel neuf — sans quoi les
 canaux directs restaient morts quand la coupure emportait aussi le WebRTC.
 
-### Reprise du host après rechargement (F5)
+### Reprise du host après rechargement, fermeture d'onglet ou « pause »
 
-Le host persiste `{ sessionId, hostToken, shareUrl }` en `sessionStorage` (survit au F5, pas
-à la fermeture d'onglet). Au rechargement, il reconnecte la signalisation, restaure l'état de
+Le host persiste `{ sessionId, hostToken, shareUrl }` en `localStorage` (survit au F5 **et** à
+la fermeture d'onglet). Au retour, il reconnecte la signalisation, restaure l'état de
 jeu depuis l'archive (IndexedDB : `RESUME_SESSION` + `RESUME_PARTIE`), puis diffuse
 `room.rejoin` : les joueurs (toujours connectés en WS) re-postulent via `lobby.join` et
 récupèrent un DataChannel neuf via le rejoin existant. La reprise n'est possible que tant que
-la room vit (TTL 24 h) ; quitter la partie ou terminer la session ferme la room.
+la room vit (TTL 24 h).
+
+**Quitter la partie en cours** ne ferme plus la room : `pauseRoomIfOnline()` coupe les canaux
+directs et la signalisation du host, mais conserve la room (pas de `room.closed`). L'instantané
+de reprise porte alors le `roomSessionId`. Reprendre depuis la bannière « Parties
+interrompues », le gestionnaire de sessions ou l'accueil appelle `resumeRoom(roomSessionId)` :
+l'état de jeu (déjà restauré par `RESUME_PARTIE`) est complété par la reconnexion de la room,
+et `room.rejoin` fait re-postuler les joueurs. Seuls quitter le lobby avant le lancement ou
+terminer la session ferment la room (`room.closed`).
 
 ## 18.8 Chronomètre
 

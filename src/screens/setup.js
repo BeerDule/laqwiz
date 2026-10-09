@@ -17,7 +17,7 @@ import { listResumes, listParties } from '../db.js';
 import {
   loadModes, createMode, updateMode, removeMode, resetBuiltinMode, diffFromMode,
 } from '../modes.js';
-import { startHost } from '../room.js';
+import { startHost, resumeRoom } from '../room.js';
 
 // Le mode BYOK — chaque joueur renseigne sa propre configuration LLM — est
 // obligatoire en production par défaut, optionnel en développement.
@@ -883,6 +883,8 @@ function wireEvents(signal) {
 
     if (btn.dataset.resumeAction === 'resume') {
       dispatch({ type: 'RESUME_PARTIE', snapshot });
+      // Partie en ligne : reconnecter la room pour que les joueurs re-postulent.
+      if (snapshot.roomSessionId) resumeRoom(snapshot.roomSessionId);
     } else if (await confirmDialog({
       title: 'Supprimer la partie interrompue',
       message: 'Supprimer définitivement cette partie interrompue ?',

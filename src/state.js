@@ -231,6 +231,10 @@ function persistResume(s) {
     prefetchQueue: s.prefetchQueue,
     history: s.history,
     source: s.source,
+    // Room de signalisation en cours (si partie en ligne). Permet, à la reprise,
+    // de reconnecter la room et de faire re-postuler les joueurs. Absent/null
+    // pour une partie locale.
+    roomSessionId: s.room?.sessionId || null,
     settings: { ...s.settings },
   };
   putResume(snapshot);
@@ -450,6 +454,13 @@ function reducer(s, action) {
     case 'ROOM_CLOSED':
       s.room = null;
       s.players = [];
+      break;
+
+    case 'ROOM_PAUSED':
+      // Quitter la partie en ligne = suspendre, pas fermer : on garde le roster
+      // (l'instantané de reprise le capture) et on ne ferme pas la room — elle
+      // repartira à la reprise via resumeRoom().
+      s.room = null;
       break;
 
     case 'SET_LLM':

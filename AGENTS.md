@@ -166,7 +166,7 @@ src/
   player.js           # point d'entrée joueur (signalisation + canal direct + jeu)
   connIndicator.js    # indicateur d'état de connexion (ping / reconnexion)
   screens/
-    home.js           # menu principal (Continuer / Nouvelle session / Sessions / Réglages)
+    home.js           # menu principal (Reprendre / Continuer / Nouvelle session / Sessions / Paramètres)
     setup.js          # roster + thème + règles + panneau LLM (BYOK)
     game.js           # question, saisie MJ, révélation, chrono, fin de manche
     victory.js        # podium de partie (classé sur les MANCHES gagnées) + confettis
@@ -194,7 +194,7 @@ voir « Versionnage ».)
 
 | Où | Quoi | Pourquoi |
 |---|---|---|
-| `localStorage` | roster, réglages, stats, thème, config LLM, **id** de session active | `main.js` hydrate **en synchrone avant le premier rendu** |
+| `localStorage` | roster, réglages, stats, thème, config LLM, **id** de session active, **room host** (reprise en ligne) | `main.js` hydrate **en synchrone avant le premier rendu** |
 | IndexedDB (`db.js`) | sessions, parties, parties interrompues, **modes de jeu** | grossit sans limite ; lecture asynchrone hors du chemin de démarrage |
 
 Quatre stores : `sessions`, `parties` (index `sessionId`), `resume` (clé = **id de partie**,

@@ -124,3 +124,11 @@ qui habille le jeu de parchemin et de plaques peintes (`public/paper-ui/`), et
 
 Tout passe par des variables CSS : ajouter un thème ne demande qu'une entrée dans
 `COLOR_THEMES` et un bloc de surcharges dans `src/styles/theme.css`.
+
+
+## TODO:
+
+- blind test avec de video youtube, basee sur un theme choisi
+- serveur de cache pour les question deja existante
+- gerer le multi langue
+- avoir une option pour demarrer le serveur en SFW, pas d'option nsfw, et prete a etre utilisee pour des classes d'ecole

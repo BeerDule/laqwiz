@@ -5,6 +5,7 @@ import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChips } from '../components/playerChip.js';
 import { CREDITS } from '../constants.js';
+import { resumeRoom } from '../room.js';
 
 let teardown = null;
 let root = null;
@@ -62,10 +63,11 @@ function menuHtml(s) {
         ${session
           ? `<button id="btn-continue" class="arcade-btn${resumable ? '' : ' arcade-btn--primary'}">${resumable ? 'Nouvelle partie' : 'Continuer'}</button>`
           : ''}
+
+        ${session || resumable ? '<hr class="arcade__menu-divider">' : ''}
         <button id="btn-new-session" class="arcade-btn">Nouvelle session</button>
         <button id="btn-sessions" class="arcade-btn">Sessions</button>
         <button id="btn-app-settings" class="arcade-btn">Paramètres</button>
-        ${session ? '<button id="btn-settings" class="arcade-btn">Réglages</button>' : ''}
       </nav>
 
       <footer class="arcade__footer">
@@ -96,9 +98,13 @@ function render() {
     const el = root.querySelector(id);
     if (el) el.addEventListener('click', fn, { signal });
   };
-  on('#btn-resume', () => dispatch({ type: 'RESUME_PARTIE', snapshot: getState().ui.resumables[0] }));
+  on('#btn-resume', () => {
+    const snapshot = getState().ui.resumables[0];
+    dispatch({ type: 'RESUME_PARTIE', snapshot });
+    // Partie en ligne : reconnecter la room pour que les joueurs re-postulent.
+    if (snapshot?.roomSessionId) resumeRoom(snapshot.roomSessionId);
+  });
   on('#btn-continue', () => dispatch({ type: 'NEW_GAME' }));
-  on('#btn-settings', () => dispatch({ type: 'NEW_GAME' }));
   on('#btn-new-session', () => dispatch({ type: 'NEW_SESSION' }));
   on('#btn-sessions', () => dispatch({ type: 'GOTO_SESSIONS' }));
   on('#btn-app-settings', () => dispatch({ type: 'GOTO_SETTINGS' }));

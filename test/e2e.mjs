@@ -118,6 +118,12 @@ async function startGame(host, count) {
   await startGame(h.host, 2);
   ok('S1 : partie démarrée (lobby → chargement → question)');
 
+  // Scoreboard côté joueur : 2 joueurs, « moi » mis en évidence.
+  await a.player.waitForSelector('.player-scoreboard .player-scoreboard__item.is-me', { timeout: 10000 });
+  const sbItems = await a.player.evaluate(() => document.querySelectorAll('.player-scoreboard__item').length);
+  if (sbItems === 2) ok('S1 : scoreboard côté joueur (2 joueurs)');
+  else fail('S1 : scoreboard', `items=${sbItems}`);
+
   let ended = false;
   for (let i = 0; i < 15 && !ended; i += 1) {
     await a.player.waitForSelector('#player-options', { timeout: 20000 });
@@ -197,6 +203,15 @@ async function startGame(host, count) {
   await a.player.waitForSelector('#player-options', { timeout: 20000 });
   // Alice répond, puis le host recharge : room et état doivent survivre.
   await clickEl(a.player, '#player-options .option-card[data-key="A"]');
+  // La réponse transite par le DataChannel puis est persistée (IndexedDB). Sans
+  // cette attente, le rechargement pouvait partir avant l'arrivée de la réponse :
+  // elle était perdue avec le canal. On attend son arrivée, puis un court délai
+  // pour l'écriture de l'instantané.
+  await h.host.waitForFunction(
+    () => Object.values(window.__QC_STATE__.getState().roundAnswers).some(Boolean),
+    { timeout: 10000 },
+  );
+  await sleep(300);
   await h.host.reload({ waitUntil: 'domcontentloaded' });
   // La phase QUESTION est restaurée : l'écran de jeu réapparaît côté host.
   await h.host.waitForSelector('#btn-reveal', { timeout: 20000 });
@@ -253,6 +268,36 @@ async function startGame(host, count) {
   if (marcScored) ok('S7 : le MJ joue depuis son écran (réponse + score)');
   else fail('S7', 'score du MJ absent après révélation');
   closeCtx(h.ctx); closeCtx(a.ctx);
+}
+
+// ============ Scénario 8 : pause (quitter) puis reprise reconnecte les joueurs ============
+{
+  const h = await hostCreateLobby();
+  const a = await playerJoin(h.shareUrl, 'Alice');
+  const b = await playerJoin(h.shareUrl, 'Bob');
+  await startGame(h.host, 2);
+  await a.player.waitForSelector('#player-options', { timeout: 20000 });
+  // Alice répond, puis le host « quitte » : en ligne, cela met la partie en pause.
+  await clickEl(a.player, '#player-options .option-card[data-key="A"]');
+  await clickEl(h.host, '#btn-quit');
+  await clickEl(h.host, '.modal button[value="confirm"]');
+  // Retour aux réglages : la reprise est proposée (room conservée, roster intact).
+  await h.host.waitForSelector('#resume-banner:not([hidden])', { timeout: 15000 });
+  await clickEl(h.host, 'button[data-resume-action="resume"]');
+  // La partie est restaurée et la room reconnectée : le host revoit l'écran de jeu.
+  await h.host.waitForSelector('#btn-reveal', { timeout: 20000 });
+  const state = await h.host.evaluate(() => {
+    const s = window.__QC_STATE__.getState();
+    return { room: !!s.room, phase: s.phase, round: s.roundAnswers };
+  });
+  const aliceId = await h.host.evaluate(() =>
+    window.__QC_STATE__.getState().players.find((p) => p.name === 'Alice')?.id);
+  if (state.room && state.phase === 'QUESTION' && aliceId && state.round[aliceId] === 'A') {
+    ok("S8 : pause puis reprise reconnecte la room (réponse d'Alice restaurée)");
+  } else {
+    fail('S8', `room=${state.room} phase=${state.phase} round=${JSON.stringify(state.round)}`);
+  }
+  closeCtx(h.ctx); closeCtx(a.ctx); closeCtx(b.ctx);
 }
 
 await browser.close();

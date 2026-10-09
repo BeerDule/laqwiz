@@ -28,19 +28,20 @@ let reconnectAttempts = 0;
 let reconnectTimer = null;
 let connState = 'offline'; // connecting | connected | reconnecting | offline
 
-// --- Persistance de la room (reprise du host après rechargement) ---
-// sessionStorage : survit à un F5 (rechargement), pas à une fermeture d'onglet.
-// On y garde de quoi se reconnecter en host et rétablir les canaux directs.
+// --- Persistance de la room (reprise du host après rechargement/fermeture) ---
+// localStorage : survit au F5 ET à la fermeture d'onglet, pour que les joueurs
+// puissent se reconnecter quand le host reprend une partie interrompue. La room
+// côté serveur a un TTL (24 h) : passé ce délai, la reconnexion échoue et on nettoie.
 const ROOM_STORAGE_KEY = 'quizz-canape:room-host';
 
 function saveRoom(room) {
-  try { sessionStorage.setItem(ROOM_STORAGE_KEY, JSON.stringify(room)); } catch { /* quota/privé */ }
+  try { localStorage.setItem(ROOM_STORAGE_KEY, JSON.stringify(room)); } catch { /* quota/privé */ }
 }
 function loadRoom() {
-  try { return JSON.parse(sessionStorage.getItem(ROOM_STORAGE_KEY)); } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(ROOM_STORAGE_KEY)); } catch { return null; }
 }
 function clearRoom() {
-  try { sessionStorage.removeItem(ROOM_STORAGE_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(ROOM_STORAGE_KEY); } catch { /* ignore */ }
 }
 
 /** True si cet onglet hébergeait une room avant un rechargement. */
@@ -369,6 +370,8 @@ function questionPayload(state) {
     index: state.currentIndex + 1,
     total: prepared,
     deadline: state.deadlineAt || null,
+    // Scores courants, pour l'affichage côté joueur (jamais la réponse).
+    players: state.players.map(p => ({ id: p.id, name: p.name, emoji: p.emoji, score: p.score })),
   };
 }
 
@@ -554,33 +557,94 @@ export function leaveRoomIfOnline() {
 }
 
 /**
- * Reprise du host après un rechargement (F5). Reconnexion de la signalisation,
- * restauration de l'état de jeu depuis l'archive, puis on fait re-postuler les
- * joueurs pour rétablir leurs canaux directs.
+ * Suspend la room sans la fermer (quitter la partie en ligne). Le host coupe ses
+ * canaux directs et sa signalisation, mais la room persiste (localStorage + relais)
+ * pour que les joueurs puissent se reconnecter à la reprise. Les joueurs ne sont
+ * PAS prévenus par `room.closed` : pour eux, la partie est simplement en pause.
  */
-export async function rejoinHost() {
-  const room = loadRoom();
-  if (!room?.sessionId || !room?.hostToken) return;
+function pauseRoom() {
+  for (const peer of peers.values()) peer.close();
+  peers.clear();
+  deliberateClose = true;
+  currentSessionId = null;
+  connState = 'offline';
+  stopPing();
+  rttMs = null;
+  reconnectAttempts = 0;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (ws) { try { ws.close(); } catch { /* déjà fermé */ } ws = null; }
+  hostPlayerId = null;
+  // hostToken et la room (localStorage) sont conservés : la reprise les relira.
+}
+
+/** Quitter la partie en ligne = suspendre la room (no-op sinon). */
+export function pauseRoomIfOnline() {
+  if (!getState().room) return;
+  pauseRoom();
+  dispatch({ type: 'ROOM_PAUSED' });
+}
+
+/**
+ * Reconnexion de la signalisation sur une room persistée. False si absente ou
+ * expirée (la room a un TTL de 24 h côté relais : au-delà, on nettoie).
+ */
+async function connectToRoom(room) {
   hostToken = room.hostToken;
   try {
     await connect(room.sessionId);
+    return true;
   } catch (err) {
-    console.error('[room] reprise host impossible :', err.message);
+    console.error('[room] reconnexion impossible :', err.message);
     clearRoom();
-    return;
+    return false;
   }
+}
 
-  const restored = await restoreGameState();
+/** Rejoindre (ROOM_REJOINED) puis faire re-postuler les joueurs. */
+function dispatchRoomRejoined(room) {
   const shareUrl = room.shareUrl || `${location.origin}${location.pathname}#join=${room.sessionId}`;
   dispatch({
-    type: restored ? 'ROOM_REJOINED' : 'ROOM_OPENED',
+    type: 'ROOM_REJOINED',
     sessionId: room.sessionId,
     shareUrl,
     hostPlayerId,
   });
-  // Les joueurs, toujours connectés en WS, re-postulent (room.rejoin →
-  // lobby.join) et retrouvent un canal direct via le rejoin existant.
   broadcastRoomRejoin();
+}
+
+/**
+ * Reprise du host après un rechargement (F5) ou une fermeture d'onglet. Reconnexion
+ * de la signalisation, restauration de l'état de jeu depuis l'archive, puis on fait
+ * re-postuler les joueurs pour rétablir leurs canaux directs.
+ */
+export async function rejoinHost() {
+  const room = loadRoom();
+  if (!room?.sessionId || !room?.hostToken) return;
+  if (!(await connectToRoom(room))) return;
+  const restored = await restoreGameState();
+  if (restored) {
+    dispatchRoomRejoined(room);
+  } else {
+    // Pas de partie en cours : on rouvre simplement la room (retour au lobby).
+    const shareUrl = room.shareUrl || `${location.origin}${location.pathname}#join=${room.sessionId}`;
+    dispatch({ type: 'ROOM_OPENED', sessionId: room.sessionId, shareUrl, hostPlayerId });
+    broadcastRoomRejoin();
+  }
+}
+
+/**
+ * Reprise manuelle (bannière « Parties interrompues », gestionnaire de sessions) :
+ * l'état de jeu a déjà été restauré par RESUME_PARTIE. On ne fait que reconnecter
+ * la signalisation et faire re-postuler les joueurs. False si la room ne correspond
+ * pas (autre session) ou a expiré.
+ */
+export async function resumeRoom(roomSessionId) {
+  const room = loadRoom();
+  if (!room?.sessionId || !room?.hostToken) return false;
+  if (roomSessionId && room.sessionId !== roomSessionId) return false;
+  if (!(await connectToRoom(room))) return false;
+  dispatchRoomRejoined(room);
+  return true;
 }
 
 /** Restaure session + partie depuis l'archive. True si une partie était en cours. */

@@ -2,6 +2,7 @@
 // Comme home.js, cet écran garde l'identité « île » quel que soit le thème.
 import { getState, dispatch } from '../state.js';
 import { listSessions, listParties, deleteSession, listResumes } from '../db.js';
+import { resumeRoom } from '../room.js';
 import { playerChip, playerChips } from '../components/playerChip.js';
 import { confirmDialog } from '../components/dialog.js';
 
@@ -161,7 +162,11 @@ export function renderSessions(rootEl) {
       dispatch({ type: 'SET_RESUMABLES', snapshots: snaps });
       // Plusieurs parties interrompues : on ouvre la session et on laisse le MJ
       // choisir dans l'écran de réglages plutôt que d'en imposer une.
-      if (snaps.length === 1) dispatch({ type: 'RESUME_PARTIE', snapshot: snaps[0] });
+      if (snaps.length === 1) {
+        dispatch({ type: 'RESUME_PARTIE', snapshot: snaps[0] });
+        // Partie en ligne : reconnecter la room pour que les joueurs re-postulent.
+        if (snaps[0].roomSessionId) resumeRoom(snaps[0].roomSessionId);
+      }
     }
   }, { signal });
 

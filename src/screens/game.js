@@ -4,7 +4,7 @@ import { DIFFICULTY_LABELS, HOST_PLAYER_ID } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
 import { confirmDialog } from '../components/dialog.js';
-import { leaveRoomIfOnline, getConnInfo } from '../room.js';
+import { pauseRoomIfOnline, getConnInfo } from '../room.js';
 import { connIndicatorHtml, wireConnIndicator } from '../connIndicator.js';
 
 let teardown = null;
@@ -547,9 +547,12 @@ async function confirmQuit() {
     message: 'Quitter la partie et revenir aux réglages ?',
     confirmLabel: 'Quitter',
   })) {
-    // En ligne, quitter la partie ferme la room et prévient les joueurs.
-    leaveRoomIfOnline();
+    // En ligne, quitter la partie la met en pause : la room et le roster sont
+    // conservés pour que les joueurs puissent se reconnecter à la reprise.
+    // NEW_GAME d'abord, pour que l'instantané capture le roster et la room encore
+    // en ligne ; la pause vient ensuite.
     dispatch({ type: 'NEW_GAME' });
+    pauseRoomIfOnline();
   }
 }
 

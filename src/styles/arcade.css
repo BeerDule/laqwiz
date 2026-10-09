@@ -69,6 +69,11 @@
   margin-inline: auto;
 }
 .arcade__menu .arcade-btn { width: 100%; }
+.arcade__menu-divider {
+  margin: var(--space-2) 0;
+  border: 0;
+  border-top: .1em solid var(--color-border);
+}
 .arcade-resume-hint {
   margin: 0;
   text-align: center;
@@ -429,6 +434,31 @@
   color: var(--color-muted);
   font-size: .875em;
 }
+
+/* Scoreboard côté joueur (écran de jeu, pendant question/révélation). */
+.player-scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+  width: min(24em, 100%);
+  margin: 0 auto var(--space-3);
+}
+.player-scoreboard__item {
+  display: inline-flex;
+  align-items: center;
+  gap: .385em;
+  padding: .353em .824em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-1);
+}
+.player-scoreboard__item.is-me { border-color: var(--color-accent-primary); }
+.player-scoreboard__emoji { font-size: 1.154em; line-height: 1; }
+.player-scoreboard__name { font-weight: 600; font-size: .933em; }
+.player-scoreboard__score { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ===== Écran joueur « Rejoindre » (mode en ligne) =====
  * Interface alignée sur celle du MJ : même coquille game-screen, mêmes

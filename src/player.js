@@ -441,6 +441,19 @@ function renderStarted() {
   `;
 }
 
+function scoreboardHtml(players, myId) {
+  const rows = (players || [])
+    .slice()
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .map(p => `
+      <span class="player-scoreboard__item${p.id === myId ? ' is-me' : ''}">
+        <span class="player-scoreboard__emoji" aria-hidden="true">${p.emoji}</span>
+        <span class="player-scoreboard__name">${escapeHtml(p.name)}</span>
+        <strong class="player-scoreboard__score">${p.score || 0}</strong>
+      </span>`).join('');
+  return `<div class="player-scoreboard" aria-label="Scores">${rows}</div>`;
+}
+
 function renderQuestion(payload) {
   lastQuestion = payload;
   meta = payload;
@@ -457,6 +470,7 @@ function renderQuestion(payload) {
     </button>
   `).join('');
   document.querySelector('#game-body').innerHTML = `
+    ${payload.players ? scoreboardHtml(payload.players, clientId) : ''}
     <article id="question-card" class="question-card" data-bonus="${payload.isBonus ? 'true' : 'false'}" aria-live="polite">
       <div class="question-meta">
         ${payload.difficulty ? `<span class="badge badge--${escapeHtml(payload.difficulty)}">${escapeHtml(DIFFICULTY_LABELS[payload.difficulty] || payload.difficulty)}</span>` : ''}
@@ -564,6 +578,7 @@ function renderPlayerReveal(payload) {
   ` : '';
 
   document.querySelector('#game-body').innerHTML = `
+    ${scoreboardHtml(payload.results, clientId)}
     <article id="question-card" class="question-card" aria-live="polite">
       <div class="question-meta">
         ${payload.difficulty ? `<span class="badge badge--${escapeHtml(payload.difficulty)}">${escapeHtml(DIFFICULTY_LABELS[payload.difficulty] || payload.difficulty)}</span>` : ''}
