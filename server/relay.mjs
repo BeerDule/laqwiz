@@ -310,6 +310,7 @@ wss.on('connection', (ws, sessionId, isHost) => {
   if (!isHost && session.hostPlayerId) {
     routeToHost(session, {
       type: 'player.joined',
+      senderId: playerId,
       payload: { playerId, playersCount: playerCount(session) },
     });
   }
@@ -343,6 +344,7 @@ wss.on('connection', (ws, sessionId, isHost) => {
     if (session.hostPlayerId) {
       routeToHost(session, {
         type: 'player.left',
+        senderId: playerId,
         payload: { playerId, playersCount: playerCount(session) },
       });
     }

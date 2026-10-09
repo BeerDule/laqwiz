@@ -402,6 +402,17 @@ function reducer(s, action) {
       s.phase = 'LOBBY';
       break;
 
+    case 'ROOM_REJOINED':
+      // Reprise du host après rechargement : l'état de jeu vient d'être restauré
+      // depuis l'archive, on ne touche ni au roster ni à la phase.
+      s.room = {
+        sessionId: action.sessionId,
+        shareUrl: action.shareUrl,
+        hostPlayerId: action.hostPlayerId,
+        connected: true,
+      };
+      break;
+
     case 'ROOM_JOIN': {
       if (!s.players.some(p => p.id === action.id)) {
         s.players.push({

@@ -13,6 +13,8 @@ import { dispatch, getState, subscribe } from './state.js';
 import { RELAY_ORIGIN, relayWsUrl } from './relay.js';
 import { ICE_SERVERS } from './ice.js';
 import { createDataPeer } from './rtc.js';
+import { loadActiveSessionId } from './storage.js';
+import { getSession, listResumes } from './db.js';
 import { NAME_MAX_LENGTH, PLAYER_EMOJIS, MAX_LOBBY_PLAYERS } from './constants.js';
 
 let ws = null;
@@ -24,6 +26,26 @@ let lastPingAt = 0;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 let connState = 'offline'; // connecting | connected | reconnecting | offline
+
+// --- Persistance de la room (reprise du host après rechargement) ---
+// sessionStorage : survit à un F5 (rechargement), pas à une fermeture d'onglet.
+// On y garde de quoi se reconnecter en host et rétablir les canaux directs.
+const ROOM_STORAGE_KEY = 'quizz-canape:room-host';
+
+function saveRoom(room) {
+  try { sessionStorage.setItem(ROOM_STORAGE_KEY, JSON.stringify(room)); } catch { /* quota/privé */ }
+}
+function loadRoom() {
+  try { return JSON.parse(sessionStorage.getItem(ROOM_STORAGE_KEY)); } catch { return null; }
+}
+function clearRoom() {
+  try { sessionStorage.removeItem(ROOM_STORAGE_KEY); } catch { /* ignore */ }
+}
+
+/** True si cet onglet hébergeait une room avant un rechargement. */
+export function hasPersistedRoom() {
+  return !!loadRoom();
+}
 
 // Correspondance identité stable (clientId, généré côté client et persisté en
 // localStorage) ↔ connexion éphémère (senderId, attribué par le relais). Sert à
@@ -82,6 +104,7 @@ export async function startHost() {
   // chemin /game/<id>) : avec `base: './'`, une route imbriquée casserait la
   // résolution des assets (→ /game/assets/*.css qui n'existent pas).
   const shareUrl = `${location.origin}${location.pathname}#join=${created.sessionId}`;
+  saveRoom({ sessionId: created.sessionId, hostToken: created.hostToken, shareUrl });
   dispatch({
     type: 'ROOM_OPENED',
     sessionId: created.sessionId,
@@ -488,6 +511,7 @@ export function closeRoom() {
   }
   hostPlayerId = null;
   hostToken = null;
+  clearRoom();
 }
 
 /** État de connexion pour l'indicateur visuel (host). */
@@ -500,4 +524,54 @@ export function leaveRoomIfOnline() {
   if (!getState().room) return;
   closeRoom();
   dispatch({ type: 'ROOM_CLOSED' });
+}
+
+/**
+ * Reprise du host après un rechargement (F5). Reconnexion de la signalisation,
+ * restauration de l'état de jeu depuis l'archive, puis on fait re-postuler les
+ * joueurs pour rétablir leurs canaux directs.
+ */
+export async function rejoinHost() {
+  const room = loadRoom();
+  if (!room?.sessionId || !room?.hostToken) return;
+  hostToken = room.hostToken;
+  try {
+    await connect(room.sessionId);
+  } catch (err) {
+    console.error('[room] reprise host impossible :', err.message);
+    clearRoom();
+    return;
+  }
+
+  const restored = await restoreGameState();
+  const shareUrl = room.shareUrl || `${location.origin}${location.pathname}#join=${room.sessionId}`;
+  dispatch({
+    type: restored ? 'ROOM_REJOINED' : 'ROOM_OPENED',
+    sessionId: room.sessionId,
+    shareUrl,
+    hostPlayerId,
+  });
+  // Les joueurs, toujours connectés en WS, re-postulent (room.rejoin →
+  // lobby.join) et retrouvent un canal direct via le rejoin existant.
+  broadcastRoomRejoin();
+}
+
+/** Restaure session + partie depuis l'archive. True si une partie était en cours. */
+async function restoreGameState() {
+  const activeSessionId = loadActiveSessionId();
+  if (!activeSessionId) return false;
+  const session = await getSession(activeSessionId);
+  if (!session || session.status !== 'active') return false;
+  dispatch({ type: 'RESUME_SESSION', session });
+  const snapshots = await listResumes(session.id);
+  if (snapshots.length) {
+    dispatch({ type: 'RESUME_PARTIE', snapshot: snapshots[0] });
+    return true;
+  }
+  return false;
+}
+
+/** Diffuse aux joueurs qu'ils doivent re-postuler (canaux directs tombés). */
+function broadcastRoomRejoin() {
+  wsSend('room.rejoin', null, {});
 }

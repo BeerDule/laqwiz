@@ -1,16 +1,13 @@
-// test/e2e.mjs — validation navigateur du transport P2P (WebRTC DataChannel).
+// test/e2e.mjs — validation navigateur complète du mode en ligne (P2P).
 //
-// Démarre le serveur de signalisation (qui sert aussi dist/), lance Chromium via
-// puppeteer-core, puis déroule le flux réel : le host crée un lobby, un joueur
-// rejoint via le lien, et on vérifie que le canal direct s'ouvre — le joueur
-// n'atteint l'écran « connecté » qu'à la réception du roster par le DataChannel.
+// Démarre le serveur de signalisation (sert dist/), un mock LLM (questions
+// pré-écrites, réponse toujours « A »), puis déroule 4 scénarios :
+//   1. partie complète (lobby → question → révélation → victoire) ;
+//   2. déconnexion d'un joueur en lobby (siège libéré) ;
+//   3. rejoin en pleine partie (réponse restaurée) ;
+//   4. mini test de charge (8 joueurs simultanés).
 //
-// Prérequis :
-//   - un Chromium accessible (CHROME_BIN, ou `chromium` dans le PATH — fourni
-//     par `nix develop` via flake.nix) ;
-//   - puppeteer-core installé (`npm install`).
-//
-// Usage : npm run test:e2e
+// Usage : npm run test:e2e   (puppeteer-core + Chromium via flake.nix)
 
 import { spawn, execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -18,89 +15,180 @@ import puppeteer from 'puppeteer-core';
 
 const PORT = process.env.E2E_PORT || '3100';
 const BASE = `http://localhost:${PORT}`;
+const MOCK_PORT = '8788';
 
 let passed = 0;
-function ok(label) { passed += 1; console.log(`✓ ${label}`); }
-function fail(msg) { console.error(`✗ ${msg}`); process.exit(1); }
+let failed = 0;
+const ok = (l) => { passed += 1; console.log(`✓ ${l}`); };
+const fail = (l, d = '') => { failed += 1; console.error(`✗ ${l}${d ? ' — ' + d : ''}`); };
 
-function run(cmd, args, env = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: 'inherit', env: { ...process.env, ...env } });
-    child.on('error', reject);
-    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} a quitté (code ${code})`))));
-  });
-}
+const run = (cmd, args, env = {}) => new Promise((res, rej) => {
+  const c = spawn(cmd, args, { stdio: 'inherit', env: { ...process.env, ...env } });
+  c.on('error', rej);
+  c.on('exit', (code) => (code === 0 ? res() : rej(new Error(`${cmd} exit ${code}`))));
+});
+const findChrome = () => process.env.CHROME_BIN
+  || (() => { try { return execFileSync('which', ['chromium']).toString().trim(); } catch { return 'chromium'; } })();
 
-function findChrome() {
-  if (process.env.CHROME_BIN) return process.env.CHROME_BIN;
-  try { return execFileSync('which', ['chromium']).toString().trim(); } catch { return 'chromium'; }
-}
-
-// --- 0) Build : le lobby ne doit pas exiger de config LLM (elle n'est requise
-//        qu'au moment de générer les questions, pas pour ouvrir le lobby). ---
+// --- Boot : build + mock LLM + serveur de signalisation ---
 await run('npm', ['run', 'build'], { LLM_CONFIG_REQUIRED: 'false' });
-
-// --- 1) Serveur de signalisation (sert dist/ + /api + WS). ---
-const relay = spawn('node', ['server/relay.mjs'], { stdio: 'ignore', env: { ...process.env, PORT } });
-process.on('exit', () => { try { relay.kill(); } catch {} });
+const kids = [];
+kids.push(spawn('node', ['demo/mock-llm.mjs'], { stdio: 'ignore', env: { ...process.env, PORT: MOCK_PORT, LATENCY_MS: '120' } }));
+kids.push(spawn('node', ['server/relay.mjs'], { stdio: 'ignore', env: {
+  ...process.env, PORT,
+  LLM_BASE_URL: `http://127.0.0.1:${MOCK_PORT}/v1`, LLM_API_KEY: 'test', LLM_MODEL: 'mock',
+} }));
+process.on('exit', () => kids.forEach((k) => { try { k.kill(); } catch {} }));
 
 let up = false;
-for (let i = 0; i < 50; i += 1) {
+for (let i = 0; i < 60; i += 1) {
   try { await fetch(`${BASE}/api/relay/health`); up = true; break; } catch { await sleep(150); }
 }
-if (!up) { relay.kill(); fail('serveur de signalisation injoignable'); }
+if (!up) { console.error('✗ serveur de signalisation injoignable'); process.exit(1); }
 
+const headless = process.env.E2E_HEADLESS !== 'false' && process.env.E2E_HEADLESS !== '0';
+const slowMo = Number(process.env.E2E_SLOWMO || 0);
 const browser = await puppeteer.launch({
-  executablePath: findChrome(),
-  headless: true,
+  executablePath: findChrome(), headless, slowMo,
+  defaultViewport: { width: 1280, height: 800 },
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
 });
 
-try {
-  // Clic natif (el.click()) : contourne le contrôle de cliquabilité de Puppeteer,
-  // inopérant sur les inputs radio stylés/recouverts par le thème.
-  const clickEl = async (page, selector) => {
-    await page.waitForSelector(selector, { timeout: 15000 });
-    await page.$eval(selector, (el) => el.click());
-  };
+const clickEl = async (page, sel) => { await page.waitForSelector(sel, { timeout: 15000 }); await page.$eval(sel, (el) => el.click()); };
+const newCtx = async () => browser.createBrowserContext(); // stockage isolé (clientId unique)
+const closeCtx = (c) => c.close().catch(() => {});
 
-  // --- 2) Host : créer le lobby. ---
-  const host = await browser.newPage();
+async function hostCreateLobby() {
+  const ctx = await newCtx();
+  const host = await ctx.newPage();
   await host.goto(BASE, { waitUntil: 'domcontentloaded' });
   await clickEl(host, '#btn-new-session');
   await clickEl(host, 'input[name="gameMode"][value="lobby"]');
+  // Score cible bas : la victoire arrive vite (5 bonnes réponses).
+  await host.$eval('#target-score', (el) => { el.value = '5'; el.dispatchEvent(new Event('input', { bubbles: true })); });
   await host.waitForSelector('#btn-start:not([disabled])', { timeout: 10000 });
   await clickEl(host, '#btn-start');
   await host.waitForSelector('#lobby-link', { timeout: 15000 });
   const shareUrl = await host.$eval('#lobby-link', (el) => el.value);
-  if (!shareUrl.includes('#join=')) fail("lien d'invitation introuvable");
-  ok('host : lobby créé, lien d\'invitation présent');
+  return { ctx, host, shareUrl };
+}
 
-  // --- 3) Player : rejoindre via le lien. ---
-  const player = await browser.newPage();
+async function playerJoin(shareUrl, name) {
+  const ctx = await newCtx();
+  const player = await ctx.newPage();
   await player.goto(shareUrl, { waitUntil: 'domcontentloaded' });
   await player.waitForSelector('#player-name', { timeout: 15000 });
-  await player.type('#player-name', 'Alice');
+  await player.type('#player-name', name);
   await clickEl(player, '#btn-join');
-  // L'écran « connecté » n'apparaît qu'à la réception du roster par le DataChannel.
   await player.waitForFunction(
     () => document.querySelector('#question-number')?.textContent.includes('En attente'),
     { timeout: 20000 },
   );
-  ok('player : écran « connecté » atteint (roster reçu via le DataChannel)');
-
-  // --- 4) Host : voit la joueuse dans le roster. ---
-  await host.waitForFunction(
-    () => document.querySelector('.arcade-plaque__name')?.textContent.includes('1 /'),
-    { timeout: 10000 },
-  );
-  ok('host : le roster compte la joueuse (1 / 42)');
-} catch (err) {
-  console.error('✗ échec du test E2E :', err.message);
-  process.exitCode = 1;
-} finally {
-  await browser.close();
-  relay.kill();
+  return { ctx, player };
 }
 
-if (!process.exitCode) console.log(`\n${passed} test(s) OK.`);
+// Bonne réponse de la question courante (côté host), via le hook de test.
+async function hostAnswer(host) {
+  return host.evaluate(() => {
+    const s = window.__QC_STATE__.getState();
+    return s.questions[s.currentIndex]?.answer || null;
+  });
+}
+
+// Attend que le roster du host affiche « count / 42 ».
+async function waitPlayerCount(host, count, timeout = 15000) {
+  await host.waitForFunction(
+    (n) => document.body.textContent.includes(`${n} / 42`),
+    { timeout },
+    count,
+  );
+}
+
+async function startGame(host, count) {
+  await sleep(500); // laisser retomber les re-rendus du lobby
+  await waitPlayerCount(host, count, 20000);
+  await clickEl(host, '#btn-start'); // « Démarrer la partie »
+}
+
+// ============ Scénario 1 : partie complète jusqu'à la victoire ============
+{
+  const h = await hostCreateLobby();
+  const a = await playerJoin(h.shareUrl, 'Alice');
+  const b = await playerJoin(h.shareUrl, 'Bob');
+  await startGame(h.host, 2);
+  ok('S1 : partie démarrée (lobby → chargement → question)');
+
+  let ended = false;
+  for (let i = 0; i < 15 && !ended; i += 1) {
+    await a.player.waitForSelector('#player-options', { timeout: 20000 });
+    const answer = await hostAnswer(h.host);
+    await clickEl(a.player, `#player-options .option-card[data-key="${answer}"]`);
+    await clickEl(b.player, `#player-options .option-card[data-key="${answer}"]`);
+    await h.host.waitForSelector('#btn-reveal:not([disabled])', { timeout: 10000 });
+    await clickEl(h.host, '#btn-reveal');
+    await h.host.waitForSelector('#btn-next', { timeout: 10000 });
+    await clickEl(h.host, '#btn-next');
+    await sleep(400);
+    const st = await h.host.evaluate(() =>
+      document.querySelector('#btn-next-manche') ? 'MANCHE_END'
+        : document.querySelector('.victory-screen') ? 'VICTORY' : 'QUESTION');
+    if (st === 'MANCHE_END') { await clickEl(h.host, '#btn-next-manche'); ended = true; }
+    else if (st === 'VICTORY') { ended = true; }
+  }
+  try {
+    await h.host.waitForSelector('.victory-screen', { timeout: 10000 });
+    ok("S1 : partie complète jusqu'à la victoire");
+  } catch (e) {
+    const diag = await h.host.evaluate(() => ({
+      header: document.querySelector('#question-number')?.textContent,
+      body: document.querySelector('#game-body')?.textContent?.slice(0, 200),
+      scores: [...document.querySelectorAll('.leaderboard-mini__score')].map((el) => el.textContent),
+    }));
+    fail('S1', `pas de victoire — ${JSON.stringify(diag)}`);
+  }
+  closeCtx(h.ctx); closeCtx(a.ctx); closeCtx(b.ctx);
+}
+
+// ============ Scénario 2 : déconnexion en lobby ============
+{
+  const h = await hostCreateLobby();
+  const a = await playerJoin(h.shareUrl, 'Alice');
+  await waitPlayerCount(h.host, 1);
+  await a.player.close(); // l'onglet du joueur se ferme
+  await waitPlayerCount(h.host, 0);
+  ok('S2 : siège libéré à la déconnexion en lobby (0 / 42)');
+  closeCtx(h.ctx); closeCtx(a.ctx);
+}
+
+// ============ Scénario 3 : rejoin en pleine partie ============
+{
+  const h = await hostCreateLobby();
+  const a = await playerJoin(h.shareUrl, 'Alice');
+  const b = await playerJoin(h.shareUrl, 'Bob');
+  await startGame(h.host, 2);
+  await a.player.waitForSelector('#player-options', { timeout: 20000 });
+  await clickEl(a.player, '#player-options .option-card[data-key="A"]');
+  // Alice recharge : rejoin + projection (sa réponse survit au rechargement).
+  await a.player.reload({ waitUntil: 'domcontentloaded' });
+  await a.player.waitForSelector('#player-options', { timeout: 20000 });
+  const restored = await a.player.$eval('#player-options .option-card[data-key="A"]', (el) => el.classList.contains('is-selected'));
+  if (restored) ok('S3 : rejoin en pleine partie (réponse restaurée)');
+  else fail('S3', 'réponse non restaurée après rejoin');
+  closeCtx(h.ctx); closeCtx(a.ctx); closeCtx(b.ctx);
+}
+
+// ============ Scénario 4 : test de charge (8 joueurs) ============
+{
+  const h = await hostCreateLobby();
+  const players = [];
+  for (let i = 0; i < 8; i += 1) players.push(await playerJoin(h.shareUrl, `J${i + 1}`));
+  await waitPlayerCount(h.host, 8, 30000);
+  ok('S4 : 8 joueurs connectés simultanément (8 / 42)');
+  closeCtx(h.ctx);
+  players.forEach((p) => closeCtx(p.ctx));
+}
+
+await browser.close();
+kids.forEach((k) => { try { k.kill(); } catch {} });
+console.log(`\n${passed} test(s) OK, ${failed} échec(s).`);
+process.exit(failed ? 1 : 0);

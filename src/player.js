@@ -175,9 +175,15 @@ function openSocket(sessionId) {
     } else if (msg.type === 'ping') {
       lastPingAt = Date.now();
     } else if (msg.type === 'rtc.offer') {
+      // Nouvelle offre = nouvelle connexion : on repart d'un pair neuf (l'ancien,
+      // tombé ou en cours de fermeture, ne doit pas être réutilisé).
+      if (peer) { peer.close(); peer = null; }
       ensurePeer().handleSignal({ type: 'offer', sdp: msg.payload?.sdp });
     } else if (msg.type === 'rtc.ice') {
       peer?.handleSignal({ type: 'ice', candidate: msg.payload?.candidate });
+    } else if (msg.type === 'room.rejoin') {
+      // Le host a rechargé : on re-postule pour rétablir notre canal direct.
+      sendJoin();
     } else if (msg.type === 'lobby.join.rejected') {
       showError(reasonMessage(msg.payload?.reason));
       resetSubmit();

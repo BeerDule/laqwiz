@@ -14,10 +14,15 @@ import { renderSessions, unmountSessions } from './screens/sessions.js';
 import { renderHome, unmountHome } from './screens/home.js';
 import { renderSettings, unmountSettings } from './screens/settings.js';
 import { renderLobby, unmountLobby } from './screens/lobby.js';
+import { hasPersistedRoom, rejoinHost } from './room.js';
 import { initColorTheme, setColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
 import { initMechaBackdrop } from './mechaBackdrop.js';
+
+// Hook de test (E2E) : expose la source de vérité pour que les tests lisent
+// l'état (ex. la bonne réponse) sans rejouer l'UI. Inoffensif en usage normal.
+window.__QC_STATE__ = { getState };
 
 // Appliquer le thème de couleurs sauvegardé avant le premier rendu
 initColorTheme();
@@ -129,27 +134,32 @@ if (persistedStats) getState().stats = persistedStats;
 // apparaissent quand la lecture répond.
 loadModes().then(modes => dispatch({ type: 'SET_MODES', modes }));
 
-// --- Reprise de la session active (IndexedDB, asynchrone) ---
-// Volontairement hors du chemin de démarrage : la lecture ne doit pas retarder
-// le premier rendu. La garde évite d'écraser une partie que l'utilisateur
-// aurait lancée avant que la lecture ne réponde.
-const activeSessionId = loadActiveSessionId();
-if (activeSessionId) {
-  getSession(activeSessionId).then((session) => {
-    if (!session || session.status !== 'active') return;
-    const s = getState();
-    if ((s.phase !== 'HOME' && s.phase !== 'SETUP') || s.partie) return;
-    const backHome = s.phase === 'HOME';
-    dispatch({ type: 'RESUME_SESSION', session });
-    // Une partie interrompue ? On ne la relance pas d'office : le MJ décide.
-    // getResume est asynchrone comme le reste de l'archive, donc l'accueil se
-    // redessine quand la réponse arrive (voir l'abonnement de home.js).
-    listResumes(session.id).then((snapshots) => {
-      if (snapshots.length) dispatch({ type: 'SET_RESUMABLES', snapshots });
+// --- Reprise : un host qui recharge reprend sa room ; sinon, session locale. ---
+if (hasPersistedRoom()) {
+  rejoinHost();
+} else {
+  // --- Reprise de la session active (IndexedDB, asynchrone) ---
+  // Volontairement hors du chemin de démarrage : la lecture ne doit pas retarder
+  // le premier rendu. La garde évite d'écraser une partie que l'utilisateur
+  // aurait lancée avant que la lecture ne réponde.
+  const activeSessionId = loadActiveSessionId();
+  if (activeSessionId) {
+    getSession(activeSessionId).then((session) => {
+      if (!session || session.status !== 'active') return;
+      const s = getState();
+      if ((s.phase !== 'HOME' && s.phase !== 'SETUP') || s.partie) return;
+      const backHome = s.phase === 'HOME';
+      dispatch({ type: 'RESUME_SESSION', session });
+      // Une partie interrompue ? On ne la relance pas d'office : le MJ décide.
+      // getResume est asynchrone comme le reste de l'archive, donc l'accueil se
+      // redessine quand la réponse arrive (voir l'abonnement de home.js).
+      listResumes(session.id).then((snapshots) => {
+        if (snapshots.length) dispatch({ type: 'SET_RESUMABLES', snapshots });
+      });
+      // RESUME_SESSION ouvre les réglages ; si on attendait encore au menu, on y reste.
+      if (backHome) dispatch({ type: 'GOTO_HOME' });
     });
-    // RESUME_SESSION ouvre les réglages ; si on attendait encore au menu, on y reste.
-    if (backHome) dispatch({ type: 'GOTO_HOME' });
-  });
+  }
 }
 
 // --- Configuration serveur (model / temperature / batchSize via /api/health) ---

@@ -844,11 +844,11 @@ Elle est la source de vérité pour la partie en ligne : en cas de conflit, elle
 
 | # | Décision | Statut |
 |---|---|---|
-| 1 | Hébergement : **relais WS auto-hébergé** (`server/relay.mjs` sur un VPS), rooms en mémoire — voir §18.6 | acté |
+| 1 | Hébergement : **serveur de signalisation** (`server/relay.mjs` sur un VPS) + **RTCDataChannel** direct host↔joueur — voir §18.6 | acté |
 | 2 | Mode **hybride** : le local (un seul écran) reste le défaut ; l'« en ligne » est une option activée par le MJ | acté |
 | 3 | Le MJ reste **animateur** : pas de siège joueur en mode en ligne | acté |
-| 4 | Reprise d'une partie en ligne : **terrain préparé** (identité reconnectable + projection au rejoin), non implémentée | acté |
-| 5 | Le serveur reste un **dumb relay** : aucune logique ni validation métier | acté |
+| 4 | Reprise d'une partie en ligne : **implémentée** (rejoin joueur via `clientId`, reprise du host après F5) | acté |
+| 5 | Le serveur reste un **dumb signaling** : il route la signalisation, ne comprend ni ne valide le métier | acté |
 
 ## 18.2 Terminologie — collision « session »
 
@@ -866,7 +866,7 @@ L'URL de partage est `https://host/#join=<roomId>` (identifiant en **hash**, pas
 - **Host (MJ)** : créateur de la room, seul émetteur des messages d'état (`game.*`), source de vérité (`state.js`), **seul à appeler le LLM** — la clé API ne quitte jamais sa machine / son serveur.
 - **Player** : joint via l'URL de partage, fournit `name` + `emoji`, reçoit une projection filtrée, n'émet que `lobby.join`, `lobby.leave`, `game.answer`, `game.answer.cancel`.
 
-Le serveur étant un dumb relay, **le contrôle de rôle est appliqué côté host** : toute commande d'état (`game.start`, `game.reveal`, …) émise par un player est ignorée.
+Le serveur étant un dumb signaling, **le contrôle de rôle est appliqué côté host** : toute commande d'état (`game.start`, `game.reveal`, …) émise par un player est ignorée. Le host s'authentifie à la connexion par un **jeton** remis à la création de la room (`?role=host&token=…`) ; lui seul peut diffuser.
 
 ## 18.4 Projection de sécurité (règle d'or)
 
@@ -874,9 +874,19 @@ Le host ne broadcast jamais son état brut. Avant `reveal`, un player ne reçoit
 
 ## 18.5 Messages métier (complète §5.2)
 
-Enveloppe conservée : `{ type, payload, requestId, senderId }` (`senderId` ajouté par le serveur, jamais accepté du client).
+Enveloppe conservée : `{ type, payload }`. Sur le WS de signalisation, le serveur ajoute `senderId` (jamais accepté du client) et route en étoile ; sur le DataChannel, l'identité de l'émetteur est portée par le canal lui-même.
 
-Player → Host :
+Les messages **métier** ci-dessous transitent par le **DataChannel** (direct, chiffré DTLS) une fois le canal établi. Le WS ne porte que la **signalisation** WebRTC et quelques contrôles :
+
+| type | sens | payload |
+|---|---|---|
+| `rtc.offer` | host → joueur | `{ sdp }` — ciblé par `targetId` (= playerId serveur) |
+| `rtc.answer` | joueur → host | `{ sdp }` |
+| `rtc.ice` | bidirectionnel | `{ candidate }` |
+| `room.rejoin` | host → tous | `{}` — le host a rechargé, les joueurs re-postulent |
+| `room.closed` | host → tous | `{}` — l'hôte a fermé la room |
+
+Player → Host (sur le DataChannel) :
 
 | type | payload | notes |
 |---|---|---|
@@ -899,48 +909,50 @@ Host → Players (filtrés, relayés) :
 | `game.state` | `{ targetId, question\|reveal\|mancheEnd\|victory\|waiting }` | projection ciblée au rejoin (§18.7) ; seul le joueur visé par `targetId` la traite |
 | `room.closed` | `{}` | l'hôte a fermé la room (quitter la partie, terminer la session) |
 
-## 18.6 Déploiement — décision : relais auto-hébergé (VPS)
+## 18.6 Déploiement — signalisation auto-hébergée + DataChannel
 
-Retenu : un **serveur Node auto-hébergé** (`server/relay.mjs`) sur un VPS, qui fait tout
-en un seul processus : sessions, relais WebSocket **en mémoire**, et éventuellement le
-statique `dist/`. L'ancien relais (limité à ~5 min de connexion) a été abandonné :
-cette limite imposait une reconnexion permanente, et Redis ajoutait un service
-facturé pour un problème que la mémoire d'un seul processus résout.
+Le serveur auto-hébergé (`server/relay.mjs`, VPS) **ne relaie plus les données de jeu** :
+il ne fait que la **signalisation** — présenter le host aux joueurs et router les offres /
+réponses / candidats ICE. Les données transitent en **direct** par un `RTCDataChannel`
+(WebRTC, chiffré DTLS) entre le navigateur du MJ et celui de chaque joueur.
 
 Architecture :
 
 ```text
-client ──> VPS (server/relay.mjs) ── room = Map<sessionId, Map<playerId, socket>>
-client ──>   · POST /api/sessions    (id imprévisible, session en mémoire, TTL 24 h)
-             · WS  /api/ws?sessionId (relais « dumb », anti-écho, présence)
-             · GET /*                (dist/ si présent — un seul serveur pour tout)
+MJ (host) ── RTCDataChannel (direct, DTLS) ──► joueur 1 … (jusqu'à 42)
+     │
+     └── WS de signalisation ──► VPS (server/relay.mjs)
+             · POST /api/sessions      → { sessionId, hostToken }
+             · WS   /api/ws?sessionId  → routage en étoile (joueur→host, host→ciblé/tous)
+             · POST /api/chat/completions → proxy LLM (BYOK + repli .env)
+             · GET  /*                  → dist/ (un seul serveur pour tout)
 ```
 
 Règles :
 
-1. Une room est une `Map` en mémoire : zéro Redis, zéro pub/sub inter-instances (une
-   seule instance suffit pour une partie familiale).
-2. Aucune limite de durée : les connexions tiennent aussi longtemps que nécessaire. Le
-   `ping` (15 s) ne sert qu'à l'anti-inactivité et au repère « dernier ping » côté client.
-3. Les sessions vides sont gardées jusqu'à leur TTL (24 h) pour permettre la reconnexion
-   du host, puis nettoyées.
-4. L'origine du relais est figée à la compilation (`VITE_RELAY_ORIGIN`) ; à défaut, même
-   origine que le front (le relais peut servir `dist/`).
+1. Une room est une `Map` en mémoire : zéro Redis, zéro pub/sub inter-instances.
+2. Le host s'authentifie par le `hostToken` remis à la création (`?role=host&token=…`) ;
+   les joueurs se connectent avec le seul `sessionId`. Un nouveau host chasse l'ancien.
+3. Le routage est **en étoile** : tout message d'un joueur remonte au host ; tout message
+   du host part vers un joueur ciblé (`targetId` = playerId serveur) ou vers tous.
+4. Aucune limite de durée : `ping` (15 s) d'anti-inactivité + repère « dernier ping ».
+5. Les rooms vides sont gardées jusqu'à leur TTL (24 h) puis nettoyées.
+6. L'origine du serveur est figée à la compilation (`VITE_RELAY_ORIGIN`) ; les serveurs ICE
+   (`VITE_ICE_SERVERS` : STUN public par défaut, TURN en repli pour les NAT symétriques) aussi.
 
 Le proxy LLM est implémenté **deux fois** au même contrat (BYOK/repli `.env`) :
-`vite.config.js` (dev) et `server/relay.mjs` (auto-hébergé, porté dans le relais pour
-servir `dist/` en autonome). Toute évolution doit toucher les deux.
+`vite.config.js` (dev) et `server/relay.mjs` (auto-hébergé). Toute évolution doit toucher les deux.
 
-**Dépendance serveur** : seule `ws` (WebSocket) est ajoutée, jamais embarquée dans le
-bundle front (qui reste à zéro dépendance runtime).
+**Dépendance serveur** : seule `ws` (WebSocket) est ajoutée, jamais embarquée dans le bundle
+front (qui reste à zéro dépendance runtime — `RTCPeerConnection` est natif).
 
 ## 18.7 Rejoin en pleine partie (implémenté)
 
 Un joueur qui recharge en pleine partie rejoint avec le même `clientId` (persisté dans
 `localStorage`). Le host reconnaît l'identité et **ré-associe la nouvelle connexion**
-(`remapSender`) sans créer de doublon, puis renvoie la **projection d'état courante** via
-`game.state { targetId, … }`, ciblée sur ce joueur (le relais relaie à tous, seul celui
-visé par `targetId` la traite) :
+(`remapSender`) sans créer de doublon, rouvre le DataChannel, puis renvoie la
+**projection d'état courante** via `game.state` sur le canal direct (plus de `targetId` :
+le canal cible à lui seul) :
 
 - `question` — question sans réponse, options, chrono : le joueur reprend sa saisie.
   `myAnswer` porte la réponse déjà envoyée, pour que la sélection survive au rechargement ;
@@ -961,6 +973,20 @@ dans le store, pas dans le socket) ; le joueur re-postule via `clientId` et reç
 projection ci-dessus. Un indicateur « Ping Ns » / « Reconnexion… » expose l'état des deux
 côtés.
 
+### Reprise du host après rechargement (F5)
+
+Le host persiste `{ sessionId, hostToken, shareUrl }` en `sessionStorage` (survit au F5, pas
+à la fermeture d'onglet). Au rechargement, il reconnecte la signalisation, restaure l'état de
+jeu depuis l'archive (IndexedDB : `RESUME_SESSION` + `RESUME_PARTIE`), puis diffuse
+`room.rejoin` : les joueurs (toujours connectés en WS) re-postulent via `lobby.join` et
+récupèrent un DataChannel neuf via le rejoin existant. La reprise n'est possible que tant que
+la room vit (TTL 24 h) ; quitter la partie ou terminer la session ferme la room.
+
 ## 18.8 Chronomètre
 
-Le host est seul maître du temps : il diffuse une **échéance absolue** (`deadline = Date.now() + durée`) dans `game.question` ; les players rendent le décompte **en local** vers cette échéance. Aucun tick réseau ; le verrouillage de saisie à expiration est appliqué côté host (comme aujourd'hui dans `game.js`).
+Le host est seul maître du temps. L'échéance est posée **une fois par question** dans le
+store (`deadlineAt`, à `SHOW_NEXT_QUESTION`), partagée par trois consommateurs : le chrono
+local de `game.js` (qui ne dispatche toujours pas à chaque tick), la projection `game.question`
+envoyée aux joueurs (même échéance absolue, zéro dérive), et le filtre de `room.js` qui
+**refuse toute `game.answer` reçue après l'échéance** (même si le MJ n'a pas encore révélé).
+Aucun tick réseau : les players rendent le décompte en local vers cette échéance.

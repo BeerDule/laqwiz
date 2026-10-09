@@ -186,6 +186,7 @@ async function main() {
   // 5) Présence côté host (le host n'est pas compté comme joueur).
   const joinedAlice = await host.next();
   assert(joinedAlice.type === 'player.joined', 'host voit player.joined (alice)', `reçu : ${joinedAlice.type}`);
+  assert(joinedAlice.senderId === aliceId, 'player.joined porte senderId', `reçu : ${joinedAlice.senderId}`);
   assert(joinedAlice.payload?.playersCount === 1, 'playersCount = 1 (host exclu)', `reçu : ${joinedAlice.payload?.playersCount}`);
   const joinedBob = await host.next();
   assert(joinedBob.type === 'player.joined', 'host voit player.joined (bob)', `reçu : ${joinedBob.type}`);
@@ -220,6 +221,7 @@ async function main() {
   alice.ws.close();
   const left = await host.next();
   assert(left.type === 'player.left', 'host voit player.left', `reçu : ${left.type}`);
+  assert(left.senderId === aliceId, 'player.left porte senderId', `reçu : ${left.senderId}`);
   assert(left.payload?.playersCount === 1, 'playersCount = 1 après départ d\'alice');
 
   // 10) Session inconnue refusée.

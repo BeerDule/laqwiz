@@ -32,7 +32,7 @@
           version = "1.0.0";
           src = buildSource pkgs;
           nodejs = pkgs.nodejs_24;
-          npmDepsHash = "sha256-1YujJb7F4Udrq9iZPM/tRRuO/4AfKmcpzHO2+oX4VqA=";
+          npmDepsHash = "sha256-mE2JiLfxBfn/zsGvndn1jCOhJeBXw4OjuprQuld51CM=";
           # `vite build` n'exige pas de `.env` (le proxy n'existe qu'en dev).
           buildPhase = "npm run build";
           installPhase = ''

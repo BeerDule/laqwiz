@@ -29,8 +29,8 @@ configuré reste inatteignable : la validation du formulaire bloque avant l'appe
 - **Bundler** : Vite 5.4 (`vite.config.js`)
 - **Frontend** : Vanilla JS ES2022, CSS custom properties (pas de `@layer` — la cascade
   repose sur l'ordre des imports dans `main.js` : theme → layout → components → arcade)
-- **Dép.** : **zéro dépendance npm runtime côté front** — `ws` (relais serveur) en
-  dependencies, seul `vite` en devDependencies
+- **Dép.** : **zéro dépendance npm runtime côté front** — `ws` (serveur de
+  signalisation) en dependencies, `vite` et `puppeteer-core` en devDependencies
 - **Nix** : `flake.nix` pour shell reproductible + build
 - ~5 800 lignes JS + CSS
 
@@ -142,7 +142,7 @@ des stats, qui suivent donc le score net.
 .env.example          # modèle versionné
 vite.config.js        # proxy HTTP → LLM du DEV SERVER (BYOK via en-têtes, repli .env)
 server/
-  relay.mjs           # relais WS auto-hébergé (VPS) : sessions + relais en mémoire + statique
+  relay.mjs           # serveur de signalisation WS (VPS) : hostToken + routage en étoile + statique + proxy LLM
 src/
   main.js             # bootstrap, hydratation, routage des écrans, toasts
   state.js            # store pub/sub, réducteur, machine à états, session/partie/manche
@@ -159,9 +159,11 @@ src/
   themeSwitcher.js    # thème de couleurs (data-color-theme)
   mechaBackdrop.js    # fond animé <canvas> du thème Mecha, autonome
   confetti.js         # animation de victoire
-  room.js             # couche réseau du host (reconnexion, diffusions, rejoin)
-  relay.js            # origine du relais WS (configurable à la compilation)
-  player.js           # point d'entrée joueur (connexion + jeu)
+  room.js             # réseau host : signalisation + DataChannel, rejoin, reprise F5
+  rtc.js              # transport WebRTC natif (RTCDataChannel), zéro dépendance
+  ice.js              # serveurs ICE (STUN/TURN) — VITE_ICE_SERVERS, figé à la compilation
+  relay.js            # origine du serveur de signalisation WS (configurable à la compilation)
+  player.js           # point d'entrée joueur (signalisation + canal direct + jeu)
   connIndicator.js    # indicateur d'état de connexion (ping / reconnexion)
   screens/
     home.js           # menu principal (Continuer / Nouvelle session / Sessions / Réglages)
