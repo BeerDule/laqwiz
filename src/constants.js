@@ -56,6 +56,9 @@ export const PRESET_THEMES = [
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
+// Identifiant stable du siège local du MJ (« je joue aussi »). Ne peut entrer
+// en collision avec les clientId des joueurs distants (UUID / c-…).
+export const HOST_PLAYER_ID = 'host';
 // En mode lobby, le MJ ne saisit rien : les joueurs répondent depuis leur
 // téléphone. 42 est un choix pragmatique (une classe, un apéro géant) ; la
 // vraie limite est la lisibilité de l'écran de révélation.

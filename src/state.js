@@ -3,7 +3,7 @@ import { normalizeQuestionText } from './validation.js';
 import { fetchQuestionBatch, toUiError } from './api.js';
 import { saveStats, clearAll, saveActiveSessionId } from './storage.js';
 import { putSession, putPartie, putResume, deleteResume } from './db.js';
-import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS, MODE_RULE_KEYS, PLAYER_COLORS } from './constants.js';
+import { DEFAULTS, BONUS_CHANCE, BATCH_SIZE, SOURCE_BUDGET_CHARS, MODE_RULE_KEYS, PLAYER_COLORS, HOST_PLAYER_ID } from './constants.js';
 import { fetchArticle, sectionWindow } from './wikipedia.js';
 
 const isOnline = () => (typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -428,6 +428,23 @@ function reducer(s, action) {
 
     case 'ROOM_LEAVE':
       s.players = s.players.filter(p => p.id !== action.id);
+      break;
+
+    case 'ROOM_ADD_HOST': {
+      if (!s.players.some(p => p.id === HOST_PLAYER_ID)) {
+        s.players.push({
+          id: HOST_PLAYER_ID,
+          name: action.name,
+          emoji: action.emoji,
+          color: nextRoomColor(s.players),
+          score: 0,
+        });
+      }
+      break;
+    }
+
+    case 'ROOM_REMOVE_HOST':
+      s.players = s.players.filter(p => p.id !== HOST_PLAYER_ID);
       break;
 
     case 'ROOM_CLOSED':

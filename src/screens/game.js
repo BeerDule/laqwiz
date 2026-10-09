@@ -1,6 +1,6 @@
 // screens/game.js — écran GAME (question, saisie, reveal) (SPEC §12.3).
 import { getState, dispatch, subscribe, hasMancheWinner, manchesNeeded, retryGeneration } from '../state.js';
-import { DIFFICULTY_LABELS } from '../constants.js';
+import { DIFFICULTY_LABELS, HOST_PLAYER_ID } from '../constants.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
 import { confirmDialog } from '../components/dialog.js';
@@ -565,8 +565,15 @@ function onKeydown(e) {
   }
   if (['1', '2', '3', '4'].includes(e.key)) {
     const s = getState();
-    if (s.phase !== 'QUESTION' || !activePlayerId) return;
+    if (s.phase !== 'QUESTION') return;
     const key = ['A', 'B', 'C', 'D'][parseInt(e.key, 10) - 1];
+    // En ligne : les touches 1-4 pilotent la place locale du MJ, s'il joue.
+    if (s.room) {
+      if (s.players.some(p => p.id === HOST_PLAYER_ID)) selectAnswer(HOST_PLAYER_ID, key);
+      e.preventDefault();
+      return;
+    }
+    if (!activePlayerId) return;
     selectAnswer(activePlayerId, key);
     e.preventDefault();
   }
@@ -598,8 +605,15 @@ function wireQuestionBody(body) {
   board.addEventListener('click', (e) => {
     const card = e.target.closest('.option-card');
     if (!card || timeUp) return;
-    // En ligne, les réponses viennent des joueurs : pas de saisie manuelle.
-    if (getState().room) return;
+    const s = getState();
+    // En ligne, les réponses viennent des joueurs ; seule la place locale du
+    // MJ (s'il joue aussi) se saisit ici, directement sur la carte.
+    if (s.room) {
+      if (s.players.some(p => p.id === HOST_PLAYER_ID)) {
+        selectAnswer(HOST_PLAYER_ID, card.dataset.key);
+      }
+      return;
+    }
     // Ouvre le menu radial des joueurs autour du point cliqué.
     openPlayerPicker(card.dataset.key, e.clientX, e.clientY);
   }, { signal });

@@ -472,7 +472,7 @@ function sendGameState(targetId) {
 }
 
 /** Diffuse le roster courant aux joueurs (projection, WS.md §18.4). */
-function broadcastRoster() {
+export function broadcastRoster() {
   send('lobby.roster', {
     players: getState().players.map(p => ({ id: p.id, name: p.name, emoji: p.emoji })),
   });

@@ -227,6 +227,34 @@ async function startGame(host, count) {
 }
 
 
+// ============ Scénario 7 : le MJ joue aussi (siège local) ============
+{
+  const h = await hostCreateLobby();
+  const a = await playerJoin(h.shareUrl, 'Alice');
+  await waitPlayerCount(h.host, 1);
+  // Le MJ rejoint sa propre partie : siège local sur son écran.
+  await clickEl(h.host, '#btn-host-join');
+  await h.host.type('#host-name', 'Marc');
+  await clickEl(h.host, '#btn-host-confirm');
+  await startGame(h.host, 2);
+  await a.player.waitForSelector('#player-options', { timeout: 20000 });
+  const answer = await hostAnswer(h.host);
+  // Le MJ répond sur son propre écran, Alice sur le sien.
+  await clickEl(h.host, `#answer-board .option-card[data-key="${answer}"]`);
+  await clickEl(a.player, `#player-options .option-card[data-key="${answer}"]`);
+  await h.host.waitForSelector('#btn-reveal:not([disabled])', { timeout: 10000 });
+  await clickEl(h.host, '#btn-reveal');
+  await h.host.waitForSelector('#btn-next', { timeout: 10000 });
+  const marcScored = await h.host.evaluate(() => {
+    const s = window.__QC_STATE__.getState();
+    const marc = s.players.find((p) => p.name === 'Marc');
+    return !!marc && marc.score > 0;
+  });
+  if (marcScored) ok('S7 : le MJ joue depuis son écran (réponse + score)');
+  else fail('S7', 'score du MJ absent après révélation');
+  closeCtx(h.ctx); closeCtx(a.ctx);
+}
+
 await browser.close();
 kids.forEach((k) => { try { k.kill(); } catch {} });
 console.log(`\n${passed} test(s) OK, ${failed} échec(s).`);
