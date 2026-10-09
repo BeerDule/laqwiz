@@ -300,6 +300,28 @@ async function startGame(host, count) {
   closeCtx(h.ctx); closeCtx(a.ctx); closeCtx(b.ctx);
 }
 
+// ============ Scénario 9 : hors-ligne, le mode lobby est grisé ============
+{
+  const ctx = await newCtx();
+  const host = await ctx.newPage();
+  await host.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await clickEl(host, '#btn-new-session');
+  // Coupure réseau : l'option « Lobby en ligne » devient indisponible.
+  await host.setOfflineMode(true);
+  await host.waitForFunction(
+    () => document.querySelector('input[name="gameMode"][value="lobby"]')?.disabled === true,
+    { timeout: 10000 },
+  );
+  // Retour en ligne : l'option redevient sélectionnable.
+  await host.setOfflineMode(false);
+  await host.waitForFunction(
+    () => document.querySelector('input[name="gameMode"][value="lobby"]')?.disabled === false,
+    { timeout: 10000 },
+  );
+  ok('S9 : hors-ligne → lobby grisé, puis dégrisé en ligne');
+  closeCtx(ctx);
+}
+
 await browser.close();
 kids.forEach((k) => { try { k.kill(); } catch {} });
 console.log(`\n${passed} test(s) OK, ${failed} échec(s).`);

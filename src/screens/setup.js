@@ -1001,6 +1001,7 @@ export function renderSetup(rootEl) {
               <span>📡 Lobby en ligne</span>
             </label>
           </div>
+          <p id="lobby-offline-hint" class="rule-group__hint" hidden>Connexion requise pour le mode en ligne.</p>
         </fieldset>
         <fieldset class="panel players-panel" id="players-panel">
           <legend>👥 Joueurs <span id="player-count-label">2/6</span></legend>
@@ -1152,11 +1153,18 @@ export function renderSetup(rootEl) {
   // sans ces deux suivis, le panneau restait figé sur son état de montage.
   let lastResumeKey = '';
   let lastModeKey = '';
+  let lastOnline = null;
   const unsub = subscribe(() => {
     if (!root) return;
     const s = getState();
     showError(s.ui.lastError ? s.ui.lastError.message : null);
     updateStartButton();
+
+    // La connectivité change : l'option « Lobby en ligne » se grise ou se dégrise.
+    if (lastOnline !== s.ui.isOnline) {
+      lastOnline = s.ui.isOnline;
+      syncMode();
+    }
 
     // Le catalogue est semé en IndexedDB au démarrage : au montage de cet
     // écran il est souvent encore vide. Sans ce suivi, les cartes n'apparaissent
@@ -1212,7 +1220,22 @@ function applySettings() {
 function syncMode() {
   const panel = root?.querySelector('#players-panel');
   const hint = root?.querySelector('#lobby-hint');
+  const offlineHint = root?.querySelector('#lobby-offline-hint');
   const btn = root?.querySelector('#btn-start');
+  const lobbyRadio = root?.querySelector('input[name="gameMode"][value="lobby"]');
+  const couchRadio = root?.querySelector('input[name="gameMode"][value="couch"]');
+  const offline = !getState().ui.isOnline;
+
+  // Hors-ligne, le lobby n'a pas de sens : on grise l'option et on l'explique.
+  if (lobbyRadio) lobbyRadio.disabled = offline;
+  if (offlineHint) offlineHint.hidden = !offline;
+
+  // Perte de connexion en plein mode lobby : on retombe en canapé.
+  if (offline && isLobby) {
+    isLobby = false;
+    if (couchRadio) couchRadio.checked = true;
+  }
+
   if (panel) panel.hidden = isLobby;
   if (hint) hint.hidden = !isLobby;
   if (btn) btn.textContent = isLobby ? '📡 Créer le lobby' : '▶ Générer la partie';
