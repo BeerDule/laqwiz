@@ -24,8 +24,11 @@ jobs:
       - name: Build
         # BYOK : LLM_CONFIG_REQUIRED=true oblige chaque joueur à saisir sa clé.
         # Passer à "false" si un jour la clé est servie par le .env du serveur.
+        # VITE_ICE_SERVERS : serveurs STUN/TURN WebRTC (tableau JSON d'iceServers),
+        # figé à la compilation. Fournir un TURN pour les NAT symétriques (4G/5G).
         env:
           LLM_CONFIG_REQUIRED: "true"
+          VITE_ICE_SERVERS: ${{ secrets.VITE_ICE_SERVERS }}
         run: npm run build
 
       - name: Deploy to VPS

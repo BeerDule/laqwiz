@@ -29,6 +29,10 @@ let reconnectTimer = null;
 let connState = 'connecting'; // connecting | connected | reconnecting | offline
 let deliberateClose = false;
 let hasConnected = false;
+let directTimeout = null; // garde-fou : canal direct (WebRTC) jamais ouvert
+// Après ce délai sans canal direct ouvert, on prévient le joueur (NAT symétrique,
+// pas de TURN, pare-feu…) plutôt que de le laisser sur « Connexion… ».
+const DIRECT_CONNECT_TIMEOUT_MS = 15000;
 
 function loadPlayerIdentity() {
   try {
@@ -135,6 +139,10 @@ function showError(msg) {
   el.hidden = !msg;
 }
 
+function clearDirectTimeout() {
+  if (directTimeout) { clearTimeout(directTimeout); directTimeout = null; }
+}
+
 function submitJoin(name, emoji) {
   myName = name;
   myEmoji = emoji;
@@ -144,6 +152,15 @@ function submitJoin(name, emoji) {
     btn.textContent = 'Connexion…';
   }
   sendJoin();
+  // Garde-fou : si le canal direct (WebRTC) ne s'ouvre pas — NAT symétrique,
+  // pas de TURN… — on le signale au lieu de laisser « Connexion… » sans fin.
+  clearDirectTimeout();
+  directTimeout = setTimeout(() => {
+    directTimeout = null;
+    if (!document.querySelector('#player-form')) return; // déjà dans le jeu
+    showError('Connexion directe impossible. Vérifie ta connexion (Wi-Fi conseillé) puis réessaie.');
+    resetSubmit();
+  }, DIRECT_CONNECT_TIMEOUT_MS);
 }
 
 /** Envoie le `lobby.join` avec l'identité courante (rejoint + rejoin). */
@@ -238,7 +255,7 @@ function ensurePeer() {
         socket.send(JSON.stringify({ type: 'rtc.ice', payload: { candidate: sig.candidate } }));
       }
     },
-    onOpen: () => {},
+    onOpen: () => clearDirectTimeout(),
     onMessage: (msg) => handleMessage(msg),
     onClose: () => { peer = null; },
   });
@@ -297,6 +314,7 @@ function reasonMessage(reason) {
 }
 
 function resetSubmit() {
+  clearDirectTimeout();
   const btn = document.querySelector('#btn-join');
   if (!btn) return;
   btn.disabled = false;
@@ -364,6 +382,7 @@ function leave() {
   // Départ : on prévient l'hôte (libère le siège), on oublie l'identité
   // persistée, on coupe, puis on recharge — l'écran de connexion réapparaît
   // avec une identité neuve.
+  clearDirectTimeout();
   deliberateClose = true;
   currentSessionId = null;
   connState = 'offline';
