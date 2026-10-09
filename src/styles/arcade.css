@@ -460,6 +460,16 @@
 .player-scoreboard__name { font-weight: 600; font-size: .933em; }
 .player-scoreboard__score { font-weight: 700; font-variant-numeric: tabular-nums; }
 
+/* Scores côté host (mode lobby) : mêmes pastilles, meneur en tête. */
+.leaderboard-mini .player-scoreboard {
+  width: 100%;
+  margin: 0;
+  justify-content: flex-start;
+}
+.player-scoreboard__item.is-leader { border-color: var(--color-accent-primary); }
+.player-scoreboard__item[data-answered='false'] { opacity: .72; }
+.player-scoreboard__item.is-out { opacity: .45; }
+
 /* ===== Écran joueur « Rejoindre » (mode en ligne) =====
  * Interface alignée sur celle du MJ : même coquille game-screen, mêmes
  * composants (question-card, options-grid, answer-card, podium). Le joueur est

@@ -344,16 +344,31 @@ function renderLeaderboard() {
     </div>` : '';
 
   // En ligne, jusqu'à 42 joueurs : un couloir par joueur est illisible. On
-  // résume — qui est là, et combien ont déjà répondu.
+  // résume (qui est là, qui a répondu) tout en gardant les scores, classés —
+  // le meneur en tête, les retardataires en retrait.
   if (s.room) {
     const answered = Object.keys(s.roundAnswers).length;
-    const sig = `${head}|${s.players.length}|${answered}`;
+    const chips = s.players.slice()
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .map(p => {
+        const leader = best > 0 && p.score === best;
+        const repondu = Boolean(s.roundAnswers[p.id]);
+        return `
+          <span class="player-scoreboard__item${leader ? ' is-leader' : ''}${p.eliminated ? ' is-out' : ''}" data-answered="${repondu ? 'true' : 'false'}">
+            <span class="player-scoreboard__emoji" aria-hidden="true">${p.emoji}</span>
+            <span class="player-scoreboard__name">${escapeHtml(p.name)}</span>
+            <strong class="player-scoreboard__score">${p.score || 0}</strong>
+          </span>`;
+      }).join('');
+    const sig = `${head}|${s.players.length}|${answered}|${chips}`;
     if (sig === lastLaneSig) return;
     lastLaneSig = sig;
-    el.innerHTML = `${head}<div class="leaderboard-mini__summary">
-      <span>👥 ${s.players.length} joueurs</span>
-      <span class="leaderboard-mini__summary-answered">✅ ${answered} / ${s.players.length} ont répondu</span>
-    </div>`;
+    el.innerHTML = `${head}
+      <div class="leaderboard-mini__summary">
+        <span>👥 ${s.players.length} joueurs</span>
+        <span class="leaderboard-mini__summary-answered">✅ ${answered} / ${s.players.length} ont répondu</span>
+      </div>
+      <div class="player-scoreboard leaderboard-mini__scoreboard" aria-label="Scores">${chips}</div>`;
     return;
   }
 

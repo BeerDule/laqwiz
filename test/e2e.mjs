@@ -124,6 +124,12 @@ async function startGame(host, count) {
   if (sbItems === 2) ok('S1 : scoreboard côté joueur (2 joueurs)');
   else fail('S1 : scoreboard', `items=${sbItems}`);
 
+  // Scoreboard côté host (mode lobby) : les mêmes scores, classés.
+  await h.host.waitForSelector('#leaderboard-mini .player-scoreboard__item', { timeout: 10000 });
+  const hostSbItems = await h.host.evaluate(() => document.querySelectorAll('#leaderboard-mini .player-scoreboard__item').length);
+  if (hostSbItems === 2) ok('S1 : scoreboard côté host (2 joueurs)');
+  else fail('S1 : scoreboard host', `items=${hostSbItems}`);
+
   let ended = false;
   for (let i = 0; i < 15 && !ended; i += 1) {
     await a.player.waitForSelector('#player-options', { timeout: 20000 });
