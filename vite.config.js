@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { computeKey, getNonExcluded, addQuestions, extractQuestions, load } from './server/questionCache.mjs';
 
 /**
  * Version affichée, en semver : `<version de package.json>+<sha court>`.
@@ -72,6 +73,9 @@ function llmProxyPlugin(env, { validate } = {}) {
   return {
     name: 'quizz-canape-llm-proxy',
     configureServer(server) {
+      // Cache de questions : charge le pool depuis le disque (une fois).
+      load();
+
       // Petit endpoint de santé (GET /api/health) — enregistré AVANT /api
       // car `use('/api', ...)` matche aussi /api/health par préfixe.
       server.middlewares.use('/api/health', (req, res) => {
@@ -134,13 +138,39 @@ function llmProxyPlugin(env, { validate } = {}) {
         };
 
         // --- Modèle : celui du client prime ; sinon on reprend celui du .env ---
+        let quiz = null;
         let forwardedBody;
         try {
           const parsed = JSON.parse(rawBody);
+          if (parsed && typeof parsed._quiz === 'object' && parsed._quiz !== null) {
+            quiz = parsed._quiz;
+          }
+          delete parsed._quiz; // le provider n'a pas à le recevoir
           if (!parsed.model) parsed.model = model;
           forwardedBody = JSON.stringify(parsed);
         } catch {
           forwardedBody = rawBody; // en cas d'échec de parse, on forward tel quel
+        }
+
+        // --- Cache : servir depuis le pool si assez de questions non-exclues ---
+        if (quiz && typeof quiz.theme === 'string' && quiz.theme) {
+          const wanted = Number(quiz.batchSize) || 8;
+          const key = computeKey(quiz);
+          const cached = getNonExcluded(key, quiz.exclude, wanted);
+          if (cached.length >= wanted) {
+            const content = JSON.stringify({ questions: cached });
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              id: 'chatcmpl-cache',
+              object: 'chat.completion',
+              created: Math.floor(Date.now() / 1000),
+              model: model || 'cache',
+              choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
+              usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+            }));
+            return;
+          }
         }
 
         // --- Requête vers le provider ---
@@ -180,6 +210,16 @@ function llmProxyPlugin(env, { validate } = {}) {
           server.config.logger.error(
             '[llm-proxy] ALERTE: la réponse upstream contient la clé API !'
           );
+        }
+
+        // --- Cache : remplir le pool avec la réponse fraîche (200 uniquement) ---
+        if (quiz && typeof quiz.theme === 'string' && quiz.theme && upstreamResponse.status === 200) {
+          try {
+            const envelope = JSON.parse(responseBody);
+            const content = envelope?.choices?.[0]?.message?.content;
+            const questions = extractQuestions(content);
+            if (questions.length) addQuestions(computeKey(quiz), questions);
+          } catch { /* réponse non-JSON : rien à cacher */ }
         }
 
         // --- Réponse au navigateur : on masque certains détails upstream ---

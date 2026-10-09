@@ -28,6 +28,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
+import { computeKey, getNonExcluded, addQuestions, extractQuestions, load, stats } from './questionCache.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h : couvre une partie de 5 h + reconnexion
@@ -133,13 +134,40 @@ async function handleChat(req, res) {
       'Configuration LLM manquante. Renseignez vos identifiants ou configurez le serveur.');
   }
 
-  // Injecter le modèle serveur si absent du body
+  // Parse le body une fois : extraire _quiz (métadonnées de cache), le retirer,
+  // puis injecter le modèle serveur si absent.
+  let quiz = null;
   let forwardedBody = body;
   try {
     const parsed = JSON.parse(body);
+    if (parsed && typeof parsed._quiz === 'object' && parsed._quiz !== null) {
+      quiz = parsed._quiz;
+    }
+    delete parsed._quiz; // le provider n'a pas à le recevoir
     if (!parsed.model) parsed.model = serverModel;
     forwardedBody = JSON.stringify(parsed);
   } catch { /* forward tel quel */ }
+
+  // --- Cache : servir depuis le pool si assez de questions non-exclues ---
+  if (quiz && typeof quiz.theme === 'string' && quiz.theme) {
+    const wanted = Number(quiz.batchSize) || 8;
+    const key = computeKey(quiz);
+    const cached = getNonExcluded(key, quiz.exclude, wanted);
+    if (cached.length >= wanted) {
+      const content = JSON.stringify({ questions: cached });
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        id: 'chatcmpl-cache',
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: serverModel || 'cache',
+        choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      }));
+      return;
+    }
+  }
 
   const targetUrl = `${effectiveBaseUrl}/chat/completions`;
   const controller = new AbortController();
@@ -170,6 +198,16 @@ async function handleChat(req, res) {
   // Garde-fou : pas de fuite de clé
   if (effectiveApiKey && responseBody.includes(effectiveApiKey)) {
     console.error('[quizz-canape] ALERTE: la réponse upstream contient la clé API !');
+  }
+
+  // --- Cache : remplir le pool avec la réponse fraîche (200 uniquement) ---
+  if (quiz && typeof quiz.theme === 'string' && quiz.theme && upstreamResponse.status === 200) {
+    try {
+      const envelope = JSON.parse(responseBody);
+      const content = envelope?.choices?.[0]?.message?.content;
+      const questions = extractQuestions(content);
+      if (questions.length) addQuestions(computeKey(quiz), questions);
+    } catch { /* réponse non-JSON : rien à cacher */ }
   }
 
   res.statusCode = upstreamResponse.status;
@@ -231,7 +269,7 @@ const server = http.createServer(async (req, res) => {
 
     // Relais : santé ops + création de session.
     if (url.pathname === '/api/relay/health') {
-      return sendJson(res, 200, { ok: true, sessions: sessions.size });
+      return sendJson(res, 200, { ok: true, sessions: sessions.size, cache: stats() });
     }
     if (url.pathname === '/api/sessions' && req.method === 'POST') {
       const sessionId = randomId(32); // 64 hex — imprévisible (WS.md §10)
@@ -394,6 +432,7 @@ setInterval(() => {
   }
 }, 60_000).unref();
 
+load();
 server.listen(PORT, () => {
   console.log(`[relay] signalisation WS + /api sur http://localhost:${PORT}${existsSync(join(DIST, 'index.html')) ? ' (sert aussi dist/)' : ''}`);
 });

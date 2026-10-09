@@ -142,6 +142,16 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
+    // Métadonnées de cache, lues par le proxy (relais/Vite). Le proxy les retire
+    // avant de forwarder au provider — ce champ n'atteint jamais le LLM.
+    _quiz: {
+      theme,
+      difficulty,
+      audience,
+      sourceKey: source ? (source.url || `${source.lang || 'fr'}:${source.title || ''}`) : '',
+      exclude,
+      batchSize,
+    },
   };
 
   async function requestOnce() {

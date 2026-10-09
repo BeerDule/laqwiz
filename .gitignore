@@ -10,6 +10,9 @@ node_modules/
 dist/
 dist-ssr/
 
+# Cache de questions (généré au runtime, survit aux redéploiements)
+.question-cache.json
+
 # Logs
 *.log
 npm-debug.log*

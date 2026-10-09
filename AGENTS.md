@@ -496,6 +496,12 @@ config `.env` serveur.
 `vite.config.js` (dev) et `server/relay.mjs` (auto-hébergé) implémentent le **même**
 contrat BYOK/repli. Toute évolution doit toucher les deux.
 
+Le **cache de questions** (`server/questionCache.mjs`) est branché dans les **deux**
+proxys, sur le même contrat : le client envoie un champ `_quiz` (theme, difficulty,
+audience, sourceKey, exclude, batchSize) que le proxy retire avant de forwarder. Le
+pool est persisté en `.question-cache.json` (racine du projet, hors du tar de
+déploiement) et ses stats sont exposées par `/api/relay/health`.
+
 ### Pas de git dans le PATH par défaut
 `nix shell nixpkgs#git --command git ...`
 
