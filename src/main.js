@@ -20,7 +20,7 @@ import { hasPersistedRoom, rejoinHost } from './room.js';
 import { initColorTheme, setColorTheme, applyColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
-import { setSfw } from './sfw.js';
+import { isSfw } from './sfw.js';
 import { initMechaBackdrop } from './mechaBackdrop.js';
 import { initHarryPotterBackdrop } from './harryPotterBackdrop.js';
 import { initAccountBadge } from './accountBadge.js';
@@ -148,6 +148,12 @@ if (persistedStats) getState().stats = persistedStats;
 // apparaissent quand la lecture répond.
 loadModes().then(modes => dispatch({ type: 'SET_MODES', modes }));
 
+// Filtre SFW (client, esthétique) : le catalogue est déjà filtré par loadModes,
+// on ramène seulement un éventuel public NSFW persisté à « tout public ».
+if (isSfw() && getState().settings.audience === 'nsfw') {
+  dispatch({ type: 'SET_SETTINGS', patch: { audience: 'general' } });
+}
+
 // --- Reprise : un host qui recharge reprend sa room ; sinon, session locale. ---
 if (hasPersistedRoom()) {
   rejoinHost();
@@ -208,18 +214,6 @@ async function applyHealthConfig() {
         },
       });
       refreshAccount();
-    }
-
-    // Mode SFW (serveur démarré avec SFW_MODE=1) : le public « adulte » est
-    // interdit. Le catalogue a pu être semé (ero inclus) avant la réponse de
-    // /api/health — on le recharge filtré, et on ramène un éventuel public NSFW
-    // persisté à « tout public ».
-    if (data?.sfw === true) {
-      setSfw(true);
-      if (getState().settings.audience === 'nsfw') {
-        dispatch({ type: 'SET_SETTINGS', patch: { audience: 'general' } });
-      }
-      loadModes().then(modes => dispatch({ type: 'SET_MODES', modes }));
     }
   } catch { /* configuration non critique */ }
 }

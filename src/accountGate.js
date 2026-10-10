@@ -34,7 +34,7 @@ export async function ensureAccountForGame() {
   const total = (account.freeRemaining || 0) + (account.purchasedRemaining || 0);
   const go = await confirmDialog({
     title: 'Utiliser 1 crédit ?',
-    message: `Cette partie consomme 1 crédit (${account.freeRemaining} gratuite(s) ce mois, ${account.purchasedRemaining} achetée(s)).\n\nIl vous en restera ${Math.max(0, total - 1)}.`,
+    message: `Cette partie consomme 1 crédit (${account.freeRemaining} offert, ${account.purchasedRemaining} acheté).\n\nIl vous en restera ${Math.max(0, total - 1)}.`,
     confirmLabel: 'Démarrer',
   });
   if (!go) return false;
@@ -46,8 +46,8 @@ export async function ensureAccountForGame() {
   } catch (err) {
     if (err?.code === 'NO_CREDITS') {
       const go = await confirmDialog({
-        title: 'Plus de parties gratuites',
-        message: 'Vous avez épuisé vos parties gratuites de ce mois.\n\nAchetez un pack de parties pour continuer.',
+        title: 'Plus de parties offertes',
+        message: 'Vous avez épuisé vos parties offertes de ce mois.\n\nAchetez un pack de parties pour continuer.',
         confirmLabel: 'Acheter',
       });
       if (go) {

@@ -7,6 +7,8 @@ import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitcher.js';
 import { buildShareUrl } from '../shareConfig.js';
 import { signInWithGoogle, signOut, createCheckout } from '../account.js';
+import { setSfw, isSfw } from '../sfw.js';
+import { loadModes } from '../modes.js';
 
 let teardown = null;
 let root = null;
@@ -35,39 +37,52 @@ const SHELL = `
         <div id="account-body"></div>
       </fieldset>
 
-      <fieldset class="panel llm-panel">
-        <legend>Modèle LLM</legend>
-        <p class="llm-note">
-          Valable pour toutes vos sessions sur cet appareil. La clé API est
-          stockée dans ce navigateur (localStorage) et n'est jamais envoyée
-          ailleurs qu'à votre fournisseur.
-        </p>
-
-        <label class="field-label" for="llm-base-url">URL du provider</label>
-        <input id="llm-base-url" type="text" autocomplete="off" spellcheck="false"
-          placeholder="https://api.openai.com/v1" />
-
-        <label class="field-label" for="llm-api-key">Clé API</label>
-        <input id="llm-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" />
-
-        <label class="field-label" for="llm-model">Modèle</label>
-        <input id="llm-model" type="text" autocomplete="off" spellcheck="false" placeholder="gpt-4o-mini" />
-
-        <label class="field-label" for="llm-temp">Température : <output id="llm-temp-output">0.9</output></label>
-        <input id="llm-temp" type="range" min="0" max="2" step="0.1" value="0.9" />
-
-        <button id="btn-test-connection" type="button" class="button button--small">Tester la connexion</button>
-        <span id="test-result" class="llm-test-result" aria-live="polite"></span>
+      <fieldset class="panel">
+        <legend>Contenu</legend>
+        <label class="toggle-row">
+          <input id="sfw-enabled" type="checkbox" />
+          <span class="toggle-track"></span>
+          Mode SFW — masquer le contenu adulte
+        </label>
       </fieldset>
 
-      <fieldset class="panel">
-        <legend>Partager cette configuration</legend>
-        <p class="llm-note llm-share-warning">
-          Le lien contient votre <strong>clé API en clair</strong>. À envoyer à
-          vos propres appareils, pas à publier.
-        </p>
-        <button id="btn-share-config" type="button" class="button button--small">Copier un lien de configuration</button>
-        <input id="share-url" class="share-url" type="text" readonly hidden aria-label="Lien de configuration" />
+      <fieldset class="panel llm-panel">
+        <legend>Modèle LLM</legend>
+        <details class="llm-details" id="llm-details">
+          <summary>Activer le LLM custom</summary>
+          <div class="llm-custom-group">
+            <p class="llm-note">
+              Valable pour toutes vos sessions sur cet appareil. La clé API est
+              stockée dans ce navigateur (localStorage) et n'est jamais envoyée
+              ailleurs qu'à votre fournisseur.
+            </p>
+
+            <label class="field-label" for="llm-base-url">URL du provider</label>
+            <input id="llm-base-url" type="text" autocomplete="off" spellcheck="false"
+              placeholder="https://api.openai.com/v1" />
+
+            <label class="field-label" for="llm-api-key">Clé API</label>
+            <input id="llm-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" />
+
+            <label class="field-label" for="llm-model">Modèle</label>
+            <input id="llm-model" type="text" autocomplete="off" spellcheck="false" placeholder="gpt-4o-mini" />
+
+            <label class="field-label" for="llm-temp">Température : <output id="llm-temp-output">0.9</output></label>
+            <input id="llm-temp" type="range" min="0" max="2" step="0.1" value="0.9" />
+
+            <button id="btn-test-connection" type="button" class="button button--small">Tester la connexion</button>
+            <span id="test-result" class="llm-test-result" aria-live="polite"></span>
+
+            <div class="llm-share">
+              <p class="llm-note llm-share-warning">
+                Le lien contient votre <strong>clé API en clair</strong>. À envoyer à
+                vos propres appareils, pas à publier.
+              </p>
+              <button id="btn-share-config" type="button" class="button button--small">Copier un lien de configuration</button>
+              <input id="share-url" class="share-url" type="text" readonly hidden aria-label="Lien de configuration" />
+            </div>
+          </div>
+        </details>
       </fieldset>
     </form>
   </section>
@@ -81,6 +96,10 @@ function renderValues() {
   const temp = llm.temperature ?? 0.9;
   root.querySelector('#llm-temp').value = temp;
   root.querySelector('#llm-temp-output').textContent = Number(temp).toFixed(1);
+  // LLM custom : replié par défaut, ouvert si une config existe déjà.
+  root.querySelector('#llm-details').open = !!(llm.baseUrl || llm.apiKey);
+  // Filtre SFW (client, esthétique).
+  root.querySelector('#sfw-enabled').checked = isSfw();
 }
 
 /** Lit les champs. Utilisé pour enregistrer et pour tester : le MJ vient
@@ -115,7 +134,7 @@ function accountPanelHtml() {
   return `
     <p class="llm-note">Connecté : <strong>${escapeHtml(a.email || '')}</strong></p>
     <p class="llm-note" id="account-credits" aria-live="polite">
-      ${a.freeRemaining} gratuite(s) ce mois · ${a.purchasedRemaining} achetée(s)
+      ${a.freeRemaining} offert · ${a.purchasedRemaining} acheté
     </p>
     <p>
       <button id="btn-account-buy" type="button" class="button button--small">Acheter ${a.packCredits} parties (${price} $)</button>
@@ -146,6 +165,15 @@ async function onBuy() {
   } catch (err) {
     dispatchToast(err?.message || 'Paiement indisponible pour le moment.', 'error');
   }
+}
+
+/** Filtre SFW : persiste puis recharge le catalogue (l'option adulte disparaît). */
+async function onSfwToggle(checked) {
+  setSfw(checked);
+  if (checked && getState().settings.audience === 'nsfw') {
+    dispatch({ type: 'SET_SETTINGS', patch: { audience: 'general' } });
+  }
+  loadModes().then(modes => dispatch({ type: 'SET_MODES', modes }));
 }
 
 async function testConnection(btn, resultEl) {
@@ -213,6 +241,11 @@ export function renderSettings(rootEl) {
     else if (id === 'btn-account-signout') onSignOut();
     else if (id === 'btn-account-buy') onBuy();
     else if (id === 'btn-admin') dispatch({ type: 'GOTO_ADMIN' });
+  }, { signal });
+
+  // Filtre SFW (client, esthétique).
+  root.querySelector('#sfw-enabled').addEventListener('change', (e) => {
+    onSfwToggle(e.target.checked);
   }, { signal });
 
   let lastAccountSig = '';

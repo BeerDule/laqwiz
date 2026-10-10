@@ -59,10 +59,11 @@ function resumeLine(snapshots) {
   const manche = (snapshot.partie.mancheIndex ?? 0) + 1;
   const total = snapshot.partie.manchesTarget ?? '?';
   const scores = (snapshot.players || []).map(p => `${p.emoji} ${p.score ?? 0}`).join(' · ');
+  const theme = snapshot.settings?.theme || '';
   return `
     <p class="arcade-card__resume">
       <span class="arcade-tag arcade-tag--resume">en cours</span>
-      ${n > 1 ? `${n} parties interrompues · ` : ''}Manche ${manche}/${total}${scores ? ` · ${escapeHtml(scores)}` : ''}
+      ${n > 1 ? `${n} parties interrompues · ` : ''}${theme ? `${escapeHtml(theme)} · ` : ''}Manche ${manche}/${total}${scores ? ` · ${escapeHtml(scores)}` : ''}
     </p>`;
 }
 

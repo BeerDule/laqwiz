@@ -28,7 +28,8 @@ function resumeLabel(r) {
       weekday: 'long', hour: '2-digit', minute: '2-digit',
     });
   } catch { /* horodatage illisible : on s'en passe */ }
-  return `Manche ${manche}/${total} — ${scores}${quand ? ` · interrompue ${quand}` : ''}`;
+  const theme = r.settings?.theme || '';
+  return `Manche ${manche}/${total}${theme ? ` · ${theme}` : ''} — ${scores}${quand ? ` · interrompue ${quand}` : ''}`;
 }
 
 function menuHtml(s) {

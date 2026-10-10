@@ -26,7 +26,7 @@ function userRow(u) {
         <strong class="admin-row__email">${escapeHtml(u.email)}</strong>
         <span class="admin-row__name">${escapeHtml(u.name || '')}</span>
       </div>
-      <span class="admin-row__free">${u.freeRemaining} gratuite(s)</span>
+      <span class="admin-row__free">${u.freeRemaining} offert</span>
       <label class="admin-row__field">
         <span>Achetées</span>
         <input type="number" class="admin-row__input" min="0" step="1" inputmode="numeric" value="${u.purchasedRemaining}" />
@@ -78,8 +78,8 @@ export function renderAdmin(rootEl) {
       </header>
       <div class="panel">
         <p class="llm-note">
-          Comptes et crédits. Modifiez le solde « achetées » puis enregistrez ;
-          les parties gratuites (${getState().account.freeGamesPerMonth}/mois) restent automatiques.
+          Comptes et crédits. Modifiez le solde « acheté » puis enregistrez ;
+          les parties offertes (${getState().account.freeGamesPerMonth}/mois) restent automatiques.
         </p>
         <div id="admin-list" class="admin-list"></div>
       </div>
