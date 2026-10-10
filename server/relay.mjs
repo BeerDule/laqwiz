@@ -71,7 +71,8 @@ function getServerConfig() {
   const model = process.env.LLM_MODEL || '';
   const temperature = process.env.LLM_TEMPERATURE || '0.9';
   const batchSize = process.env.LLM_BATCH_SIZE || '8';
-  return { baseUrl, apiKey, model, temperature, batchSize };
+  const sfw = /^(1|true|yes|on)$/i.test(String(process.env.SFW_MODE ?? '').trim());
+  return { baseUrl, apiKey, model, temperature, batchSize, sfw };
 }
 
 // Plages réservées qu'une URL fournie par le client ne doit jamais atteindre :
@@ -107,19 +108,20 @@ function rejectUnsafeUpstream(raw) {
 }
 
 function handleHealth(res) {
-  const { baseUrl, model, temperature, batchSize } = getServerConfig();
+  const { baseUrl, model, temperature, batchSize, sfw } = getServerConfig();
   return sendJson(res, 200, {
     ok: true,
     provider: baseUrl,
     model,
     temperature: parseFloat(temperature),
     batchSize: parseInt(batchSize, 10),
+    sfw,
     // JAMAIS la clé
   });
 }
 
 async function handleChat(req, res) {
-  const { baseUrl: serverBaseUrl, apiKey: serverApiKey, model: serverModel } = getServerConfig();
+  const { baseUrl: serverBaseUrl, apiKey: serverApiKey, model: serverModel, sfw } = getServerConfig();
 
   let body;
   try {
@@ -154,6 +156,10 @@ async function handleChat(req, res) {
     if (!parsed.model) parsed.model = serverModel;
     forwardedBody = JSON.stringify(parsed);
   } catch { /* forward tel quel */ }
+
+  // Mode SFW : le public « adulte » est interdit. On le ramène à « tout public »
+  // avant le calcul de la clé de cache (donc avant tout contenu NSFW servi).
+  if (sfw && quiz && quiz.audience === 'nsfw') quiz.audience = 'general';
 
   // --- Cache : servir depuis le pool si assez de questions non-exclues ---
   // Le mode « cache only » ne requiert AUCUNE configuration LLM : cette logique

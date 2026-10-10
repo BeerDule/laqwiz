@@ -16,6 +16,7 @@ import {
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
 } from './constants.js';
 import { listModes, putMode, deleteMode } from './db.js';
+import { isSfw } from './sfw.js';
 
 const inChoices = (list, v) => list.some(c => c.value === v);
 
@@ -97,6 +98,8 @@ export async function loadModes() {
 
   const aEcrire = [];
   for (const b of BUILTIN_MODES) {
+    // Mode SFW : on ne sème pas les modes « adulte » (ex. Canap' éro).
+    if (isSfw() && b.settings.audience === 'nsfw') continue;
     const cur = byId.get(b.id);
     if (!cur) {
       aEcrire.push(recordFromBuiltin(b));
@@ -109,6 +112,9 @@ export async function loadModes() {
 
   return [...byId.values()]
     .map(m => ({ ...m, settings: sanitizeModeSettings(m.settings) }))
+    // Mode SFW : les modes « adulte » (fournis ou personnels) n'apparaissent pas,
+    // même s'ils ont été semés par une session antérieure du même appareil.
+    .filter(m => !isSfw() || m.settings.audience !== 'nsfw')
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 

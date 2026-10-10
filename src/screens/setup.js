@@ -18,6 +18,7 @@ import {
   loadModes, createMode, updateMode, removeMode, resetBuiltinMode, diffFromMode,
 } from '../modes.js';
 import { startHost, resumeRoom } from '../room.js';
+import { audienceChoices, isSfw } from '../sfw.js';
 
 // Le mode BYOK — chaque joueur renseigne sa propre configuration LLM — est
 // obligatoire en production par défaut, optionnel en développement.
@@ -587,6 +588,13 @@ function currentMode() {
   return (getState().ui.modes || []).find(m => m.id === selectedModeId) || null;
 }
 
+/** Mode SFW : retire la puce « Adulte (NSFW) » si le drapeau arrive après montage. */
+function pruneNsfwAudience() {
+  root.querySelectorAll('input[name="audience"][value="nsfw"]').forEach((input) => {
+    input.closest('.choice-chip')?.remove();
+  });
+}
+
 function renderModes() {
   const modes = getState().ui.modes || [];
   const list = root.querySelector('#modes-list');
@@ -1070,7 +1078,7 @@ export function renderSetup(rootEl) {
           <div class="rule-group">
             <span class="rule-group__label" id="audience-label">Public</span>
             <div class="choice-group" role="radiogroup" aria-labelledby="audience-label">
-              ${AUDIENCE_CHOICES.map(c => `
+              ${audienceChoices(AUDIENCE_CHOICES).map(c => `
                 <label class="choice-chip">
                   <input type="radio" name="audience" value="${c.value}" />
                   <span>${escapeHtml(c.label)}</span>
@@ -1243,6 +1251,7 @@ export function renderSetup(rootEl) {
   let lastResumeKey = '';
   let lastModeKey = '';
   let lastOnline = null;
+  let lastSfw = isSfw();
   const unsub = subscribe(() => {
     if (!root) return;
     const s = getState();
@@ -1262,6 +1271,15 @@ export function renderSetup(rootEl) {
     if (modeKey !== lastModeKey) {
       lastModeKey = modeKey;
       renderModes();
+    }
+
+    // Le drapeau SFW arrive de /api/health après le montage : on retire alors la
+    // puce « Adulte (NSFW) » déjà rendue (le catalogue, lui, est re-filtré via
+    // le dispatch SET_MODES ci-dessus).
+    if (isSfw() !== lastSfw) {
+      lastSfw = isSfw();
+      pruneNsfwAudience();
+      renderRecap();
     }
 
     const sessionId = s.session?.id ?? null;

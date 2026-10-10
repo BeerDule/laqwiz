@@ -49,6 +49,10 @@ function llmProxyPlugin(env, { validate } = {}) {
   const model = env.LLM_MODEL || '';
   const temperature = env.LLM_TEMPERATURE || '0.9';
   const batchSize = env.LLM_BATCH_SIZE || '8';
+  // SFW_MODE=1 : le serveur interdit le public « adulte » (masqué côté client,
+  // forcé ici côté serveur). Activable au démarrage, sans rebuild, comme les
+  // autres variables lues du .env.
+  const sfw = /^(1|true|yes|on)$/i.test(String(env.SFW_MODE ?? '').trim());
 
   // Validation au chargement du plugin, uniquement en mode dev (`vite dev`).
   // `vite build` ne démarre pas de serveur : le build statique n'a pas de
@@ -105,6 +109,7 @@ function llmProxyPlugin(env, { validate } = {}) {
           model,
           temperature: parseFloat(temperature),
           batchSize: parseInt(batchSize, 10),
+          sfw,
           // JAMAIS la clé !
         }));
       });
@@ -152,6 +157,11 @@ function llmProxyPlugin(env, { validate } = {}) {
         } catch {
           forwardedBody = rawBody; // en cas d'échec de parse, on forward tel quel
         }
+
+        // Mode SFW : le public « adulte » est interdit. On le ramène à « tout
+        // public » avant le calcul de la clé de cache (donc avant tout contenu
+        // NSFW servi depuis le pool).
+        if (sfw && quiz && quiz.audience === 'nsfw') quiz.audience = 'general';
 
         // --- Cache : servir depuis le pool si assez de questions non-exclues ---
         // Le mode « cache only » ne requiert AUCUNE configuration LLM : cette

@@ -18,6 +18,7 @@ import { hasPersistedRoom, rejoinHost } from './room.js';
 import { initColorTheme, setColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
+import { setSfw } from './sfw.js';
 import { initMechaBackdrop } from './mechaBackdrop.js';
 
 // Hook de test (E2E) : expose la source de vérité pour que les tests lisent
@@ -173,6 +174,18 @@ async function applyHealthConfig() {
     if (typeof data?.temperature === 'number') patch.temperature = data.temperature;
     if (typeof data?.batchSize === 'number') patch.batchSize = data.batchSize;
     if (Object.keys(patch).length) dispatch({ type: 'SET_LLM', patch });
+
+    // Mode SFW (serveur démarré avec SFW_MODE=1) : le public « adulte » est
+    // interdit. Le catalogue a pu être semé (ero inclus) avant la réponse de
+    // /api/health — on le recharge filtré, et on ramène un éventuel public NSFW
+    // persisté à « tout public ».
+    if (data?.sfw === true) {
+      setSfw(true);
+      if (getState().settings.audience === 'nsfw') {
+        dispatch({ type: 'SET_SETTINGS', patch: { audience: 'general' } });
+      }
+      loadModes().then(modes => dispatch({ type: 'SET_MODES', modes }));
+    }
   } catch { /* configuration non critique */ }
 }
 applyHealthConfig();
