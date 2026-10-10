@@ -54,7 +54,7 @@ if (inserted < 8) {
 // Relais SANS configuration LLM : c'est le cas BYOK (aucun .env LLM serveur).
 const relay = spawn('node', ['server/relay.mjs'], {
   stdio: 'ignore',
-  env: { ...process.env, PORT, QUESTION_CACHE_DB: dbFile },
+  env: { ...process.env, PORT, QUESTION_CACHE_DB: dbFile, ACCOUNTS_DB: join(tmpDir, 'accounts.db') },
 });
 const cleanup = () => {
   try { relay.kill(); } catch { /* ignore */ }

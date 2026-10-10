@@ -19,6 +19,7 @@ import {
 } from '../modes.js';
 import { startHost, resumeRoom } from '../room.js';
 import { audienceChoices, isSfw } from '../sfw.js';
+import { ensureAccountForGame } from '../accountGate.js';
 
 // Le mode BYOK — chaque joueur renseigne sa propre configuration LLM — est
 // obligatoire en production par défaut, optionnel en développement.
@@ -997,6 +998,10 @@ function wireEvents(signal) {
     }
     showError(null);
     applySettings();
+    // Mode payant : si la partie va utiliser la clé serveur (pas de BYOK, pas de
+    // cache), on consomme un crédit avant de lancer. Annule sinon (compte requis
+    // ou crédits épuisés → redirection vers Google / Stripe).
+    if (!await ensureAccountForGame()) return;
     if (isLobby) {
       await startLobby();
     } else {

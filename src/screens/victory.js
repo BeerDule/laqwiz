@@ -4,6 +4,7 @@ import { launchConfetti, stopConfetti } from '../confetti.js';
 import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { confirmDialog } from '../components/dialog.js';
 import { leaveRoomIfOnline } from '../room.js';
+import { releaseGame } from '../account.js';
 
 let teardown = null;
 let root = null;
@@ -17,6 +18,8 @@ function escapeHtml(s) {
 export function renderVictory(rootEl) {
   unmountVictory();
   root = rootEl;
+  // Mode payant : la partie est terminée, on libère le game token (best-effort).
+  releaseGame();
   const s = getState();
   const winner = computePartieWinner(s);
 

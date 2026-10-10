@@ -81,6 +81,35 @@ client.
 > production, c'est `server/relay.mjs` qui prend le relais — les deux implémentent
 > le même contrat.
 
+## Comptes & paiement (mode payant)
+
+Quand le serveur est lancé avec `ACCOUNT_GATED=1` + identifiants Google, la clé
+LLM du `.env` n'est **plus servie librement** : pour l'utiliser (au lieu de sa
+propre clé), le créateur de partie doit se connecter avec **Google**.
+
+- **Gratuit** : 3 parties par mois calendaire.
+- **Payant** : un pack de 20 parties à 2,00 $ via **Stripe Checkout** (le bouton
+  Google Pay apparaît automatiquement sur les appareils compatibles).
+
+Les parties jouées avec sa **propre clé** (BYOK) ou en **mode « cache only »**
+(hors ligne) ne consomment aucun crédit et ne demandent aucun compte.
+
+### Configuration serveur
+
+```
+ACCOUNT_GATED=1
+APP_ORIGIN=https://quiz.example.com
+GOOGLE_CLIENT_ID=…            # Google Cloud Console (ID client OAuth Web)
+GOOGLE_CLIENT_SECRET=…
+GOOGLE_REDIRECT_URI=https://quiz.example.com/api/auth/google/callback
+STRIPE_SECRET_KEY=sk_live_…
+STRIPE_WEBHOOK_SECRET=whsec_… # webhook Stripe → /api/account/webhook
+```
+
+Les comptes et crédits vivent dans une base SQLite dédiée `.accounts.db` (hors du
+tar de déploiement, comme `.question-cache.db`). Le webhook Stripe crédite les
+achats de façon idempotente. Test d'intégration : `npm run test:paid`.
+
 ## Nix / NixOS
 
 Le projet fournit un `flake.nix` (flakes requis) :

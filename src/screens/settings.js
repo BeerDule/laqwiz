@@ -3,12 +3,13 @@
 // Séparé de l'écran de réglages de partie, qui est propre à une session. Ce qui
 // vit ici est valable pour toutes les sessions et toutes les parties de ce
 // navigateur : identifiants du fournisseur, modèle, température, taille de lot.
-import { getState, dispatch } from '../state.js';
+import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitcher.js';
 import { buildShareUrl } from '../shareConfig.js';
 import { wipeLocalStorage } from '../storage.js';
 import { clearArchive } from '../db.js';
 import { confirmDialog } from '../components/dialog.js';
+import { signInWithGoogle, signOut, createCheckout } from '../account.js';
 
 let teardown = null;
 let root = null;
@@ -67,6 +68,11 @@ const SHELL = `
         <input id="share-url" class="share-url" type="text" readonly hidden aria-label="Lien de configuration" />
       </fieldset>
 
+      <fieldset class="panel" id="account-panel" hidden>
+        <legend>Compte</legend>
+        <div id="account-body"></div>
+      </fieldset>
+
       <fieldset class="panel danger-zone">
         <legend>Reset d'usine</legend>
         <p class="llm-note">
@@ -108,6 +114,54 @@ function readFields() {
 /** Enregistre à chaque frappe : pas de bouton « Valider » à oublier. */
 function persist() {
   dispatch({ type: 'SET_LLM', patch: readFields() });
+}
+
+// --- Panneau « Compte » (mode payant) ---
+
+function accountPanelHtml() {
+  const a = getState().account;
+  if (!a.signedIn) {
+    return `
+      <p class="llm-note">
+        Jouez avec les questions du serveur (sans votre propre clé) : connectez-vous
+        avec Google. Votre compte gratuit donne ${a.freeGamesPerMonth} parties par mois.
+      </p>
+      <button id="btn-account-signin" type="button" class="button button--small">Se connecter avec Google</button>`;
+  }
+  const price = ((a.packPriceCents || 0) / 100).toFixed(2);
+  return `
+    <p class="llm-note">Connecté : <strong>${escapeHtml(a.email || '')}</strong></p>
+    <p class="llm-note" id="account-credits" aria-live="polite">
+      ${a.freeRemaining} gratuite(s) ce mois · ${a.purchasedRemaining} achetée(s)
+    </p>
+    <p>
+      <button id="btn-account-buy" type="button" class="button button--small">Acheter ${a.packCredits} parties (${price} $)</button>
+      <button id="btn-account-signout" type="button" class="button button--small">Se déconnecter</button>
+    </p>`;
+}
+
+function renderAccountPanel() {
+  if (!root) return;
+  const panel = root.querySelector('#account-panel');
+  if (!panel) return;
+  const a = getState().account;
+  panel.hidden = !a.gated;
+  panel.querySelector('#account-body').innerHTML = accountPanelHtml();
+}
+
+async function onSignOut() {
+  await signOut();
+  dispatch({ type: 'ACCOUNT_SIGNED_OUT' });
+  dispatchToast('Déconnecté.', 'info');
+}
+
+async function onBuy() {
+  try {
+    const { url } = await createCheckout();
+    window.location.href = url;
+  } catch (err) {
+    dispatchToast(err?.message || 'Paiement indisponible pour le moment.', 'error');
+  }
 }
 
 async function testConnection(btn, resultEl) {
@@ -161,10 +215,31 @@ export function renderSettings(rootEl) {
   root = rootEl;
   root.innerHTML = SHELL;
   renderValues();
+  renderAccountPanel();
 
   const cleanup = new AbortController();
   const { signal } = cleanup;
   wireThemeSelect(root);
+
+  // Panneau « Compte » : délégation de clic (les boutons sont re-rendus) + re-rendu
+  // quand l'état du compte change (hydratation asynchrone au démarrage).
+  root.querySelector('#account-body').addEventListener('click', (e) => {
+    const id = e.target.closest('button')?.id;
+    if (id === 'btn-account-signin') signInWithGoogle();
+    else if (id === 'btn-account-signout') onSignOut();
+    else if (id === 'btn-account-buy') onBuy();
+  }, { signal });
+
+  let lastAccountSig = '';
+  const unsub = subscribe((s) => {
+    if (!root) return;
+    const a = s.account;
+    const sig = `${a.gated}|${a.signedIn}|${a.email}|${a.freeRemaining}|${a.purchasedRemaining}|${a.freeGamesPerMonth}|${a.packPriceCents}|${a.packCredits}`;
+    if (sig !== lastAccountSig) {
+      lastAccountSig = sig;
+      renderAccountPanel();
+    }
+  });
 
   root.querySelector('#btn-back').addEventListener('click', () => {
     dispatch({ type: 'GOTO_HOME' });
@@ -240,6 +315,7 @@ export function renderSettings(rootEl) {
   }, { signal });
 
   teardown = () => {
+    unsub();
     cleanup.abort();
     root = null;
   };

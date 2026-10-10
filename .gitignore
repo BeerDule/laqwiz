@@ -13,6 +13,9 @@ dist-ssr/
 # Cache de questions (SQLite, généré au runtime, survit aux redéploiements)
 .question-cache.db
 
+# Comptes / crédits (SQLite, généré au runtime, survit aux redéploiements)
+.accounts.db
+
 # Logs
 *.log
 npm-debug.log*

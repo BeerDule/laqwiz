@@ -57,9 +57,24 @@ const INITIAL_STATE = Object.freeze({
     batchSize: DEFAULTS.batchSize,
   },
 
+  // === Compte (mode payant) ===
+  // Délibérément HORS de `settings` (comme `llm`) : ce n'est pas un réglage de
+  // partie, et `settings` est recopié dans chaque archive. L'état d'auth est un
+  // reflet du serveur (cookie HttpOnly), pas une vérité locale.
+  account: {
+    gated: false,            // le serveur impose-t-il un compte pour sa clé LLM ?
+    signedIn: false,
+    email: '',
+    name: '',
+    freeRemaining: 0,        // parties gratuites restantes ce mois-ci
+    purchasedRemaining: 0,   // crédits achetés restants
+    freeGamesPerMonth: 0,
+    packPriceCents: 0,
+    packCredits: 0,
+  },
+
   // === Session : roster + sac de parties, sans condition de fin ===
   session: null, // { id, name, createdAt, status: 'active' | 'closed' }
-
   // === Partie en cours : best-of de manches ===
   partie: null,  // { id, startedAt, manchesTarget, mancheIndex, manchesWon, manches[] }
 
@@ -469,6 +484,18 @@ function reducer(s, action) {
 
     case 'SET_SETTINGS':
       s.settings = { ...s.settings, ...action.patch };
+      break;
+
+    case 'SET_ACCOUNT':
+      s.account = { ...s.account, ...action.patch };
+      break;
+
+    case 'ACCOUNT_SIGNED_OUT':
+      s.account = {
+        ...s.account,
+        signedIn: false, email: '', name: '',
+        freeRemaining: 0, purchasedRemaining: 0,
+      };
       break;
 
     case 'START_GAME':

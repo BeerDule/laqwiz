@@ -144,6 +144,7 @@ vite.config.js        # proxy HTTP → LLM du DEV SERVER (BYOK via en-têtes, re
 server/
   relay.mjs           # serveur de signalisation WS (VPS) : hostToken + routage en étoile + statique + proxy LLM
   questionCache.mjs   # cache SQLite des questions générées (clé theme|public|source, difficulté par question)
+  accounts.mjs        # comptes Google + crédits (SQLite .accounts.db) — gate du mode payant
   seed.mjs            # pré-remplit le cache : 50 questions/thème de base × difficulté (easy/medium/hard)
 src/
   main.js             # bootstrap, hydratation, routage des écrans, toasts
@@ -157,6 +158,8 @@ src/
   wikipedia.js        # recherche et découpage en fenêtre de sections (mode « article »)
   shareConfig.js      # encodage base64url de la config LLM dans une URL
   storage.js          # localStorage typé (roster, réglages, stats, LLM, id de session)
+  account.js          # client du mode payant : game token, compte, checkout Stripe
+  accountGate.js      # garde de lancement : consomme un crédit AVANT START_GAME
   db.js               # IndexedDB — sessions, parties, reprises, modes
   themeSwitcher.js    # thème de couleurs (data-color-theme)
   mechaBackdrop.js    # fond animé <canvas> du thème Mecha, autonome
@@ -506,6 +509,36 @@ projet, hors du tar de déploiement). `GET /api/quiz/themes` liste les thèmes e
 (pour le mode « cache only » hors ligne, sans LLM), et `/api/relay/health` expose les
 stats. En `cacheOnly`, le proxy ne forwarde jamais : il sert l'existant ou répond
 `409 CACHE_EXHAUSTED`.
+
+### Comptes & paiement (mode payant)
+`server/accounts.mjs` porte les comptes Google et les crédits, dans une base SQLite
+dédiée `.accounts.db` (racine, hors tar, comme le cache). **Ce gate ne vit que dans
+`relay.mjs`** : le proxy Vite de dev ne l'implémente pas — en dev, `ACCOUNT_GATED`
+est absent, donc l'UI « Compte » n'apparaît pas et la clé `.env` reste servie comme
+avant. Le client n'affiche le flux Compte que si `/api/health` annonce `accountGated`.
+
+Les invariants à connaître avant d'y toucher :
+
+- **Le jeton de session est un cookie HttpOnly** (`qc_session`, SameSite=Lax), posé par
+  le serveur à la fin du flux OAuth. JS ne le lit jamais : `GET /api/account/me` dit
+  au client s'il est connecté.
+- **Le game token** est rendu par `POST /api/account/games` (qui décrémente un crédit :
+  acheté d'abord, gratuit du mois ensuite) et doit **survivre à un F5** — il est persisté
+  en `localStorage` (`quizz-canape:gameToken`), comme le `hostToken` de `room.js`. Sans
+  lui, une reprise de partie ne pourrait plus interroger le LLM (402).
+- **Le gate dans `handleChat`** : sans `X-LLM-Api-Key` (donc clé serveur), il exige un
+  compte (401 `AUTH_REQUIRED`) puis un game token valide (402 `PAYMENT_REQUIRED`). BYOK
+  et cache-only passent sans compte.
+- **La consommation a lieu AVANT `START_GAME`**, au clic « Générer la partie » (couché,
+  `setup.js`) ou « Démarrer la partie » (lobby, `lobby.js`), via `accountGate.js`. Elle
+  est libérée à `VICTORY` (`releaseGame()`, best-effort).
+- **Le webhook Stripe** (`POST /api/account/webhook`) vérifie la signature HMAC et crédite
+  de façon **idempotente** (clé `stripe_session_id`). Stripe exige le corps brut : ne pas
+  le JSON.parse avant la vérification.
+- **OAuth Google côté serveur** (flux *authorization code*, aucun SDK JS tiers) : `state`
+  anti-CSRF en mémoire, échange du code sur `oauth2.googleapis.com`, profil via `userinfo`.
+- Offre : `FREE_GAMES_PER_MONTH=3`, `PACK_PRICE_CENTS=200`, `PACK_CREDITS=20` — lues au
+  démarrage du serveur, pas figées à la compilation. Test d'intégration : `npm run test:paid`.
 
 ### Pas de git dans le PATH par défaut
 `nix shell nixpkgs#git --command git ...`

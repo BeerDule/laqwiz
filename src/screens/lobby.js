@@ -8,6 +8,7 @@ import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
 import { leaveRoomIfOnline, send, getConnInfo, broadcastRoster } from '../room.js';
 import { connIndicatorHtml, wireConnIndicator } from '../connIndicator.js';
+import { ensureAccountForGame } from '../accountGate.js';
 import { MAX_LOBBY_PLAYERS, MIN_PLAYERS, HOST_PLAYER_ID, PLAYER_EMOJIS, NAME_MAX_LENGTH } from '../constants.js';
 
 let teardown = null;
@@ -108,7 +109,10 @@ function quit() {
   dispatch({ type: 'GOTO_HOME' });
 }
 
-function startGame() {
+async function startGame() {
+  // Mode payant : consomme un crédit avant de lancer (la partie utilise la clé
+  // serveur si le MJ n'a pas de clé BYOK). Annule si le compte manque.
+  if (!await ensureAccountForGame()) return;
   // On prévient les joueurs du démarrage, puis on lance la partie côté host
   // (START_GAME déclenche la génération des questions).
   send('game.start', {});

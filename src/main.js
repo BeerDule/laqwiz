@@ -6,6 +6,7 @@ import './styles/arcade.css';
 
 import { getState, dispatch, subscribe } from './state.js';
 import { loadPlayers, loadSettings, loadStats, savePlayers, saveSettings, loadActiveSessionId, loadLlmConfig, saveLlmConfig } from './storage.js';
+import { fetchAccountMe } from './account.js';
 import { getSession, listResumes } from './db.js';
 import { renderSetup, unmountSetup } from './screens/setup.js';
 import { renderGame, unmountGame } from './screens/game.js';
@@ -167,6 +168,13 @@ if (hasPersistedRoom()) {
 }
 
 // --- Configuration serveur (model / temperature / batchSize via /api/health) ---
+async function refreshAccount() {
+  try {
+    const data = await fetchAccountMe();
+    dispatch({ type: 'SET_ACCOUNT', patch: data });
+  } catch { /* compte non critique (serveur sans mode payant) */ }
+}
+
 async function applyHealthConfig() {
   try {
     const res = await fetch('/api/health');
@@ -177,6 +185,21 @@ async function applyHealthConfig() {
     if (typeof data?.temperature === 'number') patch.temperature = data.temperature;
     if (typeof data?.batchSize === 'number') patch.batchSize = data.batchSize;
     if (Object.keys(patch).length) dispatch({ type: 'SET_LLM', patch });
+
+    // Comptes (mode payant) : le serveur annonce qu'il impose un compte pour sa
+    // clé. On marque l'état et on lit l'auth courante (cookie HttpOnly).
+    if (data?.accountGated === true) {
+      dispatch({
+        type: 'SET_ACCOUNT',
+        patch: {
+          gated: true,
+          freeGamesPerMonth: data.freeGamesPerMonth || 0,
+          packPriceCents: data.packPriceCents || 0,
+          packCredits: data.packCredits || 0,
+        },
+      });
+      refreshAccount();
+    }
 
     // Mode SFW (serveur démarré avec SFW_MODE=1) : le public « adulte » est
     // interdit. Le catalogue a pu être semé (ero inclus) avant la réponse de

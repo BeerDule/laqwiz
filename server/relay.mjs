@@ -23,12 +23,17 @@
 // connectent avec le seul `sessionId`.
 
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { computeKey, getNonExcluded, addQuestions, extractQuestions, load, stats, listThemes } from './questionCache.mjs';
+import {
+  FREE_GAMES_PER_MONTH, PACK_PRICE_CENTS, PACK_CREDITS,
+  load as loadAccounts, getOrCreateUser, createSession, getUserBySession, deleteSession,
+  accountSummary, consumeGame, getGameTokenOwner, endGame, creditPurchase,
+} from './accounts.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h : couvre une partie de 5 h + reconnexion
@@ -38,6 +43,104 @@ const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
 const sessions = new Map();
 
 const randomId = (bytes) => randomBytes(bytes).toString('hex');
+
+// --- Comptes / paiement (mode payant) ---
+// `ACCOUNT_GATED` + identifiants Google : tant que la config n'est pas complète,
+// le mode reste inactif (BYOK / cache seuls), comme avant. La clé serveur n'est
+// alors protégée par aucun compte — exactement le comportement actuel.
+const ACCOUNT_GATED = /^(1|true|yes|on)$/i.test(String(process.env.ACCOUNT_GATED ?? '').trim());
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || '';
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const SESSION_COOKIE = 'qc_session';
+const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 jours (secondes)
+
+function isAccountGated() {
+  return ACCOUNT_GATED && Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
+}
+
+/** Origine publique (pour les URLs Stripe et la redirection OAuth). */
+function appOrigin(req) {
+  if (process.env.APP_ORIGIN) return process.env.APP_ORIGIN.replace(/\/+$/, '');
+  const proto = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  return `${proto}://${req.headers.host}`;
+}
+
+// --- Cookies de session (HttpOnly, jamais lus par JS) ---
+function parseCookies(req) {
+  const header = req.headers.cookie || '';
+  const out = {};
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i === -1) continue;
+    const k = part.slice(0, i).trim();
+    const v = part.slice(i + 1).trim();
+    if (k && !(k in out)) out[k] = v;
+  }
+  return out;
+}
+function sessionToken(req) { return parseCookies(req)[SESSION_COOKIE] || null; }
+function setSessionCookie(res, token) {
+  res.setHeader('Set-Cookie',
+    `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; Max-Age=${SESSION_COOKIE_MAX_AGE}; SameSite=Lax`);
+}
+function clearSessionCookie(res) {
+  res.setHeader('Set-Cookie',
+    `${SESSION_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`);
+}
+
+// --- État OAuth (anti-CSRF), en mémoire ---
+const oauthStates = new Map(); // state -> expiresAt (ms)
+function makeOauthState() {
+  const state = randomBytes(24).toString('hex');
+  oauthStates.set(state, Date.now() + 10 * 60 * 1000);
+  return state;
+}
+function consumeOauthState(state) {
+  const exp = oauthStates.get(state);
+  oauthStates.delete(state);
+  return typeof exp === 'number' && exp > Date.now();
+}
+function googleAuthUrl(state) {
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'openid email profile',
+    state,
+    prompt: 'select_account',
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+async function readJsonBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return null; }
+}
+async function readRawBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+function verifyStripeSignature(rawBody, sigHeader) {
+  if (!STRIPE_WEBHOOK_SECRET || !sigHeader) return false;
+  const parts = String(sigHeader).split(',').reduce((acc, p) => {
+    const i = p.indexOf('=');
+    if (i > 0) acc[p.slice(0, i).trim()] = p.slice(i + 1).trim();
+    return acc;
+  }, {});
+  if (!parts.t || !parts.v1) return false;
+  const expected = createHmac('sha256', STRIPE_WEBHOOK_SECRET)
+    .update(`${parts.t}.${rawBody.toString('utf8')}`)
+    .digest('hex');
+  const a = Buffer.from(expected);
+  const b = Buffer.from(parts.v1);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 function sendJson(res, status, body) {
   res.statusCode = status;
@@ -107,6 +210,123 @@ function rejectUnsafeUpstream(raw) {
   return null;
 }
 
+async function handleGoogleCallback(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  if (!code || !state || !consumeOauthState(state)) {
+    return sendError(res, 400, 'INVALID_STATE', 'Échange OAuth invalide ou expiré.');
+  }
+  let tokens;
+  try {
+    const r = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT_URI, grant_type: 'authorization_code',
+      }),
+    });
+    tokens = await r.json();
+  } catch {
+    return sendError(res, 502, 'OAUTH_FAILED', 'Échange OAuth impossible.');
+  }
+  const accessToken = tokens?.access_token;
+  if (!accessToken) {
+    console.error('[accounts] échange OAuth refusé :', tokens?.error_description || tokens?.error);
+    return sendError(res, 401, 'OAUTH_FAILED', 'Connexion Google refusée.');
+  }
+  let profile;
+  try {
+    const r = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    profile = await r.json();
+  } catch {
+    return sendError(res, 502, 'OAUTH_FAILED', 'Profil Google injoignable.');
+  }
+  const sub = profile?.sub;
+  if (!sub) return sendError(res, 401, 'OAUTH_FAILED', 'Profil Google incomplet.');
+  const userId = getOrCreateUser({
+    sub, email: profile.email || '', name: profile.name || profile.email || '',
+  });
+  setSessionCookie(res, createSession(userId));
+  res.statusCode = 302;
+  res.setHeader('Location', `${appOrigin(req)}/`);
+  res.end();
+}
+
+async function handleCheckout(req, res) {
+  const user = getUserBySession(sessionToken(req));
+  if (!user) return sendError(res, 401, 'AUTH_REQUIRED', 'Connectez-vous d\'abord.');
+  if (!STRIPE_SECRET_KEY) {
+    return sendError(res, 503, 'STRIPE_NOT_CONFIGURED', 'Paiement non configuré côté serveur.');
+  }
+  const origin = appOrigin(req);
+  const params = new URLSearchParams({
+    mode: 'payment',
+    'line_items[0][quantity]': '1',
+    'line_items[0][price_data][currency]': 'usd',
+    'line_items[0][price_data][unit_amount]': String(PACK_PRICE_CENTS),
+    'line_items[0][price_data][product_data][name]': `Canap' QuiZZ — ${PACK_CREDITS} parties`,
+    'success_url': `${origin}/api/account/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    'cancel_url': `${origin}/`,
+    'client_reference_id': String(user.id),
+    'metadata[user_id]': String(user.id),
+    'metadata[credits]': String(PACK_CREDITS),
+  });
+  try {
+    const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+      body: params,
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      console.error('[accounts] checkout Stripe refusé :', data?.error?.message || r.status);
+      return sendError(res, 502, 'STRIPE_FAILED', 'Création du paiement impossible.');
+    }
+    return sendJson(res, 200, { url: data.url });
+  } catch {
+    return sendError(res, 502, 'STRIPE_FAILED', 'Stripe injoignable.');
+  }
+}
+
+async function handleWebhook(req, res) {
+  const rawBody = await readRawBody(req);
+  if (!verifyStripeSignature(rawBody, req.headers['stripe-signature'])) {
+    return sendError(res, 400, 'INVALID_SIGNATURE', 'Signature Stripe invalide.');
+  }
+  let event;
+  try { event = JSON.parse(rawBody.toString('utf8')); } catch {
+    return sendError(res, 400, 'BAD_PAYLOAD', 'Payload Stripe illisible.');
+  }
+  // On n'acquitte que l'événement qui crédite ; le reste est ignoré (200 = OK).
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data?.object;
+    const userId = Number(session?.client_reference_id ?? session?.metadata?.user_id ?? 0);
+    const credits = Number(session?.metadata?.credits ?? PACK_CREDITS);
+    if (Number.isInteger(userId) && userId > 0 && Number.isInteger(credits) && credits > 0) {
+      creditPurchase(userId, session.id, credits);
+    }
+  }
+  return sendJson(res, 200, { received: true });
+}
+
+function serveCheckoutSuccess(res) {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Merci !</title>
+    <body style="font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#0f1115;color:#e6e8ee;text-align:center">
+      <div>
+        <h1>🎉 Merci !</h1>
+        <p>Vos ${PACK_CREDITS} parties ont été ajoutées à votre compte.</p>
+        <p><a href="/" style="color:#7dd3fc">Retour au jeu</a></p>
+      </div>
+    </body>`);
+}
+
 function handleHealth(res) {
   const { baseUrl, model, temperature, batchSize, sfw } = getServerConfig();
   return sendJson(res, 200, {
@@ -116,6 +336,13 @@ function handleHealth(res) {
     temperature: parseFloat(temperature),
     batchSize: parseInt(batchSize, 10),
     sfw,
+    // Comptes (mode payant) : le client n'affiche le flux « Compte » que si le
+    // serveur l'annonce. Jamais de secret ici.
+    accountGated: isAccountGated(),
+    googleClientId: GOOGLE_CLIENT_ID,
+    freeGamesPerMonth: FREE_GAMES_PER_MONTH,
+    packPriceCents: PACK_PRICE_CENTS,
+    packCredits: PACK_CREDITS,
     // JAMAIS la clé
   });
 }
@@ -181,6 +408,21 @@ async function handleChat(req, res) {
         return;
       }
       return sendError(res, 409, 'CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
+    }
+  }
+
+  // --- Mode payant : sans clé client, la clé serveur n'est servie qu'à un compte
+  // authentifié ayant une partie en cours (game token consommé au lancement). ---
+  if (isAccountGated() && !clientApiKey) {
+    const user = getUserBySession(sessionToken(req));
+    if (!user) {
+      return sendError(res, 401, 'AUTH_REQUIRED',
+        'Connectez-vous avec Google pour utiliser la clé du serveur.');
+    }
+    const gameToken = String(req.headers['x-game-token'] || '');
+    if (!gameToken || getGameTokenOwner(gameToken) !== user.id) {
+      return sendError(res, 402, 'PAYMENT_REQUIRED',
+        'Aucune partie en cours sur ce compte. Relancez une partie.');
     }
   }
 
@@ -277,7 +519,7 @@ const server = http.createServer(async (req, res) => {
     // CORS : en dev, le front (Vite) et le relais sont sur des origines différentes.
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-LLM-Base-URL, X-LLM-Api-Key');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-LLM-Base-URL, X-LLM-Api-Key, X-Game-Token');
     if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
 
     const url = new URL(req.url, 'http://localhost');
@@ -291,6 +533,58 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/chat/completions' && req.method === 'POST') {
       return await handleChat(req, res);
+    }
+
+    // --- Comptes / paiement (mode payant) ---
+    if (url.pathname === '/api/auth/google' && req.method === 'GET') {
+      if (!isAccountGated()) return sendError(res, 404, 'NOT_FOUND', 'Comptes non activés.');
+      const state = makeOauthState();
+      res.statusCode = 302;
+      res.setHeader('Location', googleAuthUrl(state));
+      return res.end();
+    }
+    if (url.pathname === '/api/auth/google/callback' && req.method === 'GET') {
+      return await handleGoogleCallback(req, res);
+    }
+    if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
+      deleteSession(sessionToken(req));
+      clearSessionCookie(res);
+      return sendJson(res, 200, { ok: true });
+    }
+    if (url.pathname === '/api/account/me' && req.method === 'GET') {
+      const user = getUserBySession(sessionToken(req));
+      const summary = user ? accountSummary(user.id) : null;
+      return sendJson(res, 200, {
+        signedIn: !!summary,
+        gated: isAccountGated(),
+        freeGamesPerMonth: FREE_GAMES_PER_MONTH,
+        packPriceCents: PACK_PRICE_CENTS,
+        packCredits: PACK_CREDITS,
+        ...(summary || {}),
+      });
+    }
+    if (url.pathname === '/api/account/games' && req.method === 'POST') {
+      const user = getUserBySession(sessionToken(req));
+      if (!user) return sendError(res, 401, 'AUTH_REQUIRED', 'Connectez-vous d\'abord.');
+      const result = consumeGame(user.id);
+      if (!result) {
+        return sendError(res, 402, 'NO_CREDITS', 'Plus de parties disponibles. Achetez un pack pour continuer.');
+      }
+      return sendJson(res, 200, { ...result, ...accountSummary(user.id) });
+    }
+    if (url.pathname === '/api/account/games/end' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      endGame(body?.gameToken || req.headers['x-game-token'] || '');
+      return sendJson(res, 200, { ok: true });
+    }
+    if (url.pathname === '/api/account/checkout' && req.method === 'POST') {
+      return await handleCheckout(req, res);
+    }
+    if (url.pathname === '/api/account/checkout/success' && req.method === 'GET') {
+      return serveCheckoutSuccess(res);
+    }
+    if (url.pathname === '/api/account/webhook' && req.method === 'POST') {
+      return await handleWebhook(req, res);
     }
 
     // Relais : santé ops + création de session.
@@ -459,6 +753,7 @@ setInterval(() => {
 }, 60_000).unref();
 
 load();
+loadAccounts();
 server.listen(PORT, () => {
   console.log(`[relay] signalisation WS + /api sur http://localhost:${PORT}${existsSync(join(DIST, 'index.html')) ? ' (sert aussi dist/)' : ''}`);
 });

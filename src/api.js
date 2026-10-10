@@ -1,5 +1,6 @@
 // api.js — client HTTP vers /api (proxy) avec retries, timeout, backoff (SPEC §7).
 import { getState } from './state.js';
+import { getGameToken } from './account.js';
 import { buildSystemPrompt, buildUserPrompt } from './prompt.js';
 import { parseQuestions, normalizeQuestionText } from './validation.js';
 import { QUESTION_SCHEMA_JSON } from './constants.js';
@@ -88,6 +89,8 @@ export function toUiError(error) {
     UPSTREAM_4XX: { code, message: 'Trop de demandes ; nouvel essai possible.' },
     UPSTREAM_5XX: { code, message: 'Le service de questions est indisponible.' },
     AUTH: { code, message: 'Clé LLM refusée. Vérifiez votre configuration serveur.' },
+    AUTH_REQUIRED: { code, message: 'Connectez-vous avec Google pour continuer.' },
+    PAYMENT_REQUIRED: { code, message: 'Plus de parties disponibles. Achetez un pack pour continuer.' },
     CACHE_EXHAUSTED: { code, message: 'Plus de questions en cache pour ce thème.' },
   };
   return messages[code] || {
@@ -115,6 +118,22 @@ function retryAfterMs(res, tries) {
     if (!Number.isNaN(t)) return Math.min(Math.max(t - Date.now(), 0), 60_000);
   }
   return RATE_LIMIT_DELAYS[Math.min(tries, RATE_LIMIT_DELAYS.length - 1)];
+}
+
+/**
+ * Distingue les erreurs « compte » (401 AUTH_REQUIRED / 402 PAYMENT_REQUIRED) des
+ * refus de clé LLM classiques. Le serveur renvoie un code d'erreur dans le corps.
+ */
+async function accountAuthError(res) {
+  const body = await res.json().catch(() => ({}));
+  const code = body?.error?.code;
+  if (code === 'AUTH_REQUIRED') {
+    return new ApiError('AUTH_REQUIRED', body?.error?.message || 'Connectez-vous pour continuer.');
+  }
+  if (code === 'PAYMENT_REQUIRED' || code === 'NO_CREDITS' || res.status === 402) {
+    return new ApiError('PAYMENT_REQUIRED', body?.error?.message || 'Plus de parties disponibles.');
+  }
+  return new ApiError('AUTH', `Authentification refusée (HTTP ${res.status}).`);
 }
 
 /**
@@ -162,6 +181,10 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
       const headers = { 'Content-Type': 'application/json' };
       if (llm.baseUrl) headers['X-LLM-Base-URL'] = llm.baseUrl;
       if (llm.apiKey) headers['X-LLM-Api-Key'] = llm.apiKey;
+      // Mode payant : sans clé client, on joint le game token qui autorise le
+      // serveur à utiliser sa propre clé pour cette partie.
+      const gameToken = getGameToken();
+      if (!llm.apiKey && gameToken) headers['X-Game-Token'] = gameToken;
       return await fetchWithTimeout('/api/chat/completions', {
         method: 'POST',
         headers,
@@ -208,10 +231,9 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
       throw new ApiError('CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
     }
 
-    // --- 401 / 403 : clé invalide, aucun retry ---
-    if (res.status === 401 || res.status === 403) {
-      throw new ApiError('AUTH',
-        `Authentification refusée (HTTP ${res.status}). Vérifiez LLM_API_KEY dans .env.`);
+    // --- 401 / 402 / 403 : clé invalide ou compte requis, aucun retry ---
+    if (res.status === 401 || res.status === 402 || res.status === 403) {
+      throw await accountAuthError(res);
     }
 
     // --- 5xx : un retry après 2 s ---
@@ -229,9 +251,8 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
         await sleep(retryAfterMs(res, rateLimitTries++));
         res = await requestOnce();
       }
-      if (res.status === 401 || res.status === 403) {
-        throw new ApiError('AUTH',
-          `Authentification refusée (HTTP ${res.status}). Vérifiez LLM_API_KEY dans .env.`);
+      if (res.status === 401 || res.status === 402 || res.status === 403) {
+        throw await accountAuthError(res);
       }
       if (!res.ok) {
         throw new ApiError('UPSTREAM_4XX', `Réponse inattendue (HTTP ${res.status}).`);

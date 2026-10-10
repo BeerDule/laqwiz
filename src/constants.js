@@ -210,6 +210,9 @@ export const STORAGE_KEYS = {
   stats: 'quizz-canape:stats',
   activeSession: 'quizz-canape:active-session',
   llm: 'quizz-canape:llm',
+  // Game token du mode payant : preuve qu'un crédit a été consommé pour la
+  // partie en cours. Doit survivre à un F5 (reprise) — d'où localStorage.
+  gameToken: 'quizz-canape:gameToken',
 };
 
 export const DEFAULTS = {
