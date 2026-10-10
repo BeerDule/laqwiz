@@ -18,7 +18,7 @@ const PER_DIFFICULTY = Math.max(1, Number(process.argv[2] || 50));
 const baseUrl = (process.env.LLM_BASE_URL || '').replace(/\/+$/, '');
 const apiKey = process.env.LLM_API_KEY || '';
 const model = process.env.LLM_MODEL || '';
-const temperature = process.env.LLM_TEMPERATURE || '0.9';
+const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.9');
 
 if (!baseUrl || !apiKey || !model) {
   console.error('Config LLM manquante. Lancez avec : node --env-file=.env server/seed.mjs');
