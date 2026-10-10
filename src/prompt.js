@@ -16,8 +16,35 @@ const DIFFICULTY_RULES = {
 const AUDIENCE_RULES = {
   kids: 'Le contenu est strictement adapté aux enfants : aucun thème violent, anxiogène, politique, religieux ou à connotation sexuelle, aucun langage vulgaire ni insulte, humour bon enfant.',
   general: 'Le contenu est tout public : pas de violence graphique, pas de contenu sexuellement explicite, pas d\'insulte ni de vulgarité. L\'humour reste léger et familial.',
-  nsfw: 'Le contenu peut être irrévérencieux, grivois ou vulgaire pour un public adulte (humour salace, sous-entendus). Restent interdits : le racisme, l\'homophobie, l\'incitation à la haine, la pédocriminalité et l\'apologie de la violence extrême.',
+  nsfw: 'Le contenu s’adresse exclusivement à des adultes : assume un ton franchement coquin, grivois, drôle et irrévérencieux, avec des sous-entendus sexuels, des doubles sens et de l’humour sur les rendez-vous, les couples et les petits travers adultes. Fais sentir ce ton dans les questions et les options drôles lorsque le thème s’y prête ; garde les réponses et explications factuelles. L’humour peut être politiquement incorrect en se moquant des conventions, des institutions, des tabous et de l’hypocrisie, sans dénigrer une personne ou un groupe en raison d’une caractéristique protégée.',
 };
+
+const PROMPT_ANGLES = [
+  'Cherche des faits étonnants ou contre-intuitifs, plutôt que les évidences les plus célèbres.',
+  'Varie les angles : origines, conséquences, records, détails méconnus et idées reçues.',
+  'Privilégie des questions qui donnent envie de débattre après la révélation, sans ambiguïté factuelle.',
+  'Évite les formulations scolaires : donne aux questions un ton vivant et une accroche naturelle.',
+  'Explore des détails précis et peu attendus du thème, sans sacrifier la fiabilité des réponses.',
+  'Fais varier les périodes, les lieux, les personnes et les sous-sujets au sein du thème.',
+  'Mets en avant des anecdotes surprenantes, mais vérifiables et pertinentes pour le thème.',
+  'Évite les questions de type « quelle est la capitale / qui a inventé / en quelle année » si un angle plus original existe.',
+  'Fais alterner questions sur des faits, des causes, des conséquences et des comparaisons.',
+  'Cherche le détail que même un amateur du thème pourrait ne pas connaître.',
+  'Privilégie une formulation concise, imagée et différente des tournures habituelles de quiz.',
+  'Explore un sous-thème moins souvent traité, sans t’éloigner du sujet demandé.',
+];
+
+let lastPromptAngle = -1;
+
+/** Retourne un angle éditorial aléatoire, sans répétition immédiate. */
+export function getPromptAngle() {
+  let index = Math.floor(Math.random() * PROMPT_ANGLES.length);
+  if (index === lastPromptAngle) {
+    index = (index + 1 + Math.floor(Math.random() * (PROMPT_ANGLES.length - 1))) % PROMPT_ANGLES.length;
+  }
+  lastPromptAngle = index;
+  return PROMPT_ANGLES[index];
+}
 
 export function buildSystemPrompt({
   theme, batchSize, history = [], schemaJSON = QUESTION_SCHEMA_JSON,
@@ -96,7 +123,7 @@ CONTRAINTE DE SOURCE (PRIORITAIRE SUR TOUT LE RESTE) :
 
 export function buildUserPrompt({
   theme, batchSize, history = [], difficulty = 'balanced', audience = 'general',
-  source = null,
+  source = null, angle = getPromptAngle(),
 }) {
   const historique = formatHistory(history);
   const difficultyRule = DIFFICULTY_RULES[difficulty] || DIFFICULTY_RULES.balanced;
@@ -106,6 +133,7 @@ export function buildUserPrompt({
 
 Difficulté demandée : ${difficultyRule}
 Public visé : ${audienceRule}
+Angle éditorial pour ce lot : ${angle}
 
 Rappel des questions déjà posées dans cette session (NE PAS RÉPÉTER) :
 ${historique}

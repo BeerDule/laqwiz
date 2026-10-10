@@ -26,6 +26,23 @@ function normalize(s) {
   return String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Normalisation FORTE des énoncés, identique à celle du client
+ * (`normalizeQuestionText` dans validation.js) : minuscules, accents retirés
+ * (NFD), ponctuation et symboles remplacés par des espaces, espaces compressés.
+ * C'est elle qui garantit qu'une même question — à la ponctuation, à la casse ou
+ * aux accents près — n'est stockée qu'une fois dans le pool.
+ */
+function normalizeQuestion(s) {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Clé stable : les dimensions qui font varier le contenu des questions. */
 export function computeKey({ theme, audience, sourceKey }) {
   return [theme, audience, sourceKey || ''].map(normalize).join('|');
@@ -61,7 +78,7 @@ function ensureDb() {
 export function getNonExcluded(key, difficulty, exclude, limit) {
   const d = ensureDb();
   const filter = difficultyFilter(difficulty);
-  const excluded = (exclude || []).map(normalize);
+  const excluded = (exclude || []).map(normalizeQuestion);
   let sql = 'SELECT payload FROM questions WHERE cache_key = ?';
   const params = [key];
   if (filter.length === 1) {
@@ -72,7 +89,9 @@ export function getNonExcluded(key, difficulty, exclude, limit) {
     sql += ` AND question_text NOT IN (${excluded.map(() => '?').join(',')})`;
     params.push(...excluded);
   }
-  sql += ' ORDER BY created_at ASC LIMIT ?';
+  // Ordre aléatoire : sans lui, une nouvelle session resservirait toujours les
+  // plus anciennes questions dans le même ordre.
+  sql += ' ORDER BY RANDOM() LIMIT ?';
   params.push(Number(limit) || 8);
   return d.prepare(sql).all(...params).map((r) => JSON.parse(r.payload));
 }
@@ -91,7 +110,7 @@ export function addQuestions(quiz, questions) {
     // Garde minimale : ne cacher que des questions structurellement complètes.
     if (!q || typeof q.question !== 'string' || !Array.isArray(q.options) || q.options.length !== 4) continue;
     const diff = DIFFICULTIES.includes(normalize(q.difficulty)) ? normalize(q.difficulty) : 'medium';
-    inserted += stmt.run(key, theme, diff, normalize(q.question), JSON.stringify(q)).changes;
+    inserted += stmt.run(key, theme, diff, normalizeQuestion(q.question), JSON.stringify(q)).changes;
   }
   return inserted;
 }
@@ -146,9 +165,35 @@ export function stats() {
   return { keys: k, questions: n };
 }
 
+/**
+ * Migration légère au démarrage : re-normalise les énoncés déjà stockés (avec
+ * l'ancienne normalisation faible) et supprime les doublons ainsi révélés, en
+ * conservant le plus ancien de chaque groupe.
+ */
+function dedupQuestions() {
+  const d = db;
+  const rows = d.prepare('SELECT rowid, cache_key, question_text FROM questions ORDER BY rowid ASC').all();
+  const seen = new Set();
+  const updateStmt = d.prepare('UPDATE questions SET question_text = ? WHERE rowid = ?');
+  const deleteStmt = d.prepare('DELETE FROM questions WHERE rowid = ?');
+  let removed = 0;
+  for (const r of rows) {
+    const norm = normalizeQuestion(r.question_text);
+    if (seen.has(`${r.cache_key}|${norm}`)) {
+      deleteStmt.run(r.rowid);
+      removed += 1;
+    } else {
+      seen.add(`${r.cache_key}|${norm}`);
+      if (norm !== r.question_text) updateStmt.run(norm, r.rowid);
+    }
+  }
+  return removed;
+}
+
 /** Ouvre la base (création des tables si besoin). Appelé au démarrage. */
 export function load() {
   ensureDb();
+  const removed = dedupQuestions();
   const s = stats();
-  console.log(`[question-cache] SQLite prêt : ${s.questions} question(s), ${s.keys} clé(s)`);
+  console.log(`[question-cache] SQLite prêt : ${s.questions} question(s), ${s.keys} clé(s)${removed ? ` (${removed} doublon(s) purgé(s))` : ''}`);
 }

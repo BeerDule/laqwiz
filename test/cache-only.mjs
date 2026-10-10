@@ -51,6 +51,14 @@ if (inserted < 8) {
   process.exit(1);
 }
 
+// Anti-doublon FORT : même énoncé à la casse / aux accents / à la ponctuation
+// près → une seule question stockée.
+const dedupQuiz = { theme: 'Dédup', difficulty: 'balanced', audience: 'general', sourceKey: '' };
+const d1 = addQuestions(dedupQuiz, [{ ...question(1), question: 'Quelle est la capitale du Québec ?' }]);
+const d2 = addQuestions(dedupQuiz, [{ ...question(2), question: 'quelle est la capitale du quebec' }]);
+if (d1 === 1 && d2 === 0) ok(`anti-doublon fort : « Québec ? » puis « quebec » → ${d1} puis ${d2} insérée(s)`);
+else fail(`anti-doublon fort : attendu 1 puis 0, reçu ${d1} puis ${d2}`);
+
 // Relais SANS configuration LLM : c'est le cas BYOK (aucun .env LLM serveur).
 const relay = spawn('node', ['server/relay.mjs'], {
   stdio: 'ignore',
