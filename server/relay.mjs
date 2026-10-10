@@ -28,7 +28,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
-import { computeKey, getNonExcluded, addQuestions, extractQuestions, load, stats, listThemes } from './questionCache.mjs';
+import { computeKey, getNonExcluded, addQuestions, extractQuestions, load, stats, listThemes, deleteTheme } from './questionCache.mjs';
 import {
   FREE_GAMES_PER_MONTH, PACK_PRICE_CENTS, PACK_CREDITS,
   load as loadAccounts, getOrCreateUser, createSession, getUserBySession, deleteSession,
@@ -611,6 +611,17 @@ const server = http.createServer(async (req, res) => {
         return sendError(res, 400, 'BAD_REQUEST', 'Nombre de crédits invalide.');
       }
       return sendJson(res, 200, { user: setPurchasedCredits(userId, credits) });
+    }
+    if (url.pathname === '/api/admin/themes' && req.method === 'GET') {
+      if (!isAdminUser(req)) return sendError(res, 403, 'FORBIDDEN', 'Accès réservé à l\'administrateur.');
+      return sendJson(res, 200, { themes: listThemes() });
+    }
+    if (url.pathname === '/api/admin/themes/delete' && req.method === 'POST') {
+      if (!isAdminUser(req)) return sendError(res, 403, 'FORBIDDEN', 'Accès réservé à l\'administrateur.');
+      const body = await readJsonBody(req);
+      const theme = String(body?.theme || '').trim();
+      if (!theme) return sendError(res, 400, 'BAD_REQUEST', 'Thème manquant.');
+      return sendJson(res, 200, { removed: deleteTheme(theme) });
     }
 
     // Relais : santé ops + création de session.

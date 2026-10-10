@@ -131,6 +131,13 @@ export function listThemes() {
   return [...byTheme.values()];
 }
 
+/** Supprime toutes les questions d'un thème (page d'administration). */
+export function deleteTheme(theme) {
+  const d = ensureDb();
+  const info = d.prepare('DELETE FROM questions WHERE theme = ?').run(theme);
+  return info.changes;
+}
+
 /** Statistiques d'observation (exposées par /api/relay/health). */
 export function stats() {
   const d = ensureDb();

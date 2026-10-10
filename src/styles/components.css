@@ -437,19 +437,23 @@ input[type='range']::-moz-range-thumb {
   padding: .692em .923em;
 }
 
-/* Champ « Ou inventez le vôtre » : emoji posé sur la marge gauche de l'input,
-   sans toucher au style du champ lui-même (thèmes compris). */
+/* Champ « Inventer son propre thème » : pleine largeur, comme la recherche
+   Wikipédia (`.wiki-search-wrap`) ; l'emoji tient lieu d'icône préfixe, aligné
+   sur le padding interne de l'input. */
 .custom-theme { position: relative; }
 .custom-theme__emoji {
   position: absolute;
-  left: .923em;
+  left: .857em;
   top: 50%;
   transform: translateY(-50%);
   font-size: 1.077em;
   line-height: 1;
   pointer-events: none;
 }
-.custom-theme input { padding-left: 2.769em; }
+.custom-theme input {
+  width: 100%;
+  padding-left: 2.692em;
+}
 
 /* ===== Panneau LLM & zone de danger ===== */
 .llm-panel summary {

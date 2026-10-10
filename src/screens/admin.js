@@ -1,10 +1,11 @@
 // screens/admin.js — page d'administration (réservée à ADMIN_USER_EMAIL).
 //
-// Liste les comptes et leurs crédits ; l'administrateur peut modifier le solde de
-// crédits achetés de chaque compte. Le droit d'accès est re-vérifié par le serveur
-// sur chaque endpoint /api/admin/* (le client ne fait qu'afficher ce qu'il reçoit).
+// Liste les comptes et leurs crédits (modifiables), et les thèmes du cache de
+// questions (supprimables). Le droit d'accès est re-vérifié par le serveur sur
+// chaque endpoint /api/admin/* (le client ne fait qu'afficher ce qu'il reçoit).
 import { getState, dispatch } from '../state.js';
-import { fetchAdminUsers, setUserCredits } from '../account.js';
+import { fetchAdminUsers, setUserCredits, fetchCacheThemes, deleteCacheTheme } from '../account.js';
+import { confirmDialog } from '../components/dialog.js';
 
 let teardown = null;
 let root = null;
@@ -67,6 +68,51 @@ async function saveCredits(row, btn) {
   }
 }
 
+function themeRow(t) {
+  const total = t.easy + t.medium + t.hard;
+  return `
+    <div class="admin-row" data-theme="${escapeHtml(t.theme)}">
+      <div class="admin-row__identity">
+        <strong class="admin-row__email">${escapeHtml(t.theme)}</strong>
+        <span class="admin-row__name">${total} question(s)</span>
+      </div>
+      <span class="admin-row__free">${t.easy} facile · ${t.medium} moyen · ${t.hard} difficile</span>
+      <button type="button" class="button button--danger admin-row__delete-theme">Supprimer</button>
+    </div>`;
+}
+
+async function loadThemes() {
+  const list = root.querySelector('#admin-themes');
+  list.textContent = 'Chargement…';
+  try {
+    const { themes } = await fetchCacheThemes();
+    list.innerHTML = themes.length
+      ? themes.map(themeRow).join('')
+      : '<p class="llm-note">Aucun thème en cache.</p>';
+  } catch (err) {
+    list.textContent = err?.message || 'Impossible de charger les thèmes.';
+  }
+}
+
+async function deleteThemeRow(row, btn) {
+  const theme = row.dataset.theme;
+  if (!await confirmDialog({
+    title: 'Supprimer le thème ?',
+    message: `Supprimer « ${theme} » et toutes ses questions du cache ?`,
+    confirmLabel: 'Supprimer',
+    danger: true,
+  })) return;
+  btn.disabled = true;
+  try {
+    await deleteCacheTheme(theme);
+    dispatchToast('Thème supprimé du cache.', 'info');
+    loadThemes();
+  } catch (err) {
+    dispatchToast(err?.message || 'Impossible de supprimer.', 'error');
+    btn.disabled = false;
+  }
+}
+
 export function renderAdmin(rootEl) {
   unmountAdmin();
   root = rootEl;
@@ -83,6 +129,12 @@ export function renderAdmin(rootEl) {
         </p>
         <div id="admin-list" class="admin-list"></div>
       </div>
+      <div class="panel">
+        <p class="llm-note">
+          Cache de questions. Supprimer un thème retire toutes ses questions du pool.
+        </p>
+        <div id="admin-themes" class="admin-list"></div>
+      </div>
     </section>`;
 
   const cleanup = new AbortController();
@@ -98,7 +150,14 @@ export function renderAdmin(rootEl) {
     saveCredits(btn.closest('.admin-row'), btn);
   }, { signal });
 
+  root.querySelector('#admin-themes').addEventListener('click', (e) => {
+    const btn = e.target.closest('.admin-row__delete-theme');
+    if (!btn) return;
+    deleteThemeRow(btn.closest('.admin-row'), btn);
+  }, { signal });
+
   loadUsers();
+  loadThemes();
 
   teardown = () => {
     cleanup.abort();

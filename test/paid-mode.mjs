@@ -32,6 +32,13 @@ const cacheDb = join(tmpDir, 'cache.db');
 process.env.ACCOUNTS_DB = accountsDb;
 process.env.QUESTION_CACHE_DB = cacheDb;
 const accounts = await import('../server/accounts.mjs');
+const cache = await import('../server/questionCache.mjs');
+
+// Seed du cache AVANT de démarrer le relais (pour les routes admin « themes »).
+cache.addQuestions({ theme: 'Culture générale', difficulty: 'balanced', audience: 'general', sourceKey: '' }, [
+  { question: 'Question de cache 1 ?', options: [{ key: 'A', text: 'a' }, { key: 'B', text: 'b' }, { key: 'C', text: 'c' }, { key: 'D', text: 'd' }], difficulty: 'easy' },
+  { question: 'Question de cache 2 ?', options: [{ key: 'A', text: 'a' }, { key: 'B', text: 'b' }, { key: 'C', text: 'c' }, { key: 'D', text: 'd' }], difficulty: 'medium' },
+]);
 
 let passed = 0;
 let failed = 0;
@@ -197,6 +204,33 @@ if (upd.status === 200 && updData.user?.purchasedRemaining === 42) {
   ok('POST /api/admin/users/:id/credits fixe le solde acheté (42)');
 } else {
   fail('la modification des crédits admin a échoué', await upd.text());
+}
+
+// 14) L'administrateur liste les thèmes du cache.
+const themesList = await fetch(`${BASE}/api/admin/themes`, { headers: { Cookie: `qc_session=${sessionToken}` } });
+if (themesList.status === 200) {
+  const { themes } = await themesList.json();
+  ok(`GET /api/admin/themes : ${themes.length} thème(s)`);
+} else {
+  fail('GET /api/admin/themes devrait renvoyer 200 pour l\'admin', await themesList.text());
+}
+
+// 15) Un non-admin ne peut pas lister les thèmes.
+const themesForbidden = await fetch(`${BASE}/api/admin/themes`, { headers: { Cookie: `qc_session=${otherSession}` } });
+if (themesForbidden.status === 403) ok('GET /api/admin/themes pour un non-admin → 403');
+else fail(`un non-admin devrait recevoir 403 sur /api/admin/themes, reçu ${themesForbidden.status}`, await themesForbidden.text());
+
+// 16) L'administrateur supprime un thème du cache.
+const del = await fetch(`${BASE}/api/admin/themes/delete`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Cookie: `qc_session=${sessionToken}` },
+  body: JSON.stringify({ theme: 'Culture générale' }),
+});
+const delData = await del.json().catch(() => ({}));
+if (del.status === 200 && delData.removed > 0) {
+  ok(`POST /api/admin/themes/delete supprime un thème (${delData.removed} question(s))`);
+} else {
+  fail('la suppression d\'un thème a échoué', await del.text());
 }
 
 cleanup();

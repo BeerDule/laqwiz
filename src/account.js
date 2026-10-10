@@ -90,6 +90,19 @@ export function setUserCredits(id, credits) {
   });
 }
 
+/** Thèmes en cache (réservé à l'administrateur). */
+export function fetchCacheThemes() {
+  return requestJson('/api/admin/themes');
+}
+
+/** Supprime un thème du cache (réservé à l'administrateur). */
+export function deleteCacheTheme(theme) {
+  return requestJson('/api/admin/themes/delete', {
+    method: 'POST',
+    body: JSON.stringify({ theme }),
+  });
+}
+
 export async function signOut() {
   try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* serveur injoignable */ }
 }
