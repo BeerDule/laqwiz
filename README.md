@@ -128,7 +128,7 @@ Tout passe par des variables CSS : ajouter un thème ne demande qu'une entrée d
 
 ## TODO:
 
-- blind test avec de video youtube, basee sur un theme choisi
-- serveur de cache pour les question deja existante
-- gerer le multi langue
 - avoir une option pour demarrer le serveur en SFW, pas d'option nsfw, et prete a etre utilisee pour des classes d'ecole
+- possibilite de mettre un document markdown comme theme, par l'utiliser pour genere des questions.
+- blind test avec de video youtube, basee sur un theme choisi
+- gerer le multi langue
