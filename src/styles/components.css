@@ -384,7 +384,22 @@ input[type='range']::-moz-range-thumb {
 .cache-theme__diff--medium { --dot-color: var(--color-warning); }
 .cache-theme__diff--hard { --dot-color: var(--color-error); }
 
-.theme-select-group { display: grid; gap: var(--space-2); }
+.theme-source { display: grid; gap: var(--space-2); }
+
+.theme-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
+  gap: var(--space-2);
+}
+
+.theme-chip span {
+  width: 100%;
+  gap: .385em;
+  border-radius: var(--radius-md);
+  padding: .692em .923em;
+}
+
+.theme-chip__emoji { font-size: 1.231em; line-height: 1; flex-shrink: 0; }
 
 /* ===== Panneau LLM & zone de danger ===== */
 .llm-panel summary {

@@ -54,6 +54,17 @@ export const PRESET_THEMES = [
   'Jeux vidéo',
 ];
 
+export const THEME_EMOJIS = {
+  'Culture générale': '🧠',
+  'Cinéma & séries': '🎬',
+  'Musique': '🎵',
+  'Sciences & nature': '🔬',
+  'Histoire': '🏛️',
+  'Sport': '⚽',
+  'Gastronomie': '🍽️',
+  'Jeux vidéo': '🎮',
+};
+
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
 // Identifiant stable du siège local du MJ (« je joue aussi »). Ne peut entrer

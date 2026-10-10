@@ -1,7 +1,7 @@
 // screens/setup.js — écran SETUP (joueurs, thème, règles) (SPEC §12.2).
 import { getState, dispatch, subscribe } from '../state.js';
 import {
-  PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, PLAYER_COLORS, PRESET_THEMES,
+  PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, PLAYER_COLORS, PRESET_THEMES, THEME_EMOJIS,
   MIN_PLAYERS, MAX_PLAYERS, NAME_MAX_LENGTH,
   THEME_MIN_LENGTH, THEME_MAX_LENGTH,
   TARGET_SCORE_MIN, TARGET_SCORE_MAX,
@@ -221,8 +221,9 @@ function renderPlayersList() {
 }
 
 function renderThemes() {
-  const select = root.querySelector('#theme-select');
-  if (selectedPreset) select.value = selectedPreset;
+  root.querySelectorAll('input[name="preset-theme"]').forEach((radio) => {
+    radio.checked = (radio.value === selectedPreset);
+  });
   if (customTheme) root.querySelector('#custom-theme').value = customTheme;
 }
 
@@ -795,7 +796,6 @@ function wireModes(signal) {
 function wireEvents(signal) {
   const form = root.querySelector('#setup-form');
   const list = root.querySelector('#players-list');
-  const select = root.querySelector('#theme-select');
   const customInput = root.querySelector('#custom-theme');
   const slider = root.querySelector('#target-score');
   const addBtn = root.querySelector('#btn-add-player');
@@ -856,8 +856,10 @@ function wireEvents(signal) {
     closePicker();
   }, { signal });
 
-  select.addEventListener('change', () => {
-    selectedPreset = select.value || null;
+  root.querySelector('.theme-chips').addEventListener('change', (e) => {
+    const radio = e.target.closest('input[name="preset-theme"]');
+    if (!radio) return;
+    selectedPreset = radio.value || null;
     customTheme = '';
     customInput.value = '';
     updateStartButton();
@@ -867,7 +869,7 @@ function wireEvents(signal) {
     customTheme = customInput.value;
     if (customTheme.trim()) {
       selectedPreset = null;
-      select.value = '';
+      root.querySelectorAll('input[name="preset-theme"]').forEach((r) => { r.checked = false; });
     }
     updateStartButton();
   }, { signal });
@@ -1036,11 +1038,15 @@ export function renderSetup(rootEl) {
             <p class="rule-group__hint" id="cache-only-hint" hidden>Aucune question en cache pour l'instant.</p>
           </div>
           <div id="llm-theme-group">
-            <div class="theme-select-group">
-              <select id="theme-select" aria-label="Choisir un thème prédéfini">
-                <option value="">— Choisir un thème —</option>
-                ${PRESET_THEMES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
-              </select>
+            <div class="theme-source">
+              <span class="field-label">Choisissez un thème</span>
+              <div class="theme-chips" role="radiogroup" aria-label="Thème prédéfini">
+                ${PRESET_THEMES.map(t => `
+                  <label class="choice-chip theme-chip">
+                    <input type="radio" name="preset-theme" value="${escapeHtml(t)}" />
+                    <span><span class="theme-chip__emoji" aria-hidden="true">${THEME_EMOJIS[t] || '✨'}</span>${escapeHtml(t)}</span>
+                  </label>`).join('')}
+              </div>
               <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
               <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
             </div>
