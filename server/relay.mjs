@@ -58,7 +58,11 @@ const SESSION_COOKIE = 'qc_session';
 const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 jours (secondes)
 
 function isAccountGated() {
-  return ACCOUNT_GATED && Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
+  // Le gate protège la clé LLM du serveur : sans clé à protéger, il n'y a pas de
+  // mode payant. Un serveur à moitié configuré (Google OK, clé LLM absente) reste
+  // en BYOK/cache au lieu d'afficher un compte qui échouerait à la première partie.
+  const { baseUrl, apiKey } = getServerConfig();
+  return ACCOUNT_GATED && Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && baseUrl && apiKey);
 }
 
 /** Origine publique (pour les URLs Stripe et la redirection OAuth). */

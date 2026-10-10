@@ -283,3 +283,27 @@ body.with-app-nav #toast-region {
   }
   body.with-app-nav #toast-region { bottom: var(--space-3); }
 }
+
+/* ===== Pastille « compte connecté » (haut gauche) ===== */
+#account-badge {
+  position: fixed;
+  top: calc(var(--space-3) + env(safe-area-inset-top, 0em));
+  left: var(--space-3);
+  z-index: 60;
+  max-width: min(72vw, 24em);
+  padding: .462em .923em;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface-raised);
+  border: .1em solid var(--color-border);
+  color: var(--color-text);
+  font-size: .923em;
+  font-weight: 600;
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Bureau : la navigation passe en barre haute, on descend la pastille dessous. */
+@media (min-width: 56.25em) {
+  body.with-app-nav #account-badge { top: calc(4.308em + var(--space-3)); }
+}

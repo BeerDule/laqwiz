@@ -4,7 +4,6 @@
 // diffusion des questions aux joueurs (phase suivante) n'est pas encore branchée.
 
 import { getState, dispatch, subscribe } from '../state.js';
-import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
 import { leaveRoomIfOnline, send, getConnInfo, broadcastRoster } from '../room.js';
 import { connIndicatorHtml, wireConnIndicator } from '../connIndicator.js';
@@ -67,7 +66,7 @@ function lobbyHtml(s) {
 
   return `
     <section class="arcade arcade--lobby screen" data-screen="lobby">
-      <div class="arcade__topbar">${connIndicatorHtml()}${renderThemeSelect()}</div>
+      <div class="arcade__topbar">${connIndicatorHtml()}</div>
 
       <header class="arcade__title">
         <h1>Lobby</h1>
@@ -165,7 +164,6 @@ export function renderLobby(rootEl) {
     root.innerHTML = lobbyHtml(getState());
     const cleanup = new AbortController();
     const { signal } = cleanup;
-    wireThemeSelect(root);
     wireConnIndicator(root, getConnInfo, signal);
     root.querySelector('#btn-start').addEventListener('click', startGame, { signal });
     root.querySelector('#btn-quit').addEventListener('click', quit, { signal });

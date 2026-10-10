@@ -20,6 +20,15 @@ export function setColorTheme(id) {
   try { localStorage.setItem(LS_KEY, id); } catch { /* quota exceeded */ }
 }
 
+/**
+ * Applique un thème SANS le persister : un joueur qui rejoint un lobby adopte le
+ * thème de l'hôte (porté par l'URL) sans écraser sa propre préférence locale.
+ */
+export function applyColorTheme(id) {
+  if (!isValidTheme(id)) return;
+  document.documentElement.dataset.colorTheme = id;
+}
+
 export function initColorTheme() {
   const theme = getColorTheme();
   document.documentElement.dataset.colorTheme = theme;

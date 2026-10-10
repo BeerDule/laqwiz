@@ -6,9 +6,6 @@
 import { getState, dispatch, subscribe } from '../state.js';
 import { renderThemeSelect, wireThemeSelect, getColorTheme } from '../themeSwitcher.js';
 import { buildShareUrl } from '../shareConfig.js';
-import { wipeLocalStorage } from '../storage.js';
-import { clearArchive } from '../db.js';
-import { confirmDialog } from '../components/dialog.js';
 import { signInWithGoogle, signOut, createCheckout } from '../account.js';
 
 let teardown = null;
@@ -33,6 +30,11 @@ const SHELL = `
     </header>
 
     <form id="settings-form" novalidate autocomplete="off">
+      <fieldset class="panel" id="account-panel" hidden>
+        <legend>Compte</legend>
+        <div id="account-body"></div>
+      </fieldset>
+
       <fieldset class="panel llm-panel">
         <legend>Modèle LLM</legend>
         <p class="llm-note">
@@ -66,25 +68,6 @@ const SHELL = `
         </p>
         <button id="btn-share-config" type="button" class="button button--small">Copier un lien de configuration</button>
         <input id="share-url" class="share-url" type="text" readonly hidden aria-label="Lien de configuration" />
-      </fieldset>
-
-      <fieldset class="panel" id="account-panel" hidden>
-        <legend>Compte</legend>
-        <div id="account-body"></div>
-      </fieldset>
-
-      <fieldset class="panel danger-zone">
-        <legend>Reset d'usine</legend>
-        <p class="llm-note">
-          Remet l'appareil dans son état de sortie de boîte : sessions, parties
-          terminées, parties en cours, statistiques, joueurs, thème et configuration
-          LLM sont effacés. Rien n'est récupérable.
-          <br />Vos <strong>modes de jeu sont conservés</strong>, y compris ceux que
-          vous avez créés — supprimez-les un par un depuis les réglages de partie.
-        </p>
-        <button id="btn-cleanup" type="button" class="button button--danger">
-          Reset d'usine
-        </button>
       </fieldset>
     </form>
   </section>
@@ -278,40 +261,6 @@ export function renderSettings(rootEl) {
       field.select();
       dispatchToast('Copie automatique refusée — sélectionnez le lien ci-dessous.', 'error');
     }
-  }, { signal });
-
-  root.querySelector('#btn-cleanup').addEventListener('click', async () => {
-    // Confirmation avec saisie : l'action est irréversible et détruit des
-    // parties qu'on ne peut pas reconstituer. Le bouton ne se débloque qu'une
-    // fois le mot « EFFACER » tapé, pour qu'un double-clic accidentel ne
-    // suffise pas.
-    if (!await confirmDialog({
-      title: 'Réinitialiser cet appareil ?',
-      message: 'Sessions, parties terminées, parties en cours, statistiques, '
-        + 'joueurs, thème et configuration LLM seront effacés. Vos modes de jeu '
-        + 'sont conservés.\n\nCette action est définitive.',
-      confirmLabel: 'Réinitialiser',
-      danger: true,
-      confirmText: 'EFFACER',
-      confirmTextHint: 'Pour confirmer, tapez : EFFACER',
-    })) return;
-
-    // L'archive d'abord. Si elle résiste, on s'arrête AVANT de toucher à
-    // localStorage : mieux vaut un appareil intact qu'un appareil à moitié
-    // réinitialisé, dont les réglages pointeraient vers des parties encore là.
-    if (!await clearArchive()) {
-      dispatchToast(
-        'Impossible de vider la base. Fermez les autres onglets du jeu puis réessayez.',
-        'error');
-      return;
-    }
-
-    // Puis localStorage, et on recharge SANS rien faire entre les deux.
-    // L'abonné de main.js réécrit joueurs, réglages et clé API à chaque
-    // dispatch : la moindre navigation avant le rechargement ressuscitait ce
-    // qu'on vient d'effacer, et laissait un appareil à l'état incohérent.
-    wipeLocalStorage();
-    window.location.reload();
   }, { signal });
 
   teardown = () => {

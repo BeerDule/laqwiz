@@ -16,12 +16,13 @@ import { renderHome, unmountHome } from './screens/home.js';
 import { renderSettings, unmountSettings } from './screens/settings.js';
 import { renderLobby, unmountLobby } from './screens/lobby.js';
 import { hasPersistedRoom, rejoinHost } from './room.js';
-import { initColorTheme, setColorTheme } from './themeSwitcher.js';
+import { initColorTheme, setColorTheme, applyColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
 import { setSfw } from './sfw.js';
 import { initMechaBackdrop } from './mechaBackdrop.js';
 import { initHarryPotterBackdrop } from './harryPotterBackdrop.js';
+import { initAccountBadge } from './accountBadge.js';
 
 // Hook de test (E2E) : expose la source de vérité pour que les tests lisent
 // l'état (ex. la bonne réponse) sans rejouer l'UI. Inoffensif en usage normal.
@@ -33,6 +34,8 @@ initColorTheme();
 initMechaBackdrop();
 // Fond animé du thème Harry Potter (bougies + plafond étoilé), même contrat
 initHarryPotterBackdrop();
+// Pastille « compte connecté » (mode payant) : nom + parties restantes
+initAccountBadge();
 
 // --- Toast (non bloquant, dans #toast-region) — partagé host / joueur ---
 function showToast(message, kind = 'info') {
@@ -51,8 +54,13 @@ document.addEventListener('qc:toast', (e) => {
 // --- Routage d'entrée : #join=<sessionId> ouvre le mode JOUEUR ---
 // Le hash (et non un chemin /game/<id>) : la page reste servie à la racine,
 // donc les assets relatifs (base: './') se résolvent correctement.
-const joinId = new URLSearchParams(location.hash.replace(/^#/, '')).get('join');
+// Le thème graphique de l'hôte voyage dans le hash (`theme=…`) : on l'applique
+// avant le rendu joueur, sans le persister chez le joueur.
+const joinParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+const joinId = joinParams.get('join');
 if (joinId) {
+  const hostTheme = joinParams.get('theme');
+  if (hostTheme) applyColorTheme(hostTheme);
   import('./player.js').then(({ mountPlayer }) => {
     mountPlayer(document.getElementById('app'), joinId);
   });

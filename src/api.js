@@ -88,6 +88,9 @@ export function toUiError(error) {
     INCOMPLETE_BATCH: { code, message: 'Aucune question valide reçue.' },
     UPSTREAM_4XX: { code, message: 'Trop de demandes ; nouvel essai possible.' },
     UPSTREAM_5XX: { code, message: 'Le service de questions est indisponible.' },
+    MISSING_LLM_CONFIG: { code, message: 'Configuration LLM serveur manquante.' },
+    UPSTREAM_TIMEOUT: { code, message: 'Le provider LLM met trop de temps à répondre.' },
+    UPSTREAM_UNREACHABLE: { code, message: 'Le provider LLM est injoignable.' },
     AUTH: { code, message: 'Clé LLM refusée. Vérifiez votre configuration serveur.' },
     AUTH_REQUIRED: { code, message: 'Connectez-vous avec Google pour continuer.' },
     PAYMENT_REQUIRED: { code, message: 'Plus de parties disponibles. Achetez un pack pour continuer.' },
@@ -134,6 +137,27 @@ async function accountAuthError(res) {
     return new ApiError('PAYMENT_REQUIRED', body?.error?.message || 'Plus de parties disponibles.');
   }
   return new ApiError('AUTH', `Authentification refusée (HTTP ${res.status}).`);
+}
+
+/**
+ * Lit le code d'erreur serveur sur une 5xx : « clé serveur manquante », « timeout »
+ * ou « provider injoignable » méritent un message précis, pas un « indisponible »
+ * générique qui masque la vraie cause.
+ */
+async function serverError(res) {
+  const body = await res.json().catch(() => ({}));
+  const code = body?.error?.code;
+  const message = body?.error?.message;
+  if (code === 'MISSING_LLM_CONFIG') {
+    return new ApiError('MISSING_LLM_CONFIG', message || 'Configuration LLM serveur manquante.');
+  }
+  if (code === 'UPSTREAM_TIMEOUT') {
+    return new ApiError('UPSTREAM_TIMEOUT', message || 'Le provider LLM met trop de temps à répondre.');
+  }
+  if (code === 'UPSTREAM_UNREACHABLE') {
+    return new ApiError('UPSTREAM_UNREACHABLE', message || 'Le provider LLM est injoignable.');
+  }
+  return new ApiError('UPSTREAM_5XX', `Provider indisponible (HTTP ${res.status}).`);
 }
 
 /**
@@ -241,7 +265,7 @@ export async function fetchQuestionBatch({ theme, batchSize, exclude = [], sourc
       await sleep(2000);
       res = await requestOnce();
       if (res.status >= 500) {
-        throw new ApiError('UPSTREAM_5XX', `Provider indisponible (HTTP ${res.status}).`);
+        throw await serverError(res);
       }
       if (res.status === 429) {
         if (rateLimitTries >= RATE_LIMIT_DELAYS.length) {

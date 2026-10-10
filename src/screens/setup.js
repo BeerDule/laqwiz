@@ -10,7 +10,6 @@ import {
   MODE_NAME_MAX_LENGTH,
 } from '../constants.js';
 import { playerChip } from '../components/playerChip.js';
-import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { confirmDialog, promptDialog } from '../components/dialog.js';
 import { searchArticles, parseArticleUrl } from '../wikipedia.js';
 import { listResumes, listParties } from '../db.js';
@@ -1022,7 +1021,6 @@ export function renderSetup(rootEl) {
         <button id="btn-home" class="arcade-btn arcade-btn--icon" type="button" aria-label="Retour au menu">‹</button>
         <h1 id="setup-title">Réglages</h1>
         <button id="btn-sessions" class="arcade-btn arcade-btn--small" type="button">Sessions</button>
-        ${renderThemeSelect()}
       </header>
       <!-- Hors du form : Entrée dans ce champ ne doit pas lancer la partie.
            L'attribut autocomplete est posé ici, celui du formulaire ne couvrant
@@ -1215,7 +1213,6 @@ export function renderSetup(rootEl) {
   renderPlayersList();
   renderThemes();
   renderSettings();
-  wireThemeSelect(root);
 
   const cleanup = new AbortController();
   wireEvents(cleanup.signal);

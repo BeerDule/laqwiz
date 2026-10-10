@@ -1,7 +1,6 @@
 // screens/game.js — écran GAME (question, saisie, reveal) (SPEC §12.3).
 import { getState, dispatch, subscribe, hasMancheWinner, manchesNeeded, retryGeneration } from '../state.js';
 import { DIFFICULTY_LABELS, HOST_PLAYER_ID } from '../constants.js';
-import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChip } from '../components/playerChip.js';
 import { confirmDialog } from '../components/dialog.js';
 import { pauseRoomIfOnline, getConnInfo } from '../room.js';
@@ -94,7 +93,6 @@ const SHELL = `
         <div class="progress-bar"><span id="progress-fill"></span></div>
       </div>
       ${connIndicatorHtml()}
-      ${renderThemeSelect()}
     </header>
     <div id="leaderboard-mini" class="leaderboard-mini" aria-label="Scores" aria-live="polite"></div>
     <div id="retry-banner" class="retry-banner" hidden>
@@ -710,7 +708,6 @@ export function renderGame(rootEl) {
   const cleanup = new AbortController();
   signal = cleanup.signal;
 
-  wireThemeSelect(root);
   wireConnIndicator(root, getConnInfo, signal);
   root.querySelector('#btn-quit').addEventListener('click', () => confirmQuit(), { signal });
   root.querySelector('#btn-retry').addEventListener('click', () => retryGeneration(), { signal });

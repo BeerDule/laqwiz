@@ -16,6 +16,7 @@ import { createDataPeer } from './rtc.js';
 import { loadActiveSessionId } from './storage.js';
 import { getSession, listResumes } from './db.js';
 import { NAME_MAX_LENGTH, PLAYER_EMOJIS, MAX_LOBBY_PLAYERS } from './constants.js';
+import { getColorTheme } from './themeSwitcher.js';
 
 let ws = null;
 let hostPlayerId = null;
@@ -105,7 +106,9 @@ export async function startHost() {
   // Lien construit côté client. On passe l'identifiant par HASH (et non un
   // chemin /game/<id>) : avec `base: './'`, une route imbriquée casserait la
   // résolution des assets (→ /game/assets/*.css qui n'existent pas).
-  const shareUrl = `${location.origin}${location.pathname}#join=${created.sessionId}`;
+  // Le thème graphique de l'hôte est joint à l'URL : le joueur qui rejoint
+  // adopte la même apparence.
+  const shareUrl = `${location.origin}${location.pathname}#join=${created.sessionId}&theme=${getColorTheme()}`;
   saveRoom({ sessionId: created.sessionId, hostToken: created.hostToken, shareUrl });
   dispatch({
     type: 'ROOM_OPENED',

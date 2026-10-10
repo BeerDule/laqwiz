@@ -8,7 +8,6 @@ import { PLAYER_EMOJIS, PLAYER_EMOJI_LABELS, NAME_MAX_LENGTH, DIFFICULTY_LABELS 
 import { relayWsUrl } from './relay.js';
 import { ICE_SERVERS } from './ice.js';
 import { createDataPeer } from './rtc.js';
-import { renderThemeSelect, wireThemeSelect } from './themeSwitcher.js';
 import { connIndicatorHtml, wireConnIndicator } from './connIndicator.js';
 
 const PLAYER_STORAGE_KEY = 'quizz-canape:player';
@@ -80,7 +79,6 @@ export function mountPlayer(rootEl, sessionId) {
           <div class="progress-bar"><span id="progress-fill"></span></div>
         </div>
         ${connIndicatorHtml()}
-        ${renderThemeSelect()}
       </header>
       <div id="game-body">${joinHtml()}</div>
     </section>
@@ -121,7 +119,6 @@ export function mountPlayer(rootEl, sessionId) {
   });
 
   rootEl.querySelector('#btn-disconnect').addEventListener('click', leave);
-  wireThemeSelect(rootEl);
   wireConnIndicator(rootEl, () => ({ state: connState, rttMs }));
 
   // Connexion au relais + reconnexion automatique.

@@ -30,6 +30,15 @@ export async function ensureAccountForGame() {
     return false;
   }
 
+  // Confirmation explicite : consommer un crédit n'est pas implicite.
+  const total = (account.freeRemaining || 0) + (account.purchasedRemaining || 0);
+  const go = await confirmDialog({
+    title: 'Utiliser 1 crédit ?',
+    message: `Cette partie consomme 1 crédit (${account.freeRemaining} gratuite(s) ce mois, ${account.purchasedRemaining} achetée(s)).\n\nIl vous en restera ${Math.max(0, total - 1)}.`,
+    confirmLabel: 'Démarrer',
+  });
+  if (!go) return false;
+
   try {
     const data = await consumeGame();
     dispatch({ type: 'SET_ACCOUNT', patch: data });

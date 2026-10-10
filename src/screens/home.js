@@ -2,7 +2,6 @@
 // Cet écran garde volontairement l'identité « île » quel que soit le thème
 // sélectionné : c'est la porte d'entrée du jeu, pas une surface de contenu.
 import { getState, dispatch, subscribe } from '../state.js';
-import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { playerChips } from '../components/playerChip.js';
 import { CREDITS } from '../constants.js';
 import { resumeRoom } from '../room.js';
@@ -40,8 +39,6 @@ function menuHtml(s) {
 
   return `
     <section class="arcade arcade--home screen" data-screen="home">
-      <div class="arcade__topbar">${renderThemeSelect()}</div>
-
       <header class="arcade__title">
         <h1>Canap' QuiZZ</h1>
         <p>Le savoir. La mauvaise foi. Le canapé.</p>
@@ -92,7 +89,6 @@ function render() {
 
   const cleanup = new AbortController();
   const { signal } = cleanup;
-  wireThemeSelect(root);
 
   const on = (id, fn) => {
     const el = root.querySelector(id);

@@ -1,7 +1,6 @@
 // screens/victory.js — écran VICTORY (podium, confettis, rejouer) (SPEC §12.4).
 import { getState, dispatch, computePartieWinner } from '../state.js';
 import { launchConfetti, stopConfetti } from '../confetti.js';
-import { renderThemeSelect, wireThemeSelect } from '../themeSwitcher.js';
 import { confirmDialog } from '../components/dialog.js';
 import { leaveRoomIfOnline } from '../room.js';
 import { releaseGame } from '../account.js';
@@ -63,7 +62,6 @@ export function renderVictory(rootEl) {
       <header class="victory-header">
         <h1 id="victory-title" class="winner-title">${title}</h1>
         <p>${subtitle}</p>
-        <div class="victory-theme">${renderThemeSelect()}</div>
       </header>
       <div class="podium" aria-label="Classement">${podiumHtml}</div>
       <div class="panel recap">
@@ -87,7 +85,6 @@ export function renderVictory(rootEl) {
   const cleanup = new AbortController();
   const { signal } = cleanup;
 
-  wireThemeSelect(root);
   // « Nouvelle partie » reste dans la session : le roster et l'anti-doublon survivent.
   root.querySelector('#btn-replay').addEventListener('click', () => dispatch({ type: 'NEW_GAME' }), { signal });
   root.querySelector('#btn-sessions').addEventListener('click', () => dispatch({ type: 'GOTO_SESSIONS' }), { signal });
