@@ -537,6 +537,7 @@ function writeRules(r) {
   check('suddenDeathStrikes', r.suddenDeathStrikes);
   root.querySelector('#sudden-death-group').hidden = !r.suddenDeathEnabled;
   refreshAdvanced(r);
+  renderRecap();
 }
 
 /**
@@ -556,6 +557,29 @@ function refreshAdvanced(r) {
   compte.hidden = actives === 0;
   compte.textContent = String(actives);
   compte.setAttribute('aria-label', `${actives} option${actives > 1 ? 's' : ''} active${actives > 1 ? 's' : ''}`);
+}
+
+/**
+ * Récapitulatif des règles en cours : une ligne de puces au-dessus du bouton
+ * de lancement. Met à jour d'un coup d'œil ce que configure le formulaire,
+ * sans avoir à déplier « Vacheries ».
+ */
+function renderRecap() {
+  const chips = root?.querySelector('#rules-recap-chips');
+  if (!chips) return;
+  const r = readRules();
+  const items = [
+    choiceLabel(MANCHE_CHOICES, r.manchesTarget),
+    `${r.targetScore} pts${r.twoPointLead ? ' · 2 d’écart' : ''}`,
+    choiceLabel(DIFFICULTY_CHOICES, r.difficulty),
+    choiceLabel(AUDIENCE_CHOICES, r.audience),
+  ];
+  if (r.bonusEnabled) items.push('Bonus ×2');
+  if (r.timerEnabled) items.push(`⏱ ${choiceLabel(TIMER_CHOICES, r.timePerQuestion)}`);
+  if (r.penaltyNoAnswer) items.push('−1 sans réponse');
+  if (r.penaltyWrongAnswer) items.push(r.punisherSeverity === 'ultra' ? 'Punisseur −2 (bonus)' : 'Punisseur −1');
+  if (r.suddenDeathEnabled) items.push(`Mort subite ${choiceLabel(SUDDEN_DEATH_CHOICES, r.suddenDeathStrikes)}`);
+  chips.innerHTML = items.map(c => `<span class="rules-recap__chip">${escapeHtml(c)}</span>`).join('');
 }
 
 /** Le mode sélectionné, ou null s'il a été supprimé entre-temps. */
@@ -584,6 +608,7 @@ function renderModes() {
       ${m.tagline ? `data-tooltip="${escapeHtml(m.tagline)}"` : ''}>
       <span class="mode-card__emoji" aria-hidden="true">${escapeHtml(m.emoji)}</span>
       <span class="mode-card__name">${escapeHtml(m.name)}</span>
+      ${m.tagline ? `<span class="mode-card__tagline">${escapeHtml(m.tagline)}</span>` : ''}
     </button>`).join('')
     + `<button type="button" class="mode-card mode-card--new" data-mode-new="1">
         <span class="mode-card__emoji" aria-hidden="true">+</span>
@@ -876,6 +901,7 @@ function wireEvents(signal) {
 
   slider.addEventListener('input', () => {
     root.querySelector('#target-score-output').textContent = slider.value;
+    renderRecap();
   }, { signal });
 
   root.querySelector('#btn-sessions').addEventListener('click', () => {
@@ -946,6 +972,7 @@ function wireEvents(signal) {
   // sur chaque case : la délégation survit à un redessin.
   root.querySelector('.settings-panel').addEventListener('change', () => {
     refreshAdvanced(readRules());
+    renderRecap();
   }, { signal });
 
 
@@ -1004,9 +1031,9 @@ export function renderSetup(rootEl) {
            et la soumission LIT le DOM. Sans ça, une partie peut démarrer avec des
            réglages restaurés par le navigateur que personne n'a choisis. -->
       <form id="setup-form" novalidate autocomplete="off">
-        <fieldset class="panel format-panel">
-          <legend>🎮 Format de partie</legend>
-          <div class="choice-group" role="radiogroup" aria-label="Format de partie">
+        <fieldset class="panel players-panel" id="players-panel">
+          <legend>👥 Joueurs <span id="player-count-label">2/6</span></legend>
+          <div class="choice-group format-choice-group" role="radiogroup" aria-label="Format de partie">
             <label class="choice-chip">
               <input type="radio" name="gameMode" value="couch" checked />
               <span>🛋️ Canapé</span>
@@ -1017,54 +1044,9 @@ export function renderSetup(rootEl) {
             </label>
           </div>
           <p id="lobby-offline-hint" class="rule-group__hint" hidden>Connexion requise pour le mode en ligne.</p>
-        </fieldset>
-        <fieldset class="panel players-panel" id="players-panel">
-          <legend>👥 Joueurs <span id="player-count-label">2/6</span></legend>
           <div id="players-list" class="players-list"></div>
           <button type="button" id="btn-add-player" class="button add-player-btn">+ Ajouter un joueur</button>
-        </fieldset>
-        <p id="lobby-hint" class="rule-group__hint" hidden>Les joueurs rejoignent via le lien d'invitation (jusqu'à 42). Le MJ lit les questions et révèle les réponses.</p>
-        <fieldset class="panel theme-panel">
-          <legend>🎯 Thème</legend>
-          <label class="toggle-row"><input id="cache-only-enabled" type="checkbox" /> <span class="toggle-track"></span> Jouer hors ligne depuis le cache</label>
-          <div id="cache-only-group" hidden>
-            <div class="cache-diff-chips" role="radiogroup" aria-label="Difficulté du cache">
-              <button type="button" class="cache-diff-chip" data-diff="balanced">Équilibré</button>
-              <button type="button" class="cache-diff-chip" data-diff="easy">Facile</button>
-              <button type="button" class="cache-diff-chip" data-diff="medium">Moyen</button>
-              <button type="button" class="cache-diff-chip" data-diff="hard">Difficile</button>
-            </div>
-            <div id="cache-theme-list" class="cache-theme-list" role="listbox" aria-label="Thème en cache"></div>
-            <p class="rule-group__hint" id="cache-only-hint" hidden>Aucune question en cache pour l'instant.</p>
-          </div>
-          <div id="llm-theme-group">
-            <div class="theme-source">
-              <span class="field-label">Choisissez un thème</span>
-              <div class="theme-chips" role="radiogroup" aria-label="Thème prédéfini">
-                ${PRESET_THEMES.map(t => `
-                  <label class="choice-chip theme-chip">
-                    <input type="radio" name="preset-theme" value="${escapeHtml(t)}" />
-                    <span>${THEME_EMOJIS[t] || '✨'} ${escapeHtml(t)}</span>
-                  </label>`).join('')}
-              </div>
-              <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
-              <div class="custom-theme">
-                <span class="custom-theme__emoji" aria-hidden="true">✨</span>
-                <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
-              </div>
-            </div>
-            <label class="toggle-row"><input id="wiki-enabled" type="checkbox" /> <span class="toggle-track"></span> Composer les questions depuis une page Wikipédia</label>
-            <div class="wiki-group" id="wiki-group" hidden>
-              <label class="field-label" for="wiki-search">Article source</label>
-              <div class="wiki-search-wrap">
-                <input id="wiki-search" type="search" autocomplete="off" spellcheck="false"
-                  placeholder="Cherchez un article, ou collez son URL"
-                  role="combobox" aria-expanded="false" aria-controls="wiki-results" aria-autocomplete="list" />
-                <ul id="wiki-results" class="wiki-results" role="listbox" hidden></ul>
-              </div>
-              <p id="wiki-chosen" class="wiki-chosen" hidden></p>
-            </div>
-          </div>
+          <p id="lobby-hint" class="rule-group__hint" hidden>Les joueurs rejoignent via le lien d'invitation (jusqu'à 42). Le MJ lit les questions et révèle les réponses.</p>
         </fieldset>
         <fieldset class="panel modes-panel">
           <legend>🎮 Mode de jeu</legend>
@@ -1158,11 +1140,60 @@ export function renderSetup(rootEl) {
             </div>
           </details>
         </fieldset>
+        <fieldset class="panel theme-panel">
+          <legend>🎯 Thème</legend>
+          <label class="toggle-row"><input id="cache-only-enabled" type="checkbox" /> <span class="toggle-track"></span> Jouer hors ligne depuis le cache</label>
+          <div id="cache-only-group" hidden>
+            <div class="cache-diff-chips" role="radiogroup" aria-label="Difficulté du cache">
+              <button type="button" class="cache-diff-chip" data-diff="balanced">Équilibré</button>
+              <button type="button" class="cache-diff-chip" data-diff="easy">Facile</button>
+              <button type="button" class="cache-diff-chip" data-diff="medium">Moyen</button>
+              <button type="button" class="cache-diff-chip" data-diff="hard">Difficile</button>
+            </div>
+            <div id="cache-theme-list" class="cache-theme-list" role="listbox" aria-label="Thème en cache"></div>
+            <p class="rule-group__hint" id="cache-only-hint" hidden>Aucune question en cache pour l'instant.</p>
+          </div>
+          <div id="llm-theme-group">
+            <div class="theme-source">
+              <span class="field-label">Choisissez un thème</span>
+              <div class="theme-chips" role="radiogroup" aria-label="Thème prédéfini">
+                ${PRESET_THEMES.map(t => `
+                  <label class="choice-chip theme-chip">
+                    <input type="radio" name="preset-theme" value="${escapeHtml(t)}" />
+                    <span>${THEME_EMOJIS[t] || '✨'} ${escapeHtml(t)}</span>
+                  </label>`).join('')}
+              </div>
+              <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
+              <div class="custom-theme">
+                <span class="custom-theme__emoji" aria-hidden="true">✨</span>
+                <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
+              </div>
+            </div>
+            <label class="toggle-row"><input id="wiki-enabled" type="checkbox" /> <span class="toggle-track"></span> Composer les questions depuis une page Wikipédia</label>
+            <div class="wiki-group" id="wiki-group" hidden>
+              <label class="field-label" for="wiki-search">Article source</label>
+              <div class="wiki-search-wrap">
+                <input id="wiki-search" type="search" autocomplete="off" spellcheck="false"
+                  placeholder="Cherchez un article, ou collez son URL"
+                  role="combobox" aria-expanded="false" aria-controls="wiki-results" aria-autocomplete="list" />
+                <ul id="wiki-results" class="wiki-results" role="listbox" hidden></ul>
+              </div>
+              <p id="wiki-chosen" class="wiki-chosen" hidden></p>
+            </div>
+          </div>
+        </fieldset>
+        <div id="rules-recap" class="rules-recap" aria-live="polite">
+          <span class="rules-recap__label">En bref</span>
+          <span id="rules-recap-chips" class="rules-recap__chips"></span>
+        </div>
         <p id="setup-error" class="form-error" role="alert" hidden></p>
         <button id="btn-start" class="button button--primary button--large" type="submit" disabled>▶ Générer la partie</button>
         <fieldset class="panel history-panel">
           <legend>📜 Historique de la session</legend>
-          <div id="history-list" class="history-list">${HISTORY_EMPTY}</div>
+          <details class="history-collapse">
+            <summary class="history-collapse__summary">Afficher les parties terminées</summary>
+            <div id="history-list" class="history-list">${HISTORY_EMPTY}</div>
+          </details>
         </fieldset>
       </form>
     </section>
@@ -1194,7 +1225,7 @@ export function renderSetup(rootEl) {
     const chip = e.target.closest('.cache-diff-chip');
     if (!chip) return;
     const radio = root.querySelector(`input[name="difficulty"][value="${chip.dataset.diff}"]`);
-    if (radio) radio.checked = true;
+    if (radio) { radio.checked = true; renderRecap(); }
     renderCacheThemes();
   }, { signal: cleanup.signal });
   // Sélection du thème en cache.
@@ -1277,7 +1308,9 @@ function applySettings() {
 
 /** Bascule l'écran entre canapé (roster local) et lobby (roster distant). */
 function syncMode() {
-  const panel = root?.querySelector('#players-panel');
+  const list = root?.querySelector('#players-list');
+  const addBtn = root?.querySelector('#btn-add-player');
+  const count = root?.querySelector('#player-count-label');
   const hint = root?.querySelector('#lobby-hint');
   const offlineHint = root?.querySelector('#lobby-offline-hint');
   const btn = root?.querySelector('#btn-start');
@@ -1295,7 +1328,9 @@ function syncMode() {
     if (couchRadio) couchRadio.checked = true;
   }
 
-  if (panel) panel.hidden = isLobby;
+  if (list) list.hidden = isLobby;
+  if (addBtn) addBtn.hidden = isLobby;
+  if (count) count.hidden = isLobby;
   if (hint) hint.hidden = !isLobby;
   if (btn) btn.textContent = isLobby ? '📡 Créer le lobby' : '▶ Générer la partie';
   updateStartButton();

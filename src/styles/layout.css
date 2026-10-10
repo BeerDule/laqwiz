@@ -101,7 +101,8 @@
 
 /* ===== Panneau LLM pleine largeur ===== */
 .setup-screen .llm-panel,
-.setup-screen .history-panel {
+.setup-screen .history-panel,
+.setup-screen .rules-recap {
   grid-column: 1 / -1;
 }
 
