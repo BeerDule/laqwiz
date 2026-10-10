@@ -157,6 +157,7 @@ Tout passe par des variables CSS : ajouter un thème ne demande qu'une entrée d
 
 ## TODO:
 
+- ajout d'une page admin poour gere les utilisateur et leurs credits
 - conteneuriser l'app
 - possibilite de mettre un document markdown comme theme, par l'utiliser pour genere des questions.
 - blind test avec de video youtube, basee sur un theme choisi
