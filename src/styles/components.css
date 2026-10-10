@@ -84,7 +84,7 @@ textarea:focus-visible {
 
 .button--danger { color: var(--color-error); }
 .button--large { min-height: 3em; padding: .625em 1.375em; font-size: 1.231em; }
-.button--small { min-height: 2.615em; padding: .308em .923em; font-size: 1em; }
+.button--small { min-height: 2.615em; padding: .308em .923em; font-size: 1em; max-width: 18em; text-wrap: wrap;}
 
 /* ===== Panneaux ===== */
 .panel {

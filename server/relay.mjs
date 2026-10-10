@@ -141,14 +141,6 @@ async function handleChat(req, res) {
     if (refus) return sendError(res, 400, 'UNSAFE_LLM_BASE_URL', refus);
   }
 
-  const effectiveBaseUrl = clientBaseUrl || serverBaseUrl;
-  const effectiveApiKey = clientApiKey || serverApiKey;
-
-  if (!effectiveBaseUrl || !effectiveApiKey) {
-    return sendError(res, 500, 'MISSING_LLM_CONFIG',
-      'Configuration LLM manquante. Renseignez vos identifiants ou configurez le serveur.');
-  }
-
   // Parse le body une fois : extraire _quiz (métadonnées de cache), le retirer,
   // puis injecter le modèle serveur si absent.
   let quiz = null;
@@ -164,6 +156,9 @@ async function handleChat(req, res) {
   } catch { /* forward tel quel */ }
 
   // --- Cache : servir depuis le pool si assez de questions non-exclues ---
+  // Le mode « cache only » ne requiert AUCUNE configuration LLM : cette logique
+  // doit donc venir AVANT la vérification de config, sinon un déploiement BYOK
+  // (sans .env LLM) renverrait 500 au lieu de servir le pool.
   if (quiz && typeof quiz.theme === 'string' && quiz.theme) {
     const wanted = Number(quiz.batchSize) || 8;
     const key = computeKey(quiz);
@@ -181,6 +176,14 @@ async function handleChat(req, res) {
       }
       return sendError(res, 409, 'CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
     }
+  }
+
+  const effectiveBaseUrl = clientBaseUrl || serverBaseUrl;
+  const effectiveApiKey = clientApiKey || serverApiKey;
+
+  if (!effectiveBaseUrl || !effectiveApiKey) {
+    return sendError(res, 500, 'MISSING_LLM_CONFIG',
+      'Configuration LLM manquante. Renseignez vos identifiants ou configurez le serveur.');
   }
 
   const targetUrl = `${effectiveBaseUrl}/chat/completions`;

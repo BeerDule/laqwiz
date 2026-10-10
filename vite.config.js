@@ -138,6 +138,44 @@ function llmProxyPlugin(env, { validate } = {}) {
           return sendError(res, 400, 'EMPTY_BODY', 'Corps de requête vide.');
         }
 
+        // --- Modèle : celui du client prime ; sinon on reprend celui du .env ---
+        let quiz = null;
+        let forwardedBody;
+        try {
+          const parsed = JSON.parse(rawBody);
+          if (parsed && typeof parsed._quiz === 'object' && parsed._quiz !== null) {
+            quiz = parsed._quiz;
+          }
+          delete parsed._quiz; // le provider n'a pas à le recevoir
+          if (!parsed.model) parsed.model = model;
+          forwardedBody = JSON.stringify(parsed);
+        } catch {
+          forwardedBody = rawBody; // en cas d'échec de parse, on forward tel quel
+        }
+
+        // --- Cache : servir depuis le pool si assez de questions non-exclues ---
+        // Le mode « cache only » ne requiert AUCUNE configuration LLM : cette
+        // logique doit donc venir AVANT la vérification de config, sinon un
+        // déploiement BYOK (sans .env LLM) renverrait 500 au lieu de servir le pool.
+        if (quiz && typeof quiz.theme === 'string' && quiz.theme) {
+          const wanted = Number(quiz.batchSize) || 8;
+          const key = computeKey(quiz);
+          const cached = getNonExcluded(key, quiz.difficulty, quiz.exclude, wanted);
+          if (cached.length >= wanted) {
+            serveCached(res, cached, model);
+            return;
+          }
+          if (quiz.cacheOnly) {
+            // Mode hors ligne : jamais d'appel au LLM. On sert ce qui reste, sinon on
+            // signale l'épuisement du pool.
+            if (cached.length > 0) {
+              serveCached(res, cached, model);
+              return;
+            }
+            return sendError(res, 409, 'CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
+          }
+        }
+
         // --- Config effective : celle du client (BYOK) prime sur celle du .env ---
         const clientBaseUrl = String(req.headers['x-llm-base-url'] || '')
           .trim().replace(/\/+$/, '');
@@ -161,41 +199,6 @@ function llmProxyPlugin(env, { validate } = {}) {
           'Authorization': `Bearer ${effectiveApiKey}`,
           'Accept': req.headers['accept'] || 'application/json',
         };
-
-        // --- Modèle : celui du client prime ; sinon on reprend celui du .env ---
-        let quiz = null;
-        let forwardedBody;
-        try {
-          const parsed = JSON.parse(rawBody);
-          if (parsed && typeof parsed._quiz === 'object' && parsed._quiz !== null) {
-            quiz = parsed._quiz;
-          }
-          delete parsed._quiz; // le provider n'a pas à le recevoir
-          if (!parsed.model) parsed.model = model;
-          forwardedBody = JSON.stringify(parsed);
-        } catch {
-          forwardedBody = rawBody; // en cas d'échec de parse, on forward tel quel
-        }
-
-        // --- Cache : servir depuis le pool si assez de questions non-exclues ---
-        if (quiz && typeof quiz.theme === 'string' && quiz.theme) {
-          const wanted = Number(quiz.batchSize) || 8;
-          const key = computeKey(quiz);
-          const cached = getNonExcluded(key, quiz.difficulty, quiz.exclude, wanted);
-          if (cached.length >= wanted) {
-            serveCached(res, cached, model);
-            return;
-          }
-          if (quiz.cacheOnly) {
-            // Mode hors ligne : jamais d'appel au LLM. On sert ce qui reste, sinon on
-            // signale l'épuisement du pool.
-            if (cached.length > 0) {
-              serveCached(res, cached, model);
-              return;
-            }
-            return sendError(res, 409, 'CACHE_EXHAUSTED', 'Plus de questions en cache pour ce thème.');
-          }
-        }
 
         // --- Requête vers le provider ---
         const targetUrl = `${effectiveBaseUrl}${req.url}`;
