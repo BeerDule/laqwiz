@@ -1044,11 +1044,14 @@ export function renderSetup(rootEl) {
                 ${PRESET_THEMES.map(t => `
                   <label class="choice-chip theme-chip">
                     <input type="radio" name="preset-theme" value="${escapeHtml(t)}" />
-                    <span><span class="theme-chip__emoji" aria-hidden="true">${THEME_EMOJIS[t] || '✨'}</span>${escapeHtml(t)}</span>
+                    <span>${THEME_EMOJIS[t] || '✨'} ${escapeHtml(t)}</span>
                   </label>`).join('')}
               </div>
               <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
-              <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
+              <div class="custom-theme">
+                <span class="custom-theme__emoji" aria-hidden="true">✨</span>
+                <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
+              </div>
             </div>
             <label class="toggle-row"><input id="wiki-enabled" type="checkbox" /> <span class="toggle-track"></span> Composer les questions depuis une page Wikipédia</label>
             <div class="wiki-group" id="wiki-group" hidden>

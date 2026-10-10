@@ -394,12 +394,23 @@ input[type='range']::-moz-range-thumb {
 
 .theme-chip span {
   width: 100%;
-  gap: .385em;
   border-radius: var(--radius-md);
   padding: .692em .923em;
 }
 
-.theme-chip__emoji { font-size: 1.231em; line-height: 1; flex-shrink: 0; }
+/* Champ « Ou inventez le vôtre » : emoji posé sur la marge gauche de l'input,
+   sans toucher au style du champ lui-même (thèmes compris). */
+.custom-theme { position: relative; }
+.custom-theme__emoji {
+  position: absolute;
+  left: .923em;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.077em;
+  line-height: 1;
+  pointer-events: none;
+}
+.custom-theme input { padding-left: 2.769em; }
 
 /* ===== Panneau LLM & zone de danger ===== */
 .llm-panel summary {
