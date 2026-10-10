@@ -297,6 +297,93 @@ input[type='range']::-moz-range-thumb {
   transform: none;
 }
 
+/* ===== Mode « cache only » : filtre de difficulté + liste de thèmes ===== */
+.cache-diff-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.cache-diff-chip {
+  padding: .385em .909em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: .933em;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.cache-diff-chip:hover { background: var(--bg-surface-soft); transform: translateY(-.059em); }
+.cache-diff-chip.is-active {
+  background-color: var(--color-accent-primary);
+  background-image: var(--gradient-accent);
+  border-color: var(--color-accent-primary);
+  color: var(--accent-contrast);
+  box-shadow: var(--shadow-pop);
+}
+
+.cache-theme-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  max-height: 18em;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+.cache-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: .647em .824em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  box-shadow: var(--shadow-1);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.cache-theme:hover { transform: translateY(-.059em); box-shadow: var(--shadow-2); }
+.cache-theme.is-selected {
+  border-color: var(--color-accent-primary);
+  box-shadow: var(--shadow-pop);
+}
+.cache-theme__name { font-weight: 600; }
+.cache-theme__diffs { display: inline-flex; gap: var(--space-2); flex-shrink: 0; }
+.cache-theme__diff {
+  display: inline-flex;
+  align-items: center;
+  gap: .308em;
+  font-size: .8em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+.cache-theme__diff::before {
+  content: '';
+  width: .538em;
+  height: .538em;
+  border-radius: 50%;
+  background: var(--dot-color, var(--color-muted));
+}
+.cache-theme__diff--easy { --dot-color: var(--color-success); }
+.cache-theme__diff--medium { --dot-color: var(--color-warning); }
+.cache-theme__diff--hard { --dot-color: var(--color-error); }
+
 .theme-select-group { display: grid; gap: var(--space-2); }
 
 /* ===== Panneau LLM & zone de danger ===== */

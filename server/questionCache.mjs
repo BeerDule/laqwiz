@@ -5,20 +5,20 @@
 // `node:sqlite`, zéro dépendance npm) persistée à la racine du projet — hors du
 // tar de déploiement qui ne contient que dist/ + server/.
 //
-// Clé de cache : `theme | difficulté | public | sourceKey`. L'`exclude` (questions
-// déjà posées dans la session) n'entre PAS dans la clé : le pool est filtré par
-// exclude à chaque lecture, ce qui permet de resservir les mêmes questions à une
-// NOUVELLE session (historique vide) tout en évitant les doublons dans la même.
-//
-// Le mode « cache only » (jouer sans LLM) s'appuie sur `listThemes()` pour
-// proposer les thèmes disponibles et sur `getNonExcluded()` pour ne servir que
-// l'existant — sans jamais appeler le provider.
+// Clé de cache : `theme | public | sourceKey` — la difficulté n'entre PAS dans la
+// clé : elle est stockée par question (easy/medium/hard) et filtrée à la lecture.
+// « équilibré » (balanced) pioche donc dans les trois difficultés ; « easy »,
+// « medium » ou « hard » restreignent à une seule. L'`exclude` (questions déjà
+// posées) est filtré à chaque lecture, pour resservir à une NOUVELLE session tout
+// en évitant les doublons dans la même.
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DB_FILE = process.env.QUESTION_CACHE_DB
   || join(dirname(fileURLToPath(import.meta.url)), '..', '.question-cache.db');
+
+const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
 let db = null;
 
@@ -27,8 +27,15 @@ function normalize(s) {
 }
 
 /** Clé stable : les dimensions qui font varier le contenu des questions. */
-export function computeKey({ theme, difficulty, audience, sourceKey }) {
-  return [theme, difficulty, audience, sourceKey || ''].map(normalize).join('|');
+export function computeKey({ theme, audience, sourceKey }) {
+  return [theme, audience, sourceKey || ''].map(normalize).join('|');
+}
+
+/** Difficultés servies pour un réglage donné : « balanced » → les trois. */
+function difficultyFilter(difficulty) {
+  const d = normalize(difficulty);
+  if (DIFFICULTIES.includes(d)) return [d];
+  return DIFFICULTIES;
 }
 
 function ensureDb() {
@@ -38,23 +45,29 @@ function ensureDb() {
     CREATE TABLE IF NOT EXISTS questions (
       cache_key   TEXT NOT NULL,
       theme       TEXT NOT NULL,
+      difficulty  TEXT NOT NULL,
       question_text TEXT NOT NULL,
       payload     TEXT NOT NULL,
       created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
       UNIQUE(cache_key, question_text)
     );
-    CREATE INDEX IF NOT EXISTS idx_questions_cache_key ON questions(cache_key);
+    CREATE INDEX IF NOT EXISTS idx_questions_cache_key ON questions(cache_key, difficulty);
     CREATE INDEX IF NOT EXISTS idx_questions_theme ON questions(theme);
   `);
   return db;
 }
 
-/** Questions du pool non exclues, jusqu'à `limit` (batch du client). */
-export function getNonExcluded(key, exclude, limit) {
+/** Questions du pool non exclues, filtrées par difficulté, jusqu'à `limit`. */
+export function getNonExcluded(key, difficulty, exclude, limit) {
   const d = ensureDb();
+  const filter = difficultyFilter(difficulty);
   const excluded = (exclude || []).map(normalize);
   let sql = 'SELECT payload FROM questions WHERE cache_key = ?';
   const params = [key];
+  if (filter.length === 1) {
+    sql += ' AND difficulty = ?';
+    params.push(filter[0]);
+  }
   if (excluded.length) {
     sql += ` AND question_text NOT IN (${excluded.map(() => '?').join(',')})`;
     params.push(...excluded);
@@ -71,13 +84,14 @@ export function addQuestions(quiz, questions) {
   const key = computeKey(quiz);
   const theme = String(quiz.theme || '');
   const stmt = d.prepare(
-    'INSERT OR IGNORE INTO questions (cache_key, theme, question_text, payload) VALUES (?, ?, ?, ?)',
+    'INSERT OR IGNORE INTO questions (cache_key, theme, difficulty, question_text, payload) VALUES (?, ?, ?, ?, ?)',
   );
   let inserted = 0;
   for (const q of questions) {
     // Garde minimale : ne cacher que des questions structurellement complètes.
     if (!q || typeof q.question !== 'string' || !Array.isArray(q.options) || q.options.length !== 4) continue;
-    inserted += stmt.run(key, theme, normalize(q.question), JSON.stringify(q)).changes;
+    const diff = DIFFICULTIES.includes(normalize(q.difficulty)) ? normalize(q.difficulty) : 'medium';
+    inserted += stmt.run(key, theme, diff, normalize(q.question), JSON.stringify(q)).changes;
   }
   return inserted;
 }
@@ -100,12 +114,21 @@ export function extractQuestions(content) {
   }
 }
 
-/** Thèmes disponibles en cache, avec leur nombre de questions (triés). */
+/** Thèmes en cache, avec leur compte par difficulté (triés). */
 export function listThemes() {
   const d = ensureDb();
-  return d.prepare(
-    'SELECT theme, COUNT(*) AS count FROM questions GROUP BY theme ORDER BY theme COLLATE NOCASE',
+  const rows = d.prepare(
+    'SELECT theme, difficulty, COUNT(*) AS count FROM questions GROUP BY theme, difficulty ORDER BY theme COLLATE NOCASE, difficulty',
   ).all();
+  const byTheme = new Map();
+  for (const r of rows) {
+    if (!byTheme.has(r.theme)) byTheme.set(r.theme, { theme: r.theme, easy: 0, medium: 0, hard: 0 });
+    const t = byTheme.get(r.theme);
+    if (r.difficulty === 'easy') t.easy = r.count;
+    else if (r.difficulty === 'medium') t.medium = r.count;
+    else if (r.difficulty === 'hard') t.hard = r.count;
+  }
+  return [...byTheme.values()];
 }
 
 /** Statistiques d'observation (exposées par /api/relay/health). */

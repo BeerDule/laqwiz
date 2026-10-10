@@ -143,6 +143,8 @@ des stats, qui suivent donc le score net.
 vite.config.js        # proxy HTTP → LLM du DEV SERVER (BYOK via en-têtes, repli .env)
 server/
   relay.mjs           # serveur de signalisation WS (VPS) : hostToken + routage en étoile + statique + proxy LLM
+  questionCache.mjs   # cache SQLite des questions générées (clé theme|public|source, difficulté par question)
+  seed.mjs            # pré-remplit le cache : 50 questions/thème de base × difficulté (easy/medium/hard)
 src/
   main.js             # bootstrap, hydratation, routage des écrans, toasts
   state.js            # store pub/sub, réducteur, machine à états, session/partie/manche

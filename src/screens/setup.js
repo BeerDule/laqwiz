@@ -41,7 +41,8 @@ let customTheme = '';
 let isLobby = false;
 // Mode « cache only » : jouer hors ligne depuis le pool de questions (sans LLM).
 let cacheOnly = false;
-let cacheThemes = []; // [{ theme, count }] chargés depuis /api/quiz/themes
+let cacheThemes = []; // [{ theme, easy, medium, hard }] chargés depuis /api/quiz/themes
+let selectedCacheTheme = '';
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -92,7 +93,7 @@ function activeWikiPick() {
 /** Priorité : article Wikipédia > thème libre > thème prédéfini. Cache > tout. */
 function currentTheme() {
   if (cacheOnly) {
-    return root?.querySelector('#cache-theme-select')?.value || '';
+    return selectedCacheTheme;
   }
   const wiki = activeWikiPick();
   if (wiki) return wiki.title;
@@ -111,6 +112,7 @@ function initLocalState() {
   isLobby = false;
   cacheOnly = false;
   cacheThemes = [];
+  selectedCacheTheme = '';
   players = (s.players && s.players.length >= MIN_PLAYERS)
     ? s.players.map(p => ({ id: p.id, name: p.name || '', emoji: p.emoji, color: p.color, score: 0 }))
     : defaultPlayers();
@@ -1024,10 +1026,13 @@ export function renderSetup(rootEl) {
           <legend>🎯 Thème</legend>
           <label class="toggle-row"><input id="cache-only-enabled" type="checkbox" /> <span class="toggle-track"></span> Jouer hors ligne depuis le cache</label>
           <div id="cache-only-group" hidden>
-            <label class="field-label" for="cache-theme-select">Thème en cache</label>
-            <select id="cache-theme-select" aria-label="Choisir un thème en cache">
-              <option value="">— Choisir un thème —</option>
-            </select>
+            <div class="cache-diff-chips" role="radiogroup" aria-label="Difficulté du cache">
+              <button type="button" class="cache-diff-chip" data-diff="balanced">Équilibré</button>
+              <button type="button" class="cache-diff-chip" data-diff="easy">Facile</button>
+              <button type="button" class="cache-diff-chip" data-diff="medium">Moyen</button>
+              <button type="button" class="cache-diff-chip" data-diff="hard">Difficile</button>
+            </div>
+            <div id="cache-theme-list" class="cache-theme-list" role="listbox" aria-label="Thème en cache"></div>
             <p class="rule-group__hint" id="cache-only-hint" hidden>Aucune question en cache pour l'instant.</p>
           </div>
           <div id="llm-theme-group">
@@ -1175,6 +1180,22 @@ export function renderSetup(rootEl) {
     cacheOnly = e.target.checked;
     syncCacheOnly();
   }, { signal: cleanup.signal });
+  // Filtre de difficulté (synchronisé avec les règles).
+  root.querySelector('.cache-diff-chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.cache-diff-chip');
+    if (!chip) return;
+    const radio = root.querySelector(`input[name="difficulty"][value="${chip.dataset.diff}"]`);
+    if (radio) radio.checked = true;
+    renderCacheThemes();
+  }, { signal: cleanup.signal });
+  // Sélection du thème en cache.
+  root.querySelector('#cache-theme-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('.cache-theme');
+    if (!btn) return;
+    selectedCacheTheme = btn.dataset.theme;
+    renderCacheThemes();
+    updateStartButton();
+  }, { signal: cleanup.signal });
   syncCacheOnly();
 
   // La session et les instantanés arrivent de façon asynchrone (IndexedDB) :
@@ -1271,6 +1292,12 @@ function syncMode() {
   updateStartButton();
 }
 
+/** Difficulté affichée pour le filtre du cache (synchronisée avec les règles). */
+function getCacheDifficulty() {
+  const radio = root?.querySelector('input[name="difficulty"]:checked');
+  return radio?.value || 'balanced';
+}
+
 /** Charge les thèmes disponibles en cache, pour le mode « cache only ». */
 async function loadCacheThemes() {
   try {
@@ -1279,12 +1306,38 @@ async function loadCacheThemes() {
   } catch {
     cacheThemes = [];
   }
+  renderCacheThemes();
+}
+
+/** Affiche la liste des thèmes en cache, filtrée par difficulté. */
+function renderCacheThemes() {
   if (!root) return;
-  const select = root.querySelector('#cache-theme-select');
+  const list = root.querySelector('#cache-theme-list');
   const hint = root.querySelector('#cache-only-hint');
-  if (select) {
-    select.innerHTML = '<option value="">— Choisir un thème —</option>' +
-      cacheThemes.map(t => `<option value="${escapeHtml(t.theme)}">${escapeHtml(t.theme)} · ${t.count}</option>`).join('');
+  const diff = getCacheDifficulty();
+  root.querySelectorAll('.cache-diff-chip').forEach((c) => {
+    c.classList.toggle('is-active', c.dataset.diff === diff);
+  });
+
+  const visible = cacheThemes.filter((t) => {
+    if (diff === 'balanced') return t.easy + t.medium + t.hard > 0;
+    return t[diff] > 0;
+  });
+
+  if (list) {
+    list.innerHTML = visible.map((t) => {
+      const selected = t.theme === selectedCacheTheme;
+      return `
+        <button type="button" class="cache-theme${selected ? ' is-selected' : ''}"
+          data-theme="${escapeHtml(t.theme)}" role="option" aria-selected="${selected}">
+          <span class="cache-theme__name">${escapeHtml(t.theme)}</span>
+          <span class="cache-theme__diffs">
+            <span class="cache-theme__diff cache-theme__diff--easy" title="facile">${t.easy}</span>
+            <span class="cache-theme__diff cache-theme__diff--medium" title="moyen">${t.medium}</span>
+            <span class="cache-theme__diff cache-theme__diff--hard" title="difficile">${t.hard}</span>
+          </span>
+        </button>`;
+    }).join('');
   }
   if (hint) hint.hidden = cacheThemes.length > 0;
 }
@@ -1296,6 +1349,7 @@ function syncCacheOnly() {
   if (group) group.hidden = !cacheOnly;
   if (llmGroup) llmGroup.hidden = cacheOnly;
   if (cacheOnly && !cacheThemes.length) loadCacheThemes();
+  else renderCacheThemes();
   updateStartButton();
 }
 

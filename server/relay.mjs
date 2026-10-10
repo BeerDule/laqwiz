@@ -167,7 +167,7 @@ async function handleChat(req, res) {
   if (quiz && typeof quiz.theme === 'string' && quiz.theme) {
     const wanted = Number(quiz.batchSize) || 8;
     const key = computeKey(quiz);
-    const cached = getNonExcluded(key, quiz.exclude, wanted);
+    const cached = getNonExcluded(key, quiz.difficulty, quiz.exclude, wanted);
     if (cached.length >= wanted) {
       serveCached(res, cached, serverModel);
       return;
