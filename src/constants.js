@@ -329,6 +329,7 @@ export const COLOR_THEMES = {
   paper:   { label: 'Paper Quest' },
   mecha:   { label: 'Mecha' },
   'neo-bitnik': { label: 'Neo-Bitnik' },
+  'harry-potter': { label: 'Harry Potter' },
 };
 export const DEFAULT_COLOR_THEME = 'mecha';
 

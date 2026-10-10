@@ -2224,3 +2224,268 @@ html:root[data-color-theme="neo-bitnik"] .leaderboard-mini__item--leader .leader
 
 /* ===== Pastilles de manche : pleine = gagnée, creuse = à venir ===== */
 html:root[data-color-theme="neo-bitnik"] .manche-pip--won { background: var(--ink); border-color: var(--ink); }
+
+/* =====================================================================
+   HARRY POTTER — « La Grande Salle la nuit ».
+   Identité magique : verre teinté à la chandelle, or des bougies, bronze
+   des trophées, encre sur parchemin. Les coins restent doux (pas de découpe
+   à 45° comme Mecha) : la lumière chaude n'aime pas les angles vifs.
+   Le fond animé (bougies flottantes + plafond étoilé) est dessiné par
+   src/harryPotterBackdrop.js dans un <canvas>, même contrat que mechaBackdrop.
+   ===================================================================== */
+
+html:root[data-color-theme="harry-potter"] {
+  color-scheme: dark;
+  --font-display: 'Irish Grover', var(--font-sans);
+  --font-button: 'Irish Grover', var(--font-sans);
+  /* Chiffres du chrono / récap : la machine à écrire du Daily Prophet. */
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+
+  --gold: #e2b04a;
+  --gold-bright: #f6cc66;
+  --bronze: #a8824f;
+  --crimson: #c0392b;
+  --emerald: #43b581;
+  --spark: #9a86f0;
+  --parchment: #f1e6cc;
+  --ink: #0d0b1c;
+
+  --bg-void: #0b0a18;
+  --bg-surface: rgba(20, 17, 38, .85);
+  --bg-surface-raised: rgba(30, 26, 52, .88);
+  --bg-surface-soft: rgba(45, 40, 70, .92);
+  --color-accent-primary: var(--gold);
+  --color-accent-cyan: var(--spark);
+  --color-accent-pink: #e0a1c4;
+  --color-accent-lime: var(--gold-bright);
+  --color-success: var(--emerald);
+  --color-error: var(--crimson);
+  --color-warning: var(--gold-bright);
+  --color-text: var(--parchment);
+  --color-muted: #b3a37e;
+  --color-border: rgba(226, 176, 74, .34);
+  --color-overlay: rgba(6, 5, 14, .84);
+
+  --gradient-bg: radial-gradient(120% 80% at 50% 0%, #2a1e46 0%, #171128 50%, #0a0816 100%);
+  --gradient-surface: linear-gradient(165deg, rgba(255, 222, 140, .08) 0%, rgba(255, 222, 140, 0) 42%);
+  --gradient-accent: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  --accent-contrast: #241a04;
+  --on-success: #0a2218;
+  --on-pink: #2a1520;
+  --shadow-card: 0 .3em 1em rgba(0, 0, 0, .5);
+  --shadow-pop: 0 .5em 1.6em rgba(0, 0, 0, .55), 0 0 1.2em rgba(226, 176, 74, .22);
+  --glow-accent: 0 0 .6em rgba(226, 176, 74, .35);
+  --text-glow: 0 0 .5em rgba(226, 176, 74, .5);
+  --focus-ring: .15em solid var(--gold-bright);
+  --focus-ring-offset: .15em;
+  --material-edge: .1em solid rgba(226, 176, 74, .3);
+  --texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.85 0 0 0 0 0.6 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+
+  --radius-sm: .25em;
+  --radius-md: .45em;
+  --radius-lg: .65em;
+  --radius-xl: .85em;
+}
+
+html:root[data-color-theme="harry-potter"] ::selection { background: var(--gold); color: var(--ink); }
+
+/* ===== Scène : fond, canvas, vignette ===== */
+html:root[data-color-theme="harry-potter"] #app { position: relative; z-index: 1; }
+html:root[data-color-theme="harry-potter"] .arcade { background: none; }
+html:root[data-color-theme="harry-potter"] #harrypotter-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+html:root[data-color-theme="harry-potter"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 42%, transparent 50%, rgba(5, 4, 12, .66) 100%);
+}
+
+/* ===== Titres ===== */
+html:root[data-color-theme="harry-potter"] :is(.arcade__title h1, .arcade__bar h1, .winner-title, .modal__title, .loading-panel h2, .recap h3) {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: .03em;
+}
+html:root[data-color-theme="harry-potter"] .arcade__title h1 {
+  color: var(--gold-bright);
+  text-shadow: 0 0 .06em #fff2d0, 0 0 .2em rgba(246, 204, 102, .7), 0 0 .6em rgba(226, 176, 74, .4);
+}
+/* Sous-titre décoratif : une formule, masquée aux lecteurs d'écran. */
+html:root[data-color-theme="harry-potter"] .arcade__title h1::after {
+  content: '· lumos ·';
+  content: '· lumos ·' / '';
+  display: block;
+  margin-top: .4em;
+  font-family: var(--font-mono);
+  font-size: .2em;
+  font-weight: 400;
+  letter-spacing: .5em;
+  text-transform: uppercase;
+  color: var(--bronze);
+  text-shadow: 0 0 .5em rgba(226, 176, 74, .5);
+}
+html:root[data-color-theme="harry-potter"] .arcade__title p {
+  font-family: var(--font-mono);
+  color: var(--color-muted);
+  letter-spacing: .08em;
+}
+html:root[data-color-theme="harry-potter"] .arcade__bar h1,
+html:root[data-color-theme="harry-potter"] .winner-title {
+  color: var(--color-text);
+  text-shadow: 0 0 .5em rgba(226, 176, 74, .45);
+}
+html:root[data-color-theme="harry-potter"] .winner-title { color: var(--gold-bright); }
+
+/* ===== Plaques : verre teinté à la chandelle ===== */
+html:root[data-color-theme="harry-potter"] :is(
+  .panel, .question-card, .option-card, .answer-card, .podium__row,
+  .player-card, .leaderboard-mini__item, .mode-card, .modal__card,
+  .arcade-card, .arcade-plaque, .toast, .retry-banner, .form-error, .explanation
+) {
+  background: var(--bg-surface);
+  border: .1em solid var(--color-border);
+  box-shadow: inset 0 .06em 0 rgba(255, 226, 150, .14), var(--shadow-card);
+  backdrop-filter: blur(.5em) saturate(1.12);
+  -webkit-backdrop-filter: blur(.5em) saturate(1.12);
+}
+html:root[data-color-theme="harry-potter"] .danger-zone > legend { color: var(--crimson); }
+
+/* ===== Boutons ===== */
+html:root[data-color-theme="harry-potter"] :is(.button, .arcade-btn) { font-weight: 400; }
+html:root[data-color-theme="harry-potter"] :is(.button--primary, .arcade-btn--primary) {
+  background: var(--gradient-accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+  box-shadow: 0 0 .9em rgba(226, 176, 74, .4), inset 0 .06em 0 rgba(255, 255, 255, .4);
+}
+html:root[data-color-theme="harry-potter"] :is(.button--primary, .arcade-btn--primary):hover:not(:disabled) {
+  box-shadow: 0 0 1.4em rgba(246, 204, 102, .6), inset 0 .06em 0 rgba(255, 255, 255, .45);
+  filter: brightness(1.06);
+}
+html:root[data-color-theme="harry-potter"] :is(.button, .arcade-btn):disabled { opacity: .45; }
+
+/* ===== Badges : difficulté à la cire à cacheter ===== */
+html:root[data-color-theme="harry-potter"] .badge {
+  border-color: var(--gold);
+  background: rgba(226, 176, 74, .12);
+  color: var(--gold-bright);
+}
+html:root[data-color-theme="harry-potter"] .badge--hard { background: var(--gold); color: var(--ink); }
+html:root[data-color-theme="harry-potter"] .badge--bonus,
+html:root[data-color-theme="harry-potter"] .badge--funny {
+  border-color: var(--spark);
+  background: rgba(154, 134, 240, .14);
+  color: #cabff7;
+}
+
+/* ===== Révélation : bonne réponse = émeraude, option drôle = étincelle ===== */
+html:root[data-color-theme="harry-potter"] .option-card--correct {
+  border-color: var(--emerald);
+  background: linear-gradient(180deg, rgba(67, 181, 129, .22), rgba(67, 181, 129, .08));
+  box-shadow: 0 0 1em rgba(67, 181, 129, .35), inset 0 .06em 0 rgba(255, 255, 255, .12);
+}
+html:root[data-color-theme="harry-potter"] .option-card--correct .option-card__key {
+  background: var(--emerald);
+  color: var(--on-success);
+  border-color: var(--emerald);
+}
+html:root[data-color-theme="harry-potter"] .option-card--funny {
+  border-color: var(--spark);
+  background: linear-gradient(180deg, rgba(154, 134, 240, .2), rgba(154, 134, 240, .06));
+  box-shadow: 0 0 1em rgba(154, 134, 240, .3);
+}
+html:root[data-color-theme="harry-potter"] .option-card--funny .option-card__key {
+  background: var(--spark);
+  color: #140f2b;
+  border-color: var(--spark);
+}
+
+/* ===== Résultats ===== */
+html:root[data-color-theme="harry-potter"] .answer-card--correct {
+  border-color: var(--emerald);
+  box-shadow: 0 0 1em rgba(67, 181, 129, .3);
+}
+html:root[data-color-theme="harry-potter"] .answer-card--wrong {
+  border-color: var(--crimson);
+  box-shadow: 0 0 1em rgba(192, 57, 43, .3);
+}
+
+/* ===== Piste : or des bougies ===== */
+html:root[data-color-theme="harry-potter"] .leaderboard-mini__fill { background-image: var(--gradient-accent); }
+html:root[data-color-theme="harry-potter"] .leaderboard-mini__item--leader {
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 .9em rgba(226, 176, 74, .35);
+}
+
+/* ===== Pastilles de manche : pleine = gagnée ===== */
+html:root[data-color-theme="harry-potter"] .manche-pip--won {
+  background: var(--gold);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 .5em rgba(226, 176, 74, .6);
+}
+
+/* ===== Navigation d'application ===== */
+html:root[data-color-theme="harry-potter"] .app-nav {
+  background: var(--bg-surface-raised);
+  border-color: var(--color-border);
+  box-shadow: 0 0 1em rgba(226, 176, 74, .15);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html:root[data-color-theme="harry-potter"] .app-nav__brand {
+  color: var(--gold-bright);
+  text-shadow: 0 0 .5em rgba(226, 176, 74, .5);
+}
+html:root[data-color-theme="harry-potter"] .app-nav__item.is-active {
+  color: var(--gold-bright);
+  text-shadow: 0 0 .5em rgba(226, 176, 74, .6);
+  box-shadow: inset 0 .2em 0 var(--gold);
+  background: linear-gradient(180deg, rgba(226, 176, 74, .16), transparent 70%);
+}
+@media (min-width: 56.25em) {
+  html:root[data-color-theme="harry-potter"] .app-nav__item.is-active {
+    box-shadow: inset 0 -.2em 0 var(--gold);
+    background: linear-gradient(0deg, rgba(226, 176, 74, .16), transparent 70%);
+  }
+}
+html:root[data-color-theme="harry-potter"] .app-nav__item.is-active svg { filter: drop-shadow(0 0 .3em rgba(226, 176, 74, .8)); }
+
+/* ===== Divers ===== */
+html:root[data-color-theme="harry-potter"] .modal::backdrop { background: var(--color-overlay); }
+html:root[data-color-theme="harry-potter"] :is(.rules-advanced__summary, .llm-panel summary) { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; }
+html:root[data-color-theme="harry-potter"] .rules-advanced { border-top-color: rgba(226, 176, 74, .25); }
+html:root[data-color-theme="harry-potter"] .wiki-results { border-color: var(--color-border); background: var(--bg-void); }
+html:root[data-color-theme="harry-potter"] .wiki-results li:is(:hover, :focus-visible) { background: rgba(226, 176, 74, .14); }
+html:root[data-color-theme="harry-potter"] .arcade__version { color: var(--bronze); text-shadow: 0 0 .4em rgba(226, 176, 74, .4); opacity: 1; }
+html:root[data-color-theme="harry-potter"] .loading-dots span { background: var(--gold); }
+
+/* ===== Mobile : on épargne le processeur graphique ===== */
+@media (max-width: 47.938em) {
+  html:root[data-color-theme="harry-potter"] :is(.panel, .question-card, .modal__card, .arcade-card, .arcade-plaque) {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  html:root[data-color-theme="harry-potter"] { --bg-surface: rgba(20, 17, 38, .9); }
+}
+
+/* ===== Transparence réduite : panneaux opaques ===== */
+@media (prefers-reduced-transparency: reduce) {
+  html:root[data-color-theme="harry-potter"] {
+    --bg-surface: #141126;
+    --bg-surface-raised: #1e1a34;
+    --bg-surface-soft: #2d2852;
+  }
+  html:root[data-color-theme="harry-potter"] :is(.panel, .question-card, .modal__card, .arcade-card, .arcade-plaque) {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

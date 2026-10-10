@@ -20,6 +20,7 @@ import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
 import { setSfw } from './sfw.js';
 import { initMechaBackdrop } from './mechaBackdrop.js';
+import { initHarryPotterBackdrop } from './harryPotterBackdrop.js';
 
 // Hook de test (E2E) : expose la source de vérité pour que les tests lisent
 // l'état (ex. la bonne réponse) sans rejouer l'UI. Inoffensif en usage normal.
@@ -29,6 +30,8 @@ window.__QC_STATE__ = { getState };
 initColorTheme();
 // Fond animé du thème Mecha : s'allume et s'éteint seul selon le thème actif
 initMechaBackdrop();
+// Fond animé du thème Harry Potter (bougies + plafond étoilé), même contrat
+initHarryPotterBackdrop();
 
 // --- Toast (non bloquant, dans #toast-region) — partagé host / joueur ---
 function showToast(message, kind = 'info') {
