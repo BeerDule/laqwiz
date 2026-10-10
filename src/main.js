@@ -20,7 +20,7 @@ import { hasPersistedRoom, rejoinHost } from './room.js';
 import { initColorTheme, setColorTheme, applyColorTheme } from './themeSwitcher.js';
 import { decodeShareConfig } from './shareConfig.js';
 import { loadModes } from './modes.js';
-import { isSfw } from './sfw.js';
+import { isSfw, setSfw } from './sfw.js';
 import { initMechaBackdrop } from './mechaBackdrop.js';
 import { initHarryPotterBackdrop } from './harryPotterBackdrop.js';
 import { initAccountBadge } from './accountBadge.js';
@@ -31,6 +31,27 @@ window.__QC_STATE__ = { getState };
 
 // Appliquer le thème de couleurs sauvegardé avant le premier rendu
 initColorTheme();
+
+// --- Options passées dans l'URL : ?theme=<id> et ?sfw=true ---
+// Appliquées (et persistées) avant le premier rendu, puis retirées de la barre
+// d'adresse — le thème/filtre ne doit rester ni dans l'historique, ni dans un
+// signet, ni dans un `Referer`.
+(function importUrlOptions() {
+  const params = new URLSearchParams(window.location.search);
+  const theme = params.get('theme');
+  const sfw = params.get('sfw');
+  if (theme == null && sfw == null) return;
+
+  if (theme) setColorTheme(theme); // ignoré si l'id n'existe pas
+  if (sfw != null) setSfw(/^(1|true|yes|on)$/i.test(String(sfw).trim()));
+
+  try {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('theme');
+    clean.searchParams.delete('sfw');
+    window.history.replaceState({}, '', clean.pathname + clean.search + clean.hash);
+  } catch { /* pas d'historique manipulable : on continue quand même */ }
+})();
 // Fond animé du thème Mecha : s'allume et s'éteint seul selon le thème actif
 initMechaBackdrop();
 // Fond animé du thème Harry Potter (bougies + plafond étoilé), même contrat
