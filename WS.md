@@ -859,7 +859,7 @@ Deux sens coexistent dans le dépôt :
 
 On nomme la seconde **room** ; son `sessionId` devient **`roomId`**. Une room correspond à **une partie** en ligne, pas à la session persistante.
 
-L'URL de partage est `https://host/#join=<roomId>` (identifiant en **hash**, pas un chemin `/game/<roomId>`) : le front étant compilé en `base: './'` (assets relatifs), une route imbriquée casserait la résolution des assets (`/game/assets/*.css` introuvables → le fallback SPA renverrait du HTML).
+L'URL de partage est `https://host/#join=<roomId>&theme=<themeId>` (identifiant en **hash**, pas un chemin `/game/<roomId>`) : le front étant compilé en `base: './'` (assets relatifs), une route imbriquée casserait la résolution des assets (`/game/assets/*.css` introuvables → le fallback SPA renverrait du HTML). Le paramètre `theme` porte le thème graphique de l'hôte ; le joueur qui rejoint l'applique (`applyColorTheme`, sans l'écrire dans son `localStorage`).
 
 ## 18.3 Rôles et autorité
 

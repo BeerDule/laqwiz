@@ -160,8 +160,9 @@ src/
   storage.js          # localStorage typé (roster, réglages, stats, LLM, id de session)
   account.js          # client du mode payant : game token, compte, checkout Stripe
   accountGate.js      # garde de lancement : consomme un crédit AVANT START_GAME
+  accountBadge.js     # pastille « compte connecté » (haut gauche) : nom + parties restantes
   db.js               # IndexedDB — sessions, parties, reprises, modes
-  themeSwitcher.js    # thème de couleurs (data-color-theme)
+  themeSwitcher.js    # thème de couleurs (data-color-theme) — setColorTheme (persiste) / applyColorTheme (non)
   mechaBackdrop.js    # fond animé <canvas> du thème Mecha, autonome
   confetti.js         # animation de victoire
   room.js             # réseau host : signalisation + DataChannel, rejoin, reprise F5
@@ -177,7 +178,8 @@ src/
     victory.js        # podium de partie (classé sur les MANCHES gagnées) + confettis
     lobby.js          # écran LOBBY (lien d'invitation + QR + joueurs qui rejoignent)
     sessions.js       # gestionnaire : lister, créer, renommer, rouvrir, supprimer
-    settings.js       # réglages GLOBAUX de l'appareil : LLM, partage d'URL, reset d'usine
+    settings.js       # réglages GLOBAUX de l'appareil : compte, LLM, partage d'URL
+    admin.js          # page d'administration (ADMIN_USER_EMAIL) : liste des comptes + crédits
   components/
     playerChip.js     # jeton de joueur avec info-bulle de nom (partagé par 3 écrans)
   styles/
@@ -421,6 +423,13 @@ Ajouter un thème = une entrée dans `COLOR_THEMES` + un bloc de surcharges dans
 Aucun autre fichier à toucher, **sauf Mecha**, dont le fond animé vit dans `mechaBackdrop.js`
 (voir « Le thème Mecha »).
 
+Le sélecteur de thème ne vit que dans l'écran **Paramètres** (`settings.js`) — il a été
+retiré des en-têtes des autres écrans (accueil, réglages, jeu, victoire, lobby, joueur).
+En ligne, le thème de l'hôte voyage dans l'URL de partage (`#join=…&theme=…`, voir `room.js`)
+et le joueur l'applique via `applyColorTheme()` **sans persistance** : il adopte l'apparence
+de l'hôte sans écraser sa propre préférence. Ne pas confondre `setColorTheme` (persiste dans
+`localStorage`) et `applyColorTheme` (ne persiste pas).
+
 ### Le thème Mecha
 Cockpit de mobile suit : aluminium brossé, verre fumé, LED, coins coupés à 45°. Références :
 Ghost in the Shell (orange sur noir), Akira, Gundam, Appleseed, Matrix. Le bloc de `theme.css`
@@ -539,6 +548,10 @@ Les invariants à connaître avant d'y toucher :
   anti-CSRF en mémoire, échange du code sur `oauth2.googleapis.com`, profil via `userinfo`.
 - Offre : `FREE_GAMES_PER_MONTH=3`, `PACK_PRICE_CENTS=200`, `PACK_CREDITS=20` — lues au
   démarrage du serveur, pas figées à la compilation. Test d'intégration : `npm run test:paid`.
+- **Administration** : `ADMIN_USER_EMAIL` désigne le seul compte autorisé à lister et
+  modifier les crédits, via `GET /api/admin/users` et `POST /api/admin/users/:id/credits`
+  (solde acheté, valeur absolue). Le droit est re-vérifié par le serveur à chaque appel ;
+  `/api/account/me` expose `isAdmin` pour afficher l'entrée « Administration » côté client.
 
 ### Pas de git dans le PATH par défaut
 `nix shell nixpkgs#git --command git ...`

@@ -71,6 +71,7 @@ const INITIAL_STATE = Object.freeze({
     freeGamesPerMonth: 0,
     packPriceCents: 0,
     packCredits: 0,
+    isAdmin: false,          // email == ADMIN_USER_EMAIL côté serveur
   },
 
   // === Session : roster + sac de parties, sans condition de fin ===
@@ -100,7 +101,7 @@ const INITIAL_STATE = Object.freeze({
   deadlineAt: null,
 
   // === Phase courante ===
-  phase: 'HOME', // 'HOME' | 'SETUP' | 'LOBBY' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'MANCHE_END' | 'VICTORY'
+  phase: 'HOME', // 'HOME' | 'SETUP' | 'LOBBY' | 'LOADING' | 'QUESTION' | 'REVEAL' | 'MANCHE_END' | 'VICTORY' | 'SESSIONS' | 'SETTINGS' | 'ADMIN'
 
   // === File de préchargement ===
   prefetchQueue: [],
@@ -494,7 +495,7 @@ function reducer(s, action) {
       s.account = {
         ...s.account,
         signedIn: false, email: '', name: '',
-        freeRemaining: 0, purchasedRemaining: 0,
+        freeRemaining: 0, purchasedRemaining: 0, isAdmin: false,
       };
       break;
 
@@ -758,6 +759,10 @@ function reducer(s, action) {
 
     case 'GOTO_SESSIONS':
       s.phase = 'SESSIONS';
+      break;
+
+    case 'GOTO_ADMIN':
+      s.phase = 'ADMIN';
       break;
 
     // Création explicite, sans passer par le lancement d'une partie.

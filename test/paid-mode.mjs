@@ -41,6 +41,8 @@ const fail = (l, d = '') => { failed += 1; console.error(`✗ ${l}${d ? ' — ' 
 // Compte + session créés AVANT de démarrer le relais (évite l'accès concurrent).
 const userId = accounts.getOrCreateUser({ sub: 'google-123', email: 'mj@example.com', name: 'Le MJ' });
 const sessionToken = accounts.createSession(userId);
+const otherUserId = accounts.getOrCreateUser({ sub: 'google-456', email: 'autre@example.com', name: 'Autre' });
+const otherSession = accounts.createSession(otherUserId);
 
 const mock = spawn('node', ['demo/mock-llm.mjs'], {
   stdio: 'ignore',
@@ -57,6 +59,7 @@ const relay = spawn('node', ['server/relay.mjs'], {
     GOOGLE_CLIENT_ID: 'test-client',
     GOOGLE_CLIENT_SECRET: 'test-secret',
     STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
+    ADMIN_USER_EMAIL: 'mj@example.com',
     LLM_BASE_URL: `http://127.0.0.1:${MOCK_PORT}`,
     LLM_API_KEY: 'server-key',
     LLM_MODEL: 'mock',
@@ -153,12 +156,12 @@ const w = await fetch(`${BASE}/api/account/webhook`, {
 if (w.status === 200) ok('webhook Stripe signé accepté (HTTP 200)');
 else fail(`webhook devrait renvoyer 200, reçu ${w.status}`, await w.text());
 
-// 9) Le compte reflète les 20 crédits achetés.
+// 9) Le compte reflète les 20 crédits achetés + le statut admin.
 const me = await (await fetch(`${BASE}/api/account/me`, { headers: { Cookie: `qc_session=${sessionToken}` } })).json();
-if (me.signedIn && me.purchasedRemaining === 20) {
-  ok(`GET /api/account/me : connecté, ${me.purchasedRemaining} parties achetées`);
+if (me.signedIn && me.purchasedRemaining === 20 && me.isAdmin === true) {
+  ok(`GET /api/account/me : connecté + admin, ${me.purchasedRemaining} parties achetées`);
 } else {
-  fail('GET /api/account/me devrait renvoyer 20 parties achetées', JSON.stringify(me));
+  fail('GET /api/account/me devrait renvoyer 20 parties achetées et isAdmin=true', JSON.stringify(me));
 }
 
 // 10) Une consommation suivante puise dans les achetés.
@@ -167,6 +170,33 @@ if (c5.status === 200 && c5.data.source === 'purchased' && c5.data.purchasedRema
   ok('la consommation suivante puise dans les achetés (source=purchased)');
 } else {
   fail('la consommation après achat devrait puiser dans les achetés', JSON.stringify(c5));
+}
+
+// 11) L'administrateur liste les comptes.
+const adminList = await fetch(`${BASE}/api/admin/users`, { headers: { Cookie: `qc_session=${sessionToken}` } });
+if (adminList.status === 200) {
+  const { users } = await adminList.json();
+  ok(`GET /api/admin/users : ${users.length} compte(s)`);
+} else {
+  fail('GET /api/admin/users devrait renvoyer 200 pour l\'admin', await adminList.text());
+}
+
+// 12) Un non-admin est refusé.
+const forbidden = await fetch(`${BASE}/api/admin/users`, { headers: { Cookie: `qc_session=${otherSession}` } });
+if (forbidden.status === 403) ok('GET /api/admin/users pour un non-admin → 403');
+else fail(`un non-admin devrait recevoir 403, reçu ${forbidden.status}`, await forbidden.text());
+
+// 13) L'administrateur fixe les crédits achetés d'un compte.
+const upd = await fetch(`${BASE}/api/admin/users/${userId}/credits`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Cookie: `qc_session=${sessionToken}` },
+  body: JSON.stringify({ credits: 42 }),
+});
+const updData = await upd.json().catch(() => ({}));
+if (upd.status === 200 && updData.user?.purchasedRemaining === 42) {
+  ok('POST /api/admin/users/:id/credits fixe le solde acheté (42)');
+} else {
+  fail('la modification des crédits admin a échoué', await upd.text());
 }
 
 cleanup();

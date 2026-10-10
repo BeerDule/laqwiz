@@ -104,11 +104,14 @@ GOOGLE_CLIENT_SECRET=…
 GOOGLE_REDIRECT_URI=https://quiz.example.com/api/auth/google/callback
 STRIPE_SECRET_KEY=sk_live_…
 STRIPE_WEBHOOK_SECRET=whsec_… # webhook Stripe → /api/account/webhook
+ADMIN_USER_EMAIL=moi@example.com  # accès à la page d'administration
 ```
 
 Les comptes et crédits vivent dans une base SQLite dédiée `.accounts.db` (hors du
 tar de déploiement, comme `.question-cache.db`). Le webhook Stripe crédite les
-achats de façon idempotente. Test d'intégration : `npm run test:paid`.
+achats de façon idempotente. Le compte dont l'email est `ADMIN_USER_EMAIL` accède
+à la page **Administration** (liste des comptes + crédits modifiables). Test
+d'intégration : `npm run test:paid`.
 
 ## Nix / NixOS
 
@@ -146,10 +149,13 @@ des sessions est perdu.
 
 ## Thèmes
 
-Dix apparences au choix, commutables en cours de partie : VS Code, Matrix, Girly,
+Dix apparences au choix, changeables depuis l'écran **Paramètres** : VS Code, Matrix, Girly,
 Windows 98, Jungle, Kids Friendly, Apple, Apple Glass, **Paper Quest** (défaut),
 qui habille le jeu de parchemin et de plaques peintes (`public/paper-ui/`), et
 **Mecha**, cockpit d'aluminium, de verre fumé et de LED sur fond animé.
+
+En partie en ligne, le thème de l'hôte est transmis aux joueurs via le lien du lobby
+(`#join=…&theme=…`) : ils adoptent la même apparence, sans modifier leur propre choix.
 
 Tout passe par des variables CSS : ajouter un thème ne demande qu'une entrée dans
 `COLOR_THEMES` et un bloc de surcharges dans `src/styles/theme.css`.

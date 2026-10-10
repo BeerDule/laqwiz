@@ -231,6 +231,37 @@ export function creditPurchase(userId, stripeSessionId, credits) {
   }
 }
 
+/** Tous les comptes, avec leurs crédits (page d'administration). */
+export function listUsers() {
+  const d = ensureDb();
+  const key = periodKey();
+  const rows = d.prepare(`
+    SELECT u.id, u.email, u.name,
+           COALESCE(pc.remaining, 0) AS purchased,
+           COALESCE(mu.used, 0) AS used_this_month
+    FROM users u
+    LEFT JOIN purchased_credits pc ON pc.user_id = u.id
+    LEFT JOIN monthly_usage mu ON mu.user_id = u.id AND mu.period_key = ?
+    ORDER BY u.created_at ASC
+  `).all(key);
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    name: r.name,
+    freeRemaining: Math.max(0, FREE_GAMES_PER_MONTH - r.used_this_month),
+    purchasedRemaining: r.purchased,
+  }));
+}
+
+/** Fixe le solde de crédits achetés d'un compte (valeur absolue). */
+export function setPurchasedCredits(userId, count) {
+  const d = ensureDb();
+  d.prepare(
+    'INSERT INTO purchased_credits (user_id, remaining) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET remaining = excluded.remaining',
+  ).run(userId, count);
+  return accountSummary(userId);
+}
+
 /** Nettoie les sessions et game tokens expirés (pas de fuite en base). */
 function cleanup() {
   const d = ensureDb();

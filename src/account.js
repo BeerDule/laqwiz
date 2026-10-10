@@ -77,6 +77,19 @@ export function createCheckout() {
   return requestJson('/api/account/checkout', { method: 'POST' });
 }
 
+/** Liste des comptes (réservé à l'administrateur). */
+export function fetchAdminUsers() {
+  return requestJson('/api/admin/users');
+}
+
+/** Fixe les crédits achetés d'un compte (réservé à l'administrateur). */
+export function setUserCredits(id, credits) {
+  return requestJson(`/api/admin/users/${id}/credits`, {
+    method: 'POST',
+    body: JSON.stringify({ credits }),
+  });
+}
+
 export async function signOut() {
   try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* serveur injoignable */ }
 }

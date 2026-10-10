@@ -284,26 +284,68 @@ body.with-app-nav #toast-region {
   body.with-app-nav #toast-region { bottom: var(--space-3); }
 }
 
-/* ===== Pastille « compte connecté » (haut gauche) ===== */
-#account-badge {
-  position: fixed;
-  top: calc(var(--space-3) + env(safe-area-inset-top, 0em));
-  left: var(--space-3);
-  z-index: 60;
-  max-width: min(72vw, 24em);
-  padding: .462em .923em;
+/* ===== Compte connecté dans la barre de navigation (à côté de Réglages) ===== */
+.app-nav__account {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: .429em;
+  padding: .357em .857em;
   border-radius: var(--radius-pill);
-  background: var(--bg-surface-raised);
+  background: var(--bg-surface-soft);
   border: .1em solid var(--color-border);
   color: var(--color-text);
+  font-family: var(--font-button);
   font-size: .923em;
   font-weight: 600;
-  box-shadow: var(--shadow-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 16em;
   white-space: nowrap;
+  overflow: hidden;
 }
-/* Bureau : la navigation passe en barre haute, on descend la pastille dessous. */
-@media (min-width: 56.25em) {
-  body.with-app-nav #account-badge { top: calc(4.308em + var(--space-3)); }
+.app-nav__account-icon { flex: 0 0 auto; }
+.app-nav__account-name { overflow: hidden; text-overflow: ellipsis; }
+.app-nav__account-credits {
+  flex: 0 0 auto;
+  color: var(--color-accent-primary);
+  font-weight: 700;
+}
+
+/* ===== Administration ===== */
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+}
+.admin-row__identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 12em;
+}
+.admin-row__email { overflow-wrap: anywhere; }
+.admin-row__name { color: var(--color-muted); font-size: .923em; }
+.admin-row__free { color: var(--color-muted); }
+.admin-row__field {
+  display: flex;
+  align-items: center;
+  gap: .429em;
+  font-size: .923em;
+}
+.admin-row__input {
+  width: 5em;
+  padding: .429em .571em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--color-text);
 }

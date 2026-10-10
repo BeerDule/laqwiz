@@ -33,6 +33,7 @@ import {
   FREE_GAMES_PER_MONTH, PACK_PRICE_CENTS, PACK_CREDITS,
   load as loadAccounts, getOrCreateUser, createSession, getUserBySession, deleteSession,
   accountSummary, consumeGame, getGameTokenOwner, endGame, creditPurchase,
+  listUsers, setPurchasedCredits,
 } from './accounts.mjs';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -54,6 +55,8 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || '';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+// Email du compte administrateur : seul lui accède à /api/admin/*.
+const ADMIN_USER_EMAIL = (process.env.ADMIN_USER_EMAIL || '').trim().toLowerCase();
 const SESSION_COOKIE = 'qc_session';
 const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 jours (secondes)
 
@@ -63,6 +66,13 @@ function isAccountGated() {
   // en BYOK/cache au lieu d'afficher un compte qui échouerait à la première partie.
   const { baseUrl, apiKey } = getServerConfig();
   return ACCOUNT_GATED && Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && baseUrl && apiKey);
+}
+
+/** Le compte connecté est-il l'administrateur (ADMIN_USER_EMAIL) ? */
+function isAdminUser(req) {
+  if (!ADMIN_USER_EMAIL) return false;
+  const user = getUserBySession(sessionToken(req));
+  return !!user && String(user.email || '').trim().toLowerCase() === ADMIN_USER_EMAIL;
 }
 
 /** Origine publique (pour les URLs Stripe et la redirection OAuth). */
@@ -564,6 +574,7 @@ const server = http.createServer(async (req, res) => {
         freeGamesPerMonth: FREE_GAMES_PER_MONTH,
         packPriceCents: PACK_PRICE_CENTS,
         packCredits: PACK_CREDITS,
+        isAdmin: !!user && ADMIN_USER_EMAIL && String(user.email || '').trim().toLowerCase() === ADMIN_USER_EMAIL,
         ...(summary || {}),
       });
     }
@@ -589,6 +600,23 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/account/webhook' && req.method === 'POST') {
       return await handleWebhook(req, res);
+    }
+
+    // --- Administration (réservée à ADMIN_USER_EMAIL) ---
+    if (url.pathname === '/api/admin/users' && req.method === 'GET') {
+      if (!isAdminUser(req)) return sendError(res, 403, 'FORBIDDEN', 'Accès réservé à l\'administrateur.');
+      return sendJson(res, 200, { users: listUsers() });
+    }
+    const adminCredits = /^\/api\/admin\/users\/(\d+)\/credits$/.exec(url.pathname);
+    if (adminCredits && req.method === 'POST') {
+      if (!isAdminUser(req)) return sendError(res, 403, 'FORBIDDEN', 'Accès réservé à l\'administrateur.');
+      const userId = Number(adminCredits[1]);
+      const body = await readJsonBody(req);
+      const credits = Number(body?.credits);
+      if (!Number.isInteger(credits) || credits < 0) {
+        return sendError(res, 400, 'BAD_REQUEST', 'Nombre de crédits invalide.');
+      }
+      return sendJson(res, 200, { user: setPurchasedCredits(userId, credits) });
     }
 
     // Relais : santé ops + création de session.

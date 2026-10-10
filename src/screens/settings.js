@@ -120,7 +120,8 @@ function accountPanelHtml() {
     <p>
       <button id="btn-account-buy" type="button" class="button button--small">Acheter ${a.packCredits} parties (${price} $)</button>
       <button id="btn-account-signout" type="button" class="button button--small">Se déconnecter</button>
-    </p>`;
+    </p>
+    ${a.isAdmin ? '<p><button id="btn-admin" type="button" class="button button--small">Administration</button></p>' : ''}`;
 }
 
 function renderAccountPanel() {
@@ -211,13 +212,14 @@ export function renderSettings(rootEl) {
     if (id === 'btn-account-signin') signInWithGoogle();
     else if (id === 'btn-account-signout') onSignOut();
     else if (id === 'btn-account-buy') onBuy();
+    else if (id === 'btn-admin') dispatch({ type: 'GOTO_ADMIN' });
   }, { signal });
 
   let lastAccountSig = '';
   const unsub = subscribe((s) => {
     if (!root) return;
     const a = s.account;
-    const sig = `${a.gated}|${a.signedIn}|${a.email}|${a.freeRemaining}|${a.purchasedRemaining}|${a.freeGamesPerMonth}|${a.packPriceCents}|${a.packCredits}`;
+    const sig = `${a.gated}|${a.signedIn}|${a.email}|${a.freeRemaining}|${a.purchasedRemaining}|${a.freeGamesPerMonth}|${a.packPriceCents}|${a.packCredits}|${a.isAdmin}`;
     if (sig !== lastAccountSig) {
       lastAccountSig = sig;
       renderAccountPanel();

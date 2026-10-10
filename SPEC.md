@@ -195,7 +195,7 @@ quizz-canape/
 | `modes.js` | Modes de jeu | `loadModes()`, `createMode()`, `updateMode()`, `removeMode()`, `resetBuiltinMode()`, `diffFromMode()`, `sanitizeModeSettings()` |
 | `wikipedia.js` | Source « article » | `parseArticleUrl()`, `searchArticles()`, `fetchArticle()`, `sectionWindow()` |
 | `shareConfig.js` | Partage de config par URL | `encodeShareConfig()`, `decodeShareConfig()`, `buildShareUrl()` |
-| `themeSwitcher.js` | Thème de couleurs | `initColorTheme()`, `setColorTheme()`, `getColorTheme()`, `renderThemeSelect()`, `wireThemeSelect()` |
+| `themeSwitcher.js` | Thème de couleurs | `initColorTheme()`, `setColorTheme()`, `applyColorTheme()`, `getColorTheme()`, `renderThemeSelect()`, `wireThemeSelect()` |
 | `confetti.js` | Animation DOM/canvas | `launchConfetti(…)`, `stopConfetti()` |
 | `validation.js` | Validation contrat Question | `validateQuestion(q)`, `parseQuestions(json)` |
 | `constants.js` | Valeurs constantes | `PLAYER_EMOJIS`, `PLAYER_EMOJI_LABELS`, `PLAYER_COLORS`, `PRESET_THEMES`, `BUILTIN_MODES`, `MODE_RULE_KEYS`, `DEFAULTS`, `STORAGE_KEYS`, `COLOR_THEMES` |

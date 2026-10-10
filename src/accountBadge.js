@@ -1,11 +1,11 @@
-// src/accountBadge.js — pastille « compte connecté » en haut à gauche.
+// src/accountBadge.js — compte connecté, dans la barre de navigation.
 //
-// Affiche, quand un compte est connecté (mode payant), le nom du créateur et le
-// nombre de parties restantes. Rendu par textContent : le nom vient de Google et
-// ne doit jamais être injecté en HTML.
+// Affiche, à côté de « Réglages », l'utilisateur connecté et son nombre de
+// parties restantes : <icône> <nom> <crédits>. Rendu par textContent (le nom
+// vient de Google, jamais injecté en HTML).
 import { getState, subscribe } from './state.js';
 
-const BADGE_ID = 'account-badge';
+const ROOT_ID = 'app-nav-account';
 let lastSig = '';
 
 function render(s) {
@@ -17,13 +17,14 @@ function render(s) {
   if (sig === lastSig) return;
   lastSig = sig;
 
-  const node = document.getElementById(BADGE_ID);
+  const node = document.getElementById(ROOT_ID);
   if (!node) return;
   if (!show) {
     node.hidden = true;
     return;
   }
-  node.textContent = `👤 ${label} · ${left} partie${left > 1 ? 's' : ''} restante${left > 1 ? 's' : ''}`;
+  node.querySelector('.app-nav__account-name').textContent = label;
+  node.querySelector('.app-nav__account-credits').textContent = String(left);
   node.hidden = false;
 }
 

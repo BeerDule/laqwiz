@@ -14,6 +14,7 @@ import { renderVictory, unmountVictory } from './screens/victory.js';
 import { renderSessions, unmountSessions } from './screens/sessions.js';
 import { renderHome, unmountHome } from './screens/home.js';
 import { renderSettings, unmountSettings } from './screens/settings.js';
+import { renderAdmin, unmountAdmin } from './screens/admin.js';
 import { renderLobby, unmountLobby } from './screens/lobby.js';
 import { hasPersistedRoom, rejoinHost } from './room.js';
 import { initColorTheme, setColorTheme, applyColorTheme } from './themeSwitcher.js';
@@ -236,6 +237,7 @@ const UNMOUNTERS = {
   VICTORY: unmountVictory,
   SESSIONS: unmountSessions,
   SETTINGS: unmountSettings,
+  ADMIN: unmountAdmin,
 };
 const MOUNTERS = {
   HOME: renderHome,
@@ -248,6 +250,7 @@ const MOUNTERS = {
   VICTORY: renderVictory,
   SESSIONS: renderSessions,
   SETTINGS: renderSettings,
+  ADMIN: renderAdmin,
 };
 let currentPhase = null;
 
