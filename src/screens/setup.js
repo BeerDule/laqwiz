@@ -38,6 +38,8 @@ let pickerFor = null;
 let idCounter = 0;
 let selectedPreset = null;
 let customTheme = '';
+// Sous-sélection du mode « Generation » : preset | custom | wikipedia | markdown.
+let sourceKind = 'preset';
 // Format de partie : `false` = canapé (roster local), `true` = lobby en ligne.
 let isLobby = false;
 // Mode « cache only » : jouer hors ligne depuis le pool de questions (sans LLM).
@@ -88,17 +90,17 @@ function nextEmoji() {
  * l'avoir désactivé.
  */
 function activeWikiPick() {
-  return root?.querySelector('#wiki-enabled')?.checked ? wikiPick : null;
+  return sourceKind === 'wikipedia' ? wikiPick : null;
 }
 
-/** Priorité : article Wikipédia > thème libre > thème prédéfini. Cache > tout. */
+/** Thème selon la sous-sélection active. Cache > tout. */
 function currentTheme() {
   if (cacheOnly) {
     return selectedCacheTheme;
   }
-  const wiki = activeWikiPick();
-  if (wiki) return wiki.title;
-  return customTheme.trim() || selectedPreset || '';
+  if (sourceKind === 'wikipedia') return activeWikiPick()?.title || '';
+  if (sourceKind === 'custom') return customTheme.trim() || '';
+  return selectedPreset || ''; // 'preset' (et 'markdown' tant qu'il n'existe pas)
 }
 
 function defaultPlayers() {
@@ -120,12 +122,22 @@ function initLocalState() {
   idCounter = maxNumericId(players);
 
   const theme = s.settings.theme || '';
-  if (PRESET_THEMES.includes(theme)) {
+  if (s.settings.sourceMode === 'wikipedia' && s.settings.sourceTitle) {
+    sourceKind = 'wikipedia';
+    selectedPreset = null;
+    customTheme = '';
+  } else if (PRESET_THEMES.includes(theme)) {
+    sourceKind = 'preset';
     selectedPreset = theme;
     customTheme = '';
-  } else {
+  } else if (theme) {
+    sourceKind = 'custom';
     selectedPreset = null;
     customTheme = theme;
+  } else {
+    sourceKind = 'preset';
+    selectedPreset = null;
+    customTheme = '';
   }
 }
 
@@ -148,16 +160,18 @@ function validateForm() {
       seen.add(key);
     }
   }
-  // Le mode article exige un choix explicite (sauf en mode cache, où il n'y a
-  // ni article ni thème libre : on choisit directement dans le pool).
-  if (!cacheOnly && root.querySelector('#wiki-enabled')?.checked && !activeWikiPick()) {
+  // Chaque sous-sélection exige son propre choix explicite.
+  if (!cacheOnly && sourceKind === 'wikipedia' && !activeWikiPick()) {
     return { ok: false, msg: 'Choisissez un article dans la liste, ou collez son URL.' };
+  }
+  if (!cacheOnly && sourceKind === 'markdown') {
+    return { ok: false, msg: 'La génération depuis un fichier markdown n\'est pas encore disponible.' };
   }
   const theme = currentTheme();
   if (!theme) return { ok: false, msg: 'Choisissez un thème.' };
   // Un titre d'article vient de Wikipédia et peut légitimement dépasser la
   // limite prévue pour un thème saisi à la main.
-  if (!cacheOnly && !activeWikiPick() && (theme.length < THEME_MIN_LENGTH || theme.length > THEME_MAX_LENGTH)) {
+  if (!cacheOnly && sourceKind !== 'wikipedia' && (theme.length < THEME_MIN_LENGTH || theme.length > THEME_MAX_LENGTH)) {
     return { ok: false, msg: `Le thème doit faire entre ${THEME_MIN_LENGTH} et ${THEME_MAX_LENGTH} caractères.` };
   }
   // En mode cache, la partie tourne hors ligne : ni réseau ni LLM requis.
@@ -282,14 +296,8 @@ async function runWikiSearch(raw) {
 }
 
 function wireWikiSearch(signal) {
-  const toggle = root.querySelector('#wiki-enabled');
-  const group = root.querySelector('#wiki-group');
   const input = root.querySelector('#wiki-search');
   const results = root.querySelector('#wiki-results');
-
-  toggle.addEventListener('change', () => {
-    group.hidden = !toggle.checked;
-  }, { signal });
 
   input.addEventListener('input', () => {
     wikiPick = null;
@@ -675,8 +683,6 @@ function renderSettings() {
   writeRules(s);
 
   const wikiOn = s.sourceMode === 'wikipedia' && !!s.sourceTitle;
-  root.querySelector('#wiki-enabled').checked = wikiOn;
-  root.querySelector('#wiki-group').hidden = !wikiOn;
   wikiPick = wikiOn
     ? { lang: s.sourceLang || 'fr', title: s.sourceTitle, url: s.sourceUrl || '' }
     : null;
@@ -893,17 +899,20 @@ function wireEvents(signal) {
     const radio = e.target.closest('input[name="preset-theme"]');
     if (!radio) return;
     selectedPreset = radio.value || null;
-    customTheme = '';
-    customInput.value = '';
     updateStartButton();
   }, { signal });
 
   customInput.addEventListener('input', () => {
     customTheme = customInput.value;
-    if (customTheme.trim()) {
-      selectedPreset = null;
-      root.querySelectorAll('input[name="preset-theme"]').forEach((r) => { r.checked = false; });
-    }
+    updateStartButton();
+  }, { signal });
+
+  // Sous-sélection du mode « Generation » (preset / custom / wikipedia / markdown).
+  root.querySelector('.theme-source-kinds').addEventListener('change', (e) => {
+    const radio = e.target.closest('input[name="source-kind"]');
+    if (!radio) return;
+    sourceKind = radio.value;
+    syncSourceKind();
     updateStartButton();
   }, { signal });
 
@@ -1153,8 +1162,12 @@ export function renderSetup(rootEl) {
         </fieldset>
         <fieldset class="panel theme-panel">
           <legend>🎯 Thème</legend>
-          <label class="toggle-row"><input id="cache-only-enabled" type="checkbox" /> <span class="toggle-track"></span> Jouer hors ligne depuis le cache</label>
-          <div id="cache-only-group" hidden>
+          <div class="theme-tabs" role="tablist" aria-label="Source des questions">
+            <button type="button" class="theme-tab is-active" data-tab="generation" role="tab" aria-selected="true">Generation</button>
+            <button type="button" class="theme-tab" data-tab="cache" role="tab" aria-selected="false">Cache, gratuit</button>
+          </div>
+
+          <div id="theme-tab-cache" class="theme-tab-panel" hidden>
             <div class="cache-diff-chips" role="radiogroup" aria-label="Difficulté du cache">
               <button type="button" class="cache-diff-chip" data-diff="balanced">Équilibré</button>
               <button type="button" class="cache-diff-chip" data-diff="easy">Facile</button>
@@ -1164,9 +1177,28 @@ export function renderSetup(rootEl) {
             <div id="cache-theme-list" class="cache-theme-list" role="listbox" aria-label="Thème en cache"></div>
             <p class="rule-group__hint" id="cache-only-hint" hidden>Aucune question en cache pour l'instant.</p>
           </div>
-          <div id="llm-theme-group">
-            <div class="theme-source">
-              <span class="field-label">Choisissez un thème</span>
+
+          <div id="theme-tab-generation" class="theme-tab-panel">
+            <div class="theme-source-kinds" role="radiogroup" aria-label="Source du thème">
+              <label class="choice-chip">
+                <input type="radio" name="source-kind" value="preset" checked />
+                <span>Thème générique</span>
+              </label>
+              <label class="choice-chip">
+                <input type="radio" name="source-kind" value="custom" />
+                <span>Inventer son propre thème</span>
+              </label>
+              <label class="choice-chip">
+                <input type="radio" name="source-kind" value="wikipedia" />
+                <span>Depuis Wikipédia</span>
+              </label>
+              <label class="choice-chip">
+                <input type="radio" name="source-kind" value="markdown" />
+                <span>Depuis un fichier markdown</span>
+              </label>
+            </div>
+
+            <div class="theme-source-panel" data-kind="preset">
               <div class="theme-chips" role="radiogroup" aria-label="Thème prédéfini">
                 ${PRESET_THEMES.map(t => `
                   <label class="choice-chip theme-chip">
@@ -1174,14 +1206,17 @@ export function renderSetup(rootEl) {
                     <span>${THEME_EMOJIS[t] || '✨'} ${escapeHtml(t)}</span>
                   </label>`).join('')}
               </div>
-              <label class="field-label" for="custom-theme">Ou inventez le vôtre</label>
+            </div>
+
+            <div class="theme-source-panel" data-kind="custom" hidden>
+              <label class="field-label" for="custom-theme">Votre thème</label>
               <div class="custom-theme">
                 <span class="custom-theme__emoji" aria-hidden="true">✨</span>
                 <input id="custom-theme" maxlength="${THEME_MAX_LENGTH}" autocomplete="off" placeholder="Ex. les inventions improbables" />
               </div>
             </div>
-            <label class="toggle-row"><input id="wiki-enabled" type="checkbox" /> <span class="toggle-track"></span> Composer les questions depuis une page Wikipédia</label>
-            <div class="wiki-group" id="wiki-group" hidden>
+
+            <div class="theme-source-panel" data-kind="wikipedia" hidden>
               <label class="field-label" for="wiki-search">Article source</label>
               <div class="wiki-search-wrap">
                 <input id="wiki-search" type="search" autocomplete="off" spellcheck="false"
@@ -1190,6 +1225,10 @@ export function renderSetup(rootEl) {
                 <ul id="wiki-results" class="wiki-results" role="listbox" hidden></ul>
               </div>
               <p id="wiki-chosen" class="wiki-chosen" hidden></p>
+            </div>
+
+            <div class="theme-source-panel" data-kind="markdown" hidden>
+              <p class="rule-group__hint">Bientôt disponible : générez les questions depuis un fichier markdown.</p>
             </div>
           </div>
         </fieldset>
@@ -1225,10 +1264,12 @@ export function renderSetup(rootEl) {
   });
   syncMode();
 
-  // Mode « cache only » : bascule l'entrée LLM / la liste des thèmes en cache.
-  root.querySelector('#cache-only-enabled').addEventListener('change', (e) => {
-    cacheOnly = e.target.checked;
-    syncCacheOnly();
+  // Onglets « Generation » / « Cache, gratuit ».
+  root.querySelector('.theme-tabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.theme-tab');
+    if (!tab) return;
+    cacheOnly = tab.dataset.tab === 'cache';
+    syncTabs();
   }, { signal: cleanup.signal });
   // Filtre de difficulté (synchronisé avec les règles).
   root.querySelector('.cache-diff-chips').addEventListener('click', (e) => {
@@ -1246,7 +1287,8 @@ export function renderSetup(rootEl) {
     renderCacheThemes();
     updateStartButton();
   }, { signal: cleanup.signal });
-  syncCacheOnly();
+  syncTabs();
+  syncSourceKind();
 
   // La session et les instantanés arrivent de façon asynchrone (IndexedDB) :
   // sans ces deux suivis, le panneau restait figé sur son état de montage.
@@ -1318,7 +1360,7 @@ function applySettings() {
       theme: currentTheme(),
       cacheOnly,
       modeId: selectedModeId,
-      sourceMode: activeWikiPick() ? 'wikipedia' : 'theme',
+      sourceMode: sourceKind === 'wikipedia' ? 'wikipedia' : 'theme',
       sourceTitle: activeWikiPick()?.title || '',
       sourceLang: activeWikiPick()?.lang || 'fr',
       sourceUrl: activeWikiPick()?.url || '',
@@ -1406,15 +1448,30 @@ function renderCacheThemes() {
   if (hint) hint.hidden = cacheThemes.length > 0;
 }
 
-/** Bascule le mode « cache only » : masque l'entrée LLM, charge les thèmes. */
-function syncCacheOnly() {
-  const group = root?.querySelector('#cache-only-group');
-  const llmGroup = root?.querySelector('#llm-theme-group');
-  if (group) group.hidden = !cacheOnly;
-  if (llmGroup) llmGroup.hidden = cacheOnly;
+/** Bascule l'onglet actif (Generation / Cache) et charge les thèmes du cache. */
+function syncTabs() {
+  root?.querySelectorAll('.theme-tab').forEach((t) => {
+    const on = (t.dataset.tab === 'cache') === cacheOnly;
+    t.classList.toggle('is-active', on);
+    t.setAttribute('aria-selected', String(on));
+  });
+  const cachePanel = root?.querySelector('#theme-tab-cache');
+  const genPanel = root?.querySelector('#theme-tab-generation');
+  if (cachePanel) cachePanel.hidden = !cacheOnly;
+  if (genPanel) genPanel.hidden = cacheOnly;
   if (cacheOnly && !cacheThemes.length) loadCacheThemes();
-  else renderCacheThemes();
+  else if (cacheOnly) renderCacheThemes();
   updateStartButton();
+}
+
+/** Reflète la sous-sélection du mode « Generation » (radio + panneau). */
+function syncSourceKind() {
+  root?.querySelectorAll('input[name="source-kind"]').forEach((r) => {
+    r.checked = (r.value === sourceKind);
+  });
+  root?.querySelectorAll('.theme-source-panel').forEach((p) => {
+    p.hidden = (p.dataset.kind !== sourceKind);
+  });
 }
 
 async function startLobby() {

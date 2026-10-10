@@ -385,7 +385,45 @@ input[type='range']::-moz-range-thumb {
 .cache-theme__diff--medium { --dot-color: var(--color-warning); }
 .cache-theme__diff--hard { --dot-color: var(--color-error); }
 
-.theme-source { display: grid; gap: var(--space-2); }
+/* ===== Panneau « Thème » : onglets (Cache / Generation) + sous-sélections ===== */
+.theme-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+.theme-tab {
+  flex: 1;
+  padding: .615em .923em;
+  border: .1em solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  background-image: var(--gradient-surface);
+  color: var(--color-muted);
+  font-family: var(--font-button);
+  font-size: .923em;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.theme-tab:hover { color: var(--color-text); }
+.theme-tab.is-active {
+  background-color: var(--color-accent-primary);
+  background-image: var(--gradient-accent);
+  border-color: var(--color-accent-primary);
+  color: var(--accent-contrast);
+  box-shadow: var(--shadow-pop);
+}
+
+.theme-source-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+.theme-source-panel { display: grid; gap: var(--space-2); }
 
 .theme-chips {
   display: grid;
